@@ -7,7 +7,7 @@ export interface Vehicle {
   model: string;
   year: number;
   registration: string;
-  status: 'available' | 'rented' | 'maintenance';
+  status: 'available' | 'rented' | 'unavailable';
   dailyRate: number;
   mileage: number;
   kilometers: number;

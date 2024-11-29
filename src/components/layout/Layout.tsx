@@ -1,59 +1,110 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { styled } from '@mui/material/styles';
 import {
   Box,
-  Drawer,
-  AppBar,
+  Drawer as MuiDrawer,
+  AppBar as MuiAppBar,
   Toolbar,
-  Typography,
   List,
+  Typography,
+  Divider,
+  IconButton,
   ListItem,
   ListItemIcon,
   ListItemText,
-  IconButton,
-  useTheme,
-  styled,
+  CssBaseline,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
   DirectionsCar as CarIcon,
   People as PeopleIcon,
-  Assignment as RentalIcon,
+  Description as ContractIcon,
   Assessment as ReportIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const drawerWidth = 240;
 
-// Styled components
-const StyledListItem = styled(ListItem)(({ theme }) => ({
-  margin: '8px 16px',
-  borderRadius: '12px',
-  '&:hover': {
-    backgroundColor: theme.palette.primary.main + '20',
-    '& .MuiListItemIcon-root': {
-      color: theme.palette.primary.main,
-    },
-    '& .MuiListItemText-primary': {
-      color: theme.palette.primary.main,
-    },
-  },
-  '&.active': {
-    backgroundColor: theme.palette.primary.main + '30',
-    '& .MuiListItemIcon-root': {
-      color: theme.palette.primary.main,
-    },
-    '& .MuiListItemText-primary': {
-      color: theme.palette.primary.main,
-      fontWeight: 600,
-    },
-  },
+const AppBar = styled(MuiAppBar, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})<{
+  open?: boolean;
+}>(({ theme, open }) => ({
+  background: 'rgba(26, 35, 126, 0.95)',
+  backdropFilter: 'blur(10px)',
+  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+  zIndex: theme.zIndex.drawer + 1,
+  transition: theme.transitions.create(['width', 'margin'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  ...(open && {
+    marginLeft: drawerWidth,
+    width: `calc(100% - ${drawerWidth}px)`,
+    transition: theme.transitions.create(['width', 'margin'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
 }));
 
-const StyledAppBar = styled(AppBar)(({ theme }) => ({
-  backgroundColor: 'white',
-  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-  color: theme.palette.text.primary,
+const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
+  ({ theme, open }) => ({
+    '& .MuiDrawer-paper': {
+      background: 'rgba(13, 71, 161, 0.95)',
+      backdropFilter: 'blur(10px)',
+      border: 'none',
+      color: '#fff',
+      position: 'relative',
+      whiteSpace: 'nowrap',
+      width: drawerWidth,
+      transition: theme.transitions.create('width', {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.enteringScreen,
+      }),
+      boxSizing: 'border-box',
+      ...(!open && {
+        overflowX: 'hidden',
+        transition: theme.transitions.create('width', {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.leavingScreen,
+        }),
+        width: theme.spacing(7),
+        [theme.breakpoints.up('sm')]: {
+          width: theme.spacing(9),
+        },
+      }),
+      '& .MuiListItemIcon-root': {
+        color: '#fff',
+        minWidth: 40,
+      },
+      '& .MuiListItem-root': {
+        margin: '8px 0',
+        borderRadius: '0 25px 25px 0',
+        '&:hover': {
+          background: 'rgba(255, 255, 255, 0.1)',
+        },
+        '&.active': {
+          background: 'rgba(255, 255, 255, 0.2)',
+          '&:hover': {
+            background: 'rgba(255, 255, 255, 0.2)',
+          },
+        },
+      },
+    },
+  }),
+);
+
+const MainContent = styled('main')(({ theme }) => ({
+  flexGrow: 1,
+  padding: theme.spacing(3),
+  minHeight: '100vh',
+  background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.primary.dark} 100%)`,
+  backgroundAttachment: 'fixed',
+  overflowX: 'hidden',
 }));
 
 interface LayoutProps {
@@ -61,126 +112,104 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const theme = useTheme();
-  const navigate = useNavigate();
+  const [open, setOpen] = React.useState(true);
   const location = useLocation();
 
+  const toggleDrawer = () => {
+    setOpen(!open);
+  };
+
   const menuItems = [
-    { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Véhicules', icon: <CarIcon />, path: '/vehicles' },
     { text: 'Clients', icon: <PeopleIcon />, path: '/customers' },
-    { text: 'Locations', icon: <RentalIcon />, path: '/rentals' },
+    { text: 'Locations', icon: <ContractIcon />, path: '/rentals' },
+    { text: 'Contrats', icon: <ContractIcon />, path: '/contracts' },
     { text: 'Rapports', icon: <ReportIcon />, path: '/reports' },
   ];
 
-  const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap sx={{ 
-          fontWeight: 600,
-          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          Car Manager
-        </Typography>
-      </Toolbar>
-      <List>
-        {menuItems.map((item) => (
-          <StyledListItem
-            key={item.text}
-            onClick={() => navigate(item.path)}
-            disableGutters
-            sx={{ cursor: 'pointer' }}
-            className={location.pathname.startsWith(item.path) ? 'active' : ''}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} />
-          </StyledListItem>
-        ))}
-      </List>
-    </div>
-  );
-
   return (
     <Box sx={{ display: 'flex' }}>
-      <StyledAppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar>
+      <CssBaseline />
+      <AppBar position="fixed" open={open}>
+        <Toolbar sx={{
+          pr: '24px',
+          background: 'rgba(26, 35, 126, 0.95)',
+          backdropFilter: 'blur(10px)',
+        }}>
           <IconButton
+            edge="start"
             color="inherit"
             aria-label="open drawer"
-            edge="start"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            onClick={toggleDrawer}
+            sx={{
+              marginRight: '36px',
+              ...(open && { display: 'none' }),
+            }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            {menuItems.find(item => location.pathname.startsWith(item.path))?.text || 'Car Manager'}
+          <Typography
+            component="h1"
+            variant="h6"
+            color="inherit"
+            noWrap
+            sx={{ flexGrow: 1 }}
+          >
+            Car Manager
           </Typography>
         </Toolbar>
-      </StyledAppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{
-            keepMounted: true,
-          }}
+      </AppBar>
+      <Drawer variant="permanent" open={open}>
+        <Toolbar
           sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              backgroundColor: '#ffffff',
-              borderRight: '1px solid rgba(0, 0, 0, 0.08)',
-            },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            px: [1],
           }}
         >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              backgroundColor: '#ffffff',
-              borderRight: '1px solid rgba(0, 0, 0, 0.08)',
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          backgroundColor: '#f5f5f7',
-          minHeight: '100vh',
-        }}
-      >
+          <IconButton onClick={toggleDrawer} sx={{ color: '#fff' }}>
+            <ChevronLeftIcon />
+          </IconButton>
+        </Toolbar>
+        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+        <List component="nav">
+          {menuItems.map((item) => (
+            <ListItem
+              component={Link}
+              to={item.path}
+              key={item.text}
+              className={location.pathname === item.path ? 'active' : ''}
+              sx={{
+                transition: 'all 0.3s',
+                '&:hover': {
+                  transform: 'translateX(5px)',
+                },
+                color: '#fff',
+                textDecoration: 'none',
+                '&.active': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                }
+              }}
+            >
+              <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText 
+                primary={item.text}
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    color: '#fff'
+                  }
+                }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Drawer>
+      <MainContent>
         <Toolbar />
         {children}
-      </Box>
+      </MainContent>
     </Box>
   );
 };

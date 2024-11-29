@@ -81,6 +81,21 @@ const RentalList: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (selectedVehicle && formData.startDate && formData.endDate) {
+      const startDate = formData.startDate.toDate();
+      const endDate = formData.endDate.toDate();
+      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (days > 0 && selectedVehicle.dailyRate) {
+        const totalCost = days * selectedVehicle.dailyRate;
+        setFormData(prev => ({
+          ...prev,
+          totalCost
+        }));
+      }
+    }
+  }, [selectedVehicle, formData.startDate, formData.endDate]);
+
   const loadData = async () => {
     try {
       const [rentalsData, vehiclesData, customersData] = await Promise.all([
@@ -178,14 +193,8 @@ const RentalList: React.FC = () => {
     if (!selectedVehicle || !selectedCustomer) return;
 
     try {
-      const startDate = formData.startDate.toDate();
-      const endDate = formData.endDate.toDate();
-      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const totalCost = days * selectedVehicle.dailyRate;
-
       const rentalData = {
         ...formData,
-        totalCost,
       };
 
       let rentalId;

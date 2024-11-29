@@ -18,6 +18,8 @@ import {
   IconButton,
   Typography,
   Chip,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
@@ -121,13 +123,13 @@ const VehicleList: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
     switch (status) {
       case 'available':
         return 'success';
       case 'rented':
         return 'primary';
-      case 'maintenance':
+      case 'unavailable':
         return 'error';
       default:
         return 'default';
@@ -139,9 +141,9 @@ const VehicleList: React.FC = () => {
       case 'available':
         return 'Disponible';
       case 'rented':
-        return 'Loué';
-      case 'maintenance':
-        return 'En maintenance';
+        return 'En location';
+      case 'unavailable':
+        return 'Non disponible';
       default:
         return status;
     }
@@ -184,13 +186,32 @@ const VehicleList: React.FC = () => {
                 <TableCell>{vehicle.year}</TableCell>
                 <TableCell>{vehicle.registration}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={getStatusLabel(vehicle.status)}
-                    color={getStatusColor(vehicle.status)}
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={vehicle.status === 'available'}
+                        onChange={async () => {
+                          try {
+                            const newStatus = vehicle.status === 'available' ? 'unavailable' : 'available';
+                            await updateVehicle(vehicle.id!, { status: newStatus });
+                            setVehicles(vehicles.map(v => 
+                              v.id === vehicle.id 
+                                ? { ...v, status: newStatus }
+                                : v
+                            ));
+                          } catch (error) {
+                            console.error('Error updating vehicle status:', error);
+                          }
+                        }}
+                        color="primary"
+                      />
+                    }
+                    label={vehicle.status === 'available' ? 'Disponible' : 'Non disponible'}
                   />
                 </TableCell>
                 <TableCell>{vehicle.dailyRate} DZD</TableCell>
-                <TableCell>{vehicle.kilometers} km</TableCell>
+                <TableCell>{vehicle.mileage}</TableCell>
+                <TableCell>{vehicle.kilometers}</TableCell>
                 <TableCell>{vehicle.fuelType}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleOpen(vehicle)} color="primary">
@@ -265,8 +286,8 @@ const VehicleList: React.FC = () => {
               required
             >
               <MenuItem value="available">Disponible</MenuItem>
-              <MenuItem value="rented">Loué</MenuItem>
-              <MenuItem value="maintenance">En maintenance</MenuItem>
+              <MenuItem value="rented">En location</MenuItem>
+              <MenuItem value="unavailable">Non disponible</MenuItem>
             </TextField>
             <TextField
               margin="dense"
