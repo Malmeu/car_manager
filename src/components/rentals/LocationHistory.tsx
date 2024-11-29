@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Paper,
   Table,
@@ -9,32 +9,121 @@ import {
   TableRow,
   Typography,
   Box,
+  Chip,
 } from '@mui/material';
+import { getAllRentals, Rental } from '../../services/rentalService';
+import { getAllVehicles, Vehicle } from '../../services/vehicleService';
+import { getAllCustomers, Customer } from '../../services/customerService';
+import { Timestamp } from 'firebase/firestore';
 
-interface Location {
-  id: string;
-  vehicule: string;
-  client: string;
-  dateDebut: string;
-  dateFin: string;
-  status: string;
-  montant: number;
+// Define the shape of the data from Firebase
+interface DisplayRental extends Omit<Rental, 'id'> {
+  id: string;  // Make id required for display
 }
 
 const LocationHistory: React.FC = () => {
-  // Exemple de données (à remplacer par les vraies données de votre application)
-  const locations: Location[] = [
-    {
-      id: '1',
-      vehicule: 'Renault Clio',
-      client: 'Jean Dupont',
-      dateDebut: '2024-01-01',
-      dateFin: '2024-01-07',
-      status: 'Terminée',
-      montant: 350,
-    },
-    // Ajoutez plus d'exemples ici
-  ];
+  const [locations, setLocations] = useState<DisplayRental[]>([]);
+  const [vehicles, setVehicles] = useState<Record<string, Vehicle>>({});
+  const [customers, setCustomers] = useState<Record<string, Customer>>({});
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load all data in parallel
+        const [rentalsData, vehiclesData, customersData] = await Promise.all([
+          getAllRentals(),
+          getAllVehicles(),
+          getAllCustomers(),
+        ]);
+
+        // Create lookup maps for vehicles and customers
+        const vehiclesMap = vehiclesData.reduce((acc, vehicle) => {
+          if (vehicle.id) {
+            acc[vehicle.id] = vehicle;
+          }
+          return acc;
+        }, {} as Record<string, Vehicle>);
+
+        const customersMap = customersData.reduce((acc, customer) => {
+          if (customer.id) {
+            acc[customer.id] = customer;
+          }
+          return acc;
+        }, {} as Record<string, Customer>);
+
+        setVehicles(vehiclesMap);
+        setCustomers(customersMap);
+        
+        // Filter out rentals with missing required fields and ensure id is present
+        const validRentals = rentalsData
+          .filter((rental): rental is Rental & { id: string } => {
+            return Boolean(
+              rental.id &&
+              rental.vehicleId &&
+              rental.customerId &&
+              rental.startDate &&
+              rental.endDate &&
+              rental.status &&
+              typeof rental.totalCost === 'number'
+            );
+          })
+          .map(rental => ({
+            ...rental,
+            id: rental.id // TypeScript now knows id exists
+          }));
+        
+        setLocations(validRentals);
+      } catch (error) {
+        console.error('Error loading location history:', error);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const getStatusColor = (status: string): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'primary';
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const formatDate = (timestamp: Timestamp) => {
+    return timestamp.toDate().toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getVehicleName = (vehicleId: string) => {
+    const vehicle = vehicles[vehicleId];
+    return vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Véhicule inconnu';
+  };
+
+  const getCustomerName = (customerId: string) => {
+    const customer = customers[customerId];
+    return customer ? `${customer.firstName} ${customer.lastName}` : 'Client inconnu';
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'En cours';
+      case 'completed':
+        return 'Terminée';
+      case 'cancelled':
+        return 'Annulée';
+      default:
+        return status;
+    }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -62,12 +151,18 @@ const LocationHistory: React.FC = () => {
                 sx={{ '&:hover': { backgroundColor: 'background.paper' } }}
               >
                 <TableCell>{location.id}</TableCell>
-                <TableCell>{location.vehicule}</TableCell>
-                <TableCell>{location.client}</TableCell>
-                <TableCell>{location.dateDebut}</TableCell>
-                <TableCell>{location.dateFin}</TableCell>
-                <TableCell>{location.status}</TableCell>
-                <TableCell>{location.montant} DA</TableCell>
+                <TableCell>{getVehicleName(location.vehicleId)}</TableCell>
+                <TableCell>{getCustomerName(location.customerId)}</TableCell>
+                <TableCell>{formatDate(location.startDate)}</TableCell>
+                <TableCell>{formatDate(location.endDate)}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={getStatusLabel(location.status)}
+                    color={getStatusColor(location.status)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{location.totalCost.toLocaleString('fr-FR')} DA</TableCell>
               </TableRow>
             ))}
           </TableBody>
