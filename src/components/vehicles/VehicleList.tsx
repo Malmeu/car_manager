@@ -2,30 +2,38 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   IconButton,
   Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  CardActions,
   Chip,
-  Switch,
-  FormControlLabel,
+  InputAdornment,
+  MenuItem,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  DirectionsCar as CarIcon,
+  LocalGasStation as FuelIcon,
+  Speed as SpeedIcon,
+  Event as DateIcon,
+  Search as SearchIcon,
+} from '@mui/icons-material';
 import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
 
 const VehicleList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
@@ -43,6 +51,15 @@ const VehicleList: React.FC = () => {
   useEffect(() => {
     loadVehicles();
   }, []);
+
+  useEffect(() => {
+    const filtered = vehicles.filter(vehicle => 
+      vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.registration.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredVehicles(filtered);
+  }, [vehicles, searchTerm]);
 
   const loadVehicles = async () => {
     try {
@@ -123,112 +140,129 @@ const VehicleList: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
-    switch (status) {
-      case 'available':
-        return 'success';
-      case 'rented':
-        return 'primary';
-      case 'unavailable':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'Disponible';
-      case 'rented':
-        return 'En location';
-      case 'unavailable':
-        return 'Non disponible';
-      default:
-        return status;
-    }
-  };
-
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Véhicules</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpen()}
-        >
-          Ajouter un véhicule
-        </Button>
+        <Box display="flex" gap={2}>
+          <TextField
+            size="small"
+            placeholder="Rechercher un véhicule..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpen()}
+          >
+            Ajouter un véhicule
+          </Button>
+        </Box>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Marque</TableCell>
-              <TableCell>Modèle</TableCell>
-              <TableCell>Année</TableCell>
-              <TableCell>Immatriculation</TableCell>
-              <TableCell>État</TableCell>
-              <TableCell>Tarif journalier (DZD)</TableCell>
-              <TableCell>Kilométrage</TableCell>
-              <TableCell>Type de carburant</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {vehicles.map((vehicle) => (
-              <TableRow key={vehicle.id}>
-                <TableCell>{vehicle.brand}</TableCell>
-                <TableCell>{vehicle.model}</TableCell>
-                <TableCell>{vehicle.year}</TableCell>
-                <TableCell>{vehicle.registration}</TableCell>
-                <TableCell>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={vehicle.status === 'available'}
-                        onChange={async () => {
-                          try {
-                            const newStatus = vehicle.status === 'available' ? 'unavailable' : 'available';
-                            await updateVehicle(vehicle.id!, { status: newStatus });
-                            setVehicles(vehicles.map(v => 
-                              v.id === vehicle.id 
-                                ? { ...v, status: newStatus }
-                                : v
-                            ));
-                          } catch (error) {
-                            console.error('Error updating vehicle status:', error);
-                          }
-                        }}
-                        color="primary"
-                      />
-                    }
-                    label={vehicle.status === 'available' ? 'Disponible' : 'Non disponible'}
+      <Grid container spacing={3}>
+        {filteredVehicles.map((vehicle) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={vehicle.id}>
+            <Card 
+              sx={{ 
+                height: '100%', 
+                display: 'flex', 
+                flexDirection: 'column',
+                transition: 'transform 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CardMedia
+                component="div"
+                sx={{
+                  height: 200,
+                  backgroundColor: '#f5f5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {vehicle.imageUrl ? (
+                  <img
+                    src={vehicle.imageUrl}
+                    alt={`${vehicle.brand} ${vehicle.model}`}
+                    style={{ 
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
                   />
-                </TableCell>
-                <TableCell>{vehicle.dailyRate} DZD</TableCell>
-                <TableCell>{vehicle.mileage}</TableCell>
-                <TableCell>{vehicle.kilometers}</TableCell>
-                <TableCell>{vehicle.fuelType}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleOpen(vehicle)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton 
-                    onClick={() => vehicle.id && handleDelete(vehicle.id)} 
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                ) : (
+                  <CarIcon sx={{ fontSize: 100, color: 'rgba(0, 0, 0, 0.3)' }} />
+                )}
+              </CardMedia>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Typography variant="h6" gutterBottom>
+                  {vehicle.brand} {vehicle.model}
+                </Typography>
+                <Box display="flex" gap={1} mb={1}>
+                  <Chip
+                    size="small"
+                    label={vehicle.status === 'available' ? 'Disponible' : 
+                           vehicle.status === 'rented' ? 'En location' : 'Indisponible'}
+                    color={vehicle.status === 'available' ? 'success' : 
+                           vehicle.status === 'rented' ? 'primary' : 'error'}
+                  />
+                  <Chip
+                    size="small"
+                    label={`${vehicle.year}`}
+                    icon={<DateIcon />}
+                  />
+                </Box>
+                <Box display="flex" flexDirection="column" gap={1}>
+                  <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" gap={1}>
+                    <FuelIcon fontSize="small" />
+                    {vehicle.fuelType}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" gap={1}>
+                    <SpeedIcon fontSize="small" />
+                    {vehicle.kilometers.toLocaleString()} km
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Immatriculation: {vehicle.registration}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Tarif: {vehicle.dailyRate.toLocaleString()} DZD/jour
+                  </Typography>
+                </Box>
+              </CardContent>
+              <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpen(vehicle)}
+                  color="primary"
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => handleDelete(vehicle.id!)}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</DialogTitle>

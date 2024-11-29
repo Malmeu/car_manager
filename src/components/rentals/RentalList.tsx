@@ -18,6 +18,8 @@ import {
   Typography,
   MenuItem,
   Grid,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { getAllRentals, updateRental, addRental, deleteRental } from '../../services/rentalService';
@@ -25,7 +27,7 @@ import { getAllVehicles, getAvailableVehicles } from '../../services/vehicleServ
 import { getAllCustomers } from '../../services/customerService';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import { createContract } from '../../services/contractService';
+import { createContract, getContract } from '../../services/contractService';
 import { Contract, Customer, Vehicle, Rental } from '../../types';
 import { ContractFormData } from '../../types/contract';
 
@@ -46,6 +48,7 @@ interface FormData {
 
 const RentalList: React.FC = () => {
   const [rentals, setRentals] = useState<Rental[]>([]);
+  const [filteredRentals, setFilteredRentals] = useState<Rental[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
@@ -65,6 +68,11 @@ const RentalList: React.FC = () => {
     contractId: '',
     paymentMethod: 'cash'
   });
+
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+
+  const [rentalStatus, setRentalStatus] = useState<'active' | 'completed'>('active');
 
   const wilayas = [
     'Adrar', 'Chlef', 'Laghouat', 'Oum El Bouaghi', 'Batna', 'Béjaïa', 'Biskra',
@@ -95,6 +103,14 @@ const RentalList: React.FC = () => {
       }
     }
   }, [selectedVehicle, formData.startDate, formData.endDate]);
+
+  useEffect(() => {
+    // Filtrer les locations en fonction du statut sélectionné
+    const filtered = rentals.filter(rental => 
+      rentalStatus === 'active' ? rental.status === 'active' : rental.status === 'completed'
+    );
+    setFilteredRentals(filtered);
+  }, [rentals, rentalStatus]);
 
   const loadData = async () => {
     try {
@@ -244,8 +260,9 @@ const RentalList: React.FC = () => {
         const contract = await createContract(contractData);
         await updateRental(rentalId, { contractId: contract.id });
 
-        // Open contract in new tab
-        window.open(`/contracts/${contract.id}`, '_blank');
+        // Afficher le contrat dans une boîte de dialogue
+        setSelectedContract(contract);
+        setContractDialogOpen(true);
       }
 
       loadData();
@@ -253,6 +270,11 @@ const RentalList: React.FC = () => {
     } catch (error) {
       console.error('Error submitting rental:', error);
     }
+  };
+
+  const handleContractClose = () => {
+    setContractDialogOpen(false);
+    setSelectedContract(null);
   };
 
   const getVehicleDetails = (vehicleId: string) => {
@@ -280,18 +302,43 @@ const RentalList: React.FC = () => {
     }
   };
 
+  const handleStatusChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newStatus: 'active' | 'completed',
+  ) => {
+    if (newStatus !== null) {
+      setRentalStatus(newStatus);
+    }
+  };
+
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Locations</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpen()}
-        >
-          Nouvelle location
-        </Button>
+        <Box display="flex" gap={2} alignItems="center">
+          <ToggleButtonGroup
+            value={rentalStatus}
+            exclusive
+            onChange={handleStatusChange}
+            aria-label="rental status"
+            size="small"
+          >
+            <ToggleButton value="active" aria-label="active rentals">
+              Actives
+            </ToggleButton>
+            <ToggleButton value="completed" aria-label="completed rentals">
+              Terminées
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpen()}
+          >
+            Nouvelle location
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer component={Paper}>
@@ -309,7 +356,7 @@ const RentalList: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rentals.map((rental) => {
+            {filteredRentals.map((rental) => {
               const vehicle = vehicles.find(v => v.id === rental.vehicleId);
               const customer = customers.find(c => c.id === rental.customerId);
               return (
@@ -347,6 +394,83 @@ const RentalList: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Boîte de dialogue pour afficher le contrat */}
+      <Dialog
+        open={contractDialogOpen}
+        onClose={handleContractClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Contrat de Location</DialogTitle>
+        <DialogContent>
+          {selectedContract && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Informations du Contrat
+              </Typography>
+              
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle1">Locataire</Typography>
+                  <Typography>Nom: {selectedContract.tenant.name}</Typography>
+                  <Typography>Téléphone: {selectedContract.tenant.phone}</Typography>
+                  <Typography>Adresse: {selectedContract.tenant.address}</Typography>
+                  <Typography>Permis: {selectedContract.tenant.drivingLicense}</Typography>
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <Typography variant="subtitle1">Véhicule</Typography>
+                  <Typography>
+                    {selectedContract.vehicle.brand} {selectedContract.vehicle.model} ({selectedContract.vehicle.year})
+                  </Typography>
+                  <Typography>Immatriculation: {selectedContract.vehicle.registration}</Typography>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1">Location</Typography>
+                  <Typography>
+                    Du: {format(selectedContract.rental.startDate.toDate(), 'dd/MM/yyyy')}
+                  </Typography>
+                  <Typography>
+                    Au: {format(selectedContract.rental.endDate.toDate(), 'dd/MM/yyyy')}
+                  </Typography>
+                  <Typography>
+                    Coût total: {selectedContract.rental.totalCost.toLocaleString('fr-DZ')} DZD
+                  </Typography>
+                  <Typography>
+                    Caution: {selectedContract.rental.deposit.toLocaleString('fr-DZ')} DZD
+                  </Typography>
+                  <Typography>
+                    Mode de paiement: {selectedContract.rental.paymentMethod === 'cash' ? 'Espèces' : 
+                                     selectedContract.rental.paymentMethod === 'bank_transfer' ? 'Virement bancaire' : 'Autre'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1">Conditions</Typography>
+                  {selectedContract.terms.map((term, index) => (
+                    <Typography key={index}>• {term}</Typography>
+                  ))}
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleContractClose}>Fermer</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              // Ici vous pouvez ajouter la logique pour imprimer le contrat
+              window.print();
+            }}
+          >
+            Imprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>{editingRental ? 'Éditer la location' : 'Nouvelle location'}</DialogTitle>

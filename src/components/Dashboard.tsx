@@ -36,6 +36,7 @@ const Dashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        console.log('Début du chargement des données du tableau de bord');
         
         // Fetch vehicles and customers
         const [vehicles, customers] = await Promise.all([
@@ -43,206 +44,98 @@ const Dashboard: React.FC = () => {
           getAllCustomers(),
         ]);
 
+        console.log('Données récupérées:', {
+          vehiclesCount: vehicles.length,
+          customersCount: customers.length
+        });
+
         // Fetch all contracts from Firestore
         const contractsRef = collection(db, 'contracts');
         const contractsSnapshot = await getDocs(contractsRef);
-        console.log('Raw contracts from Firestore:', contractsSnapshot.size);
+        console.log('Contrats trouvés dans Firestore:', contractsSnapshot.size);
         
         const contracts: Contract[] = [];
         contractsSnapshot.forEach(doc => {
           const data = doc.data();
-          console.log('Contract data from Firestore:', doc.id, JSON.stringify(data, null, 2));
-          if (data.rental?.endDate) {
-            contracts.push({
-              ...data,
-              id: doc.id
-            } as Contract);
-          } else {
-            console.warn('Skipping contract with missing rental data:', doc.id);
-          }
-        });
-        
-        console.log('Processed contracts:', contracts.length);
-
-        // Calculate available vehicles and active rentals
-        const now = new Date();
-        console.log('Current date for comparison:', now.toISOString());
-        
-        // Filter active contracts (end date is in the future)
-        const activeContracts = contracts.filter((contract: Contract) => {
-          if (!contract.rental?.endDate) {
-            console.log('Contract missing end date:', contract.id);
-            return false;
-          }
-          
-          if (!contract.vehicle?.registration) {
-            console.log('Contract missing vehicle registration:', contract.id);
-            return false;
-          }
-          
-          let endDate: Date;
-          let startDate: Date;
-          try {
-            endDate = contract.rental.endDate.toDate();
-            startDate = contract.rental.startDate.toDate();
-          } catch (error) {
-            console.error('Error parsing dates for contract:', contract.id, error);
-            return false;
-          }
-          
-          const isActive = startDate <= now && endDate >= now;
-          
-          console.log('Contract date check:', JSON.stringify({
-            id: contract.id,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            now: now.toISOString(),
-            isStarted: startDate <= now,
-            isNotEnded: endDate >= now,
-            isActive
-          }, null, 2));
-          
-          if (isActive) {
-            console.log('Active contract details:', JSON.stringify({
-              id: contract.id,
-              vehicle: contract.vehicle?.registration,
-              startDate: startDate.toISOString(),
-              endDate: endDate.toISOString(),
-              tenant: contract.tenant?.name,
-              totalCost: contract.rental.totalCost
-            }, null, 2));
-          }
-          return isActive;
-        });
-
-        // Get unique active rentals by vehicle
-        const uniqueActiveRentals = activeContracts.reduce((acc, contract) => {
-          const vehicleReg = contract.vehicle?.registration;
-          if (!vehicleReg) return acc;
-          
-          // If we already have a rental for this vehicle, keep the one with the latest start date
-          if (acc[vehicleReg]) {
-            const existingStartDate = acc[vehicleReg].rental.startDate.toDate();
-            const newStartDate = contract.rental.startDate.toDate();
-            if (newStartDate > existingStartDate) {
-              acc[vehicleReg] = contract;
+          if (data.rental?.startDate && data.rental?.endDate && data.vehicle?.registration) {
+            try {
+              // Vérifier que les dates sont bien des Timestamps Firestore
+              const startDate = data.rental.startDate.toDate();
+              const endDate = data.rental.endDate.toDate();
+              contracts.push({
+                ...data,
+                id: doc.id,
+                rental: {
+                  ...data.rental,
+                  startDate: data.rental.startDate,
+                  endDate: data.rental.endDate
+                }
+              } as Contract);
+            } catch (error) {
+              console.error('Erreur de conversion de date pour le contrat:', doc.id, error);
             }
           } else {
-            acc[vehicleReg] = contract;
+            console.warn('Contrat invalide ignoré:', doc.id, {
+              hasStartDate: !!data.rental?.startDate,
+              hasEndDate: !!data.rental?.endDate,
+              hasVehicle: !!data.vehicle?.registration
+            });
           }
-          
-          return acc;
-        }, {} as Record<string, Contract>);
+        });
+        
+        console.log('Contrats valides traités:', contracts.length);
 
-        const uniqueActiveContractsList = Object.values(uniqueActiveRentals);
-        console.log('Unique active rentals:', uniqueActiveContractsList.map(c => ({
-          vehicle: c.vehicle?.registration,
-          startDate: c.rental.startDate.toDate().toISOString(),
-          endDate: c.rental.endDate.toDate().toISOString()
-        })));
+        // Calculate active rentals
+        const now = new Date();
+        const activeContracts = contracts.filter(contract => {
+          const startDate = contract.rental.startDate.toDate();
+          const endDate = contract.rental.endDate.toDate();
+          return startDate <= now && endDate >= now;
+        });
 
-        // Get currently rented vehicle registrations (unique)
+        console.log('Locations actives trouvées:', activeContracts.length);
+
+        // Get rented vehicle registrations
         const rentedVehicleRegistrations = new Set(
-          uniqueActiveContractsList
-            .filter(c => c.vehicle?.registration)
-            .map(c => c.vehicle.registration)
+          activeContracts.map(contract => contract.vehicle.registration)
         );
 
-        console.log('Active rentals:', uniqueActiveContractsList.length);
-        console.log('Rented registrations:', JSON.stringify(Array.from(rentedVehicleRegistrations), null, 2));
-        console.log('All vehicles:', JSON.stringify(vehicles, null, 2));
-        
-        // Calculate available vehicles (counting unique registrations)
-        const uniqueVehicleRegs = new Set(vehicles.map(v => v.registration));
-        const availableVehicles = Array.from(uniqueVehicleRegs).filter(reg => {
-          const isAvailable = !rentedVehicleRegistrations.has(reg);
-          console.log(`Vehicle ${reg} status:`, JSON.stringify({
-            registration: reg,
-            isRented: rentedVehicleRegistrations.has(reg),
-            isAvailable,
-            rentedTo: uniqueActiveContractsList.find(c => c.vehicle?.registration === reg)?.tenant?.name
-          }, null, 2));
-          return isAvailable;
-        }).length;
+        // Calculate available vehicles
+        const availableVehicles = vehicles.filter(vehicle => 
+          !rentedVehicleRegistrations.has(vehicle.registration)
+        ).length;
+
+        console.log('Statut des véhicules:', {
+          total: vehicles.length,
+          rented: rentedVehicleRegistrations.size,
+          available: availableVehicles
+        });
 
         // Calculate monthly revenue
         const currentDate = new Date();
-        const currentMonth = currentDate.getMonth(); // 0-11
+        const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
 
-        console.log('Calculating revenue for:', {
+        const monthlyContracts = contracts.filter(contract => {
+          const startDate = contract.rental.startDate.toDate();
+          return startDate.getMonth() === currentMonth && 
+                 startDate.getFullYear() === currentYear;
+        });
+
+        const monthlyRevenue = monthlyContracts.reduce((total, contract) => 
+          total + (contract.rental.totalCost || 0), 0
+        );
+
+        console.log('Revenus du mois:', {
           month: currentMonth + 1,
-          year: currentYear
-        });
-
-        // Get unique contracts by vehicle for revenue calculation
-        const monthlyContractsMap = contracts.reduce((acc, contract) => {
-          if (!contract.rental?.startDate || !contract.rental?.totalCost) {
-            console.log('Contract missing revenue data:', contract.id);
-            return acc;
-          }
-
-          const vehicleReg = contract.vehicle?.registration;
-          if (!vehicleReg) {
-            console.log('Contract missing vehicle:', contract.id);
-            return acc;
-          }
-          
-          let startDate: Date;
-          try {
-            startDate = contract.rental.startDate.toDate();
-          } catch (error) {
-            console.error('Error parsing start date for revenue:', contract.id, error);
-            return acc;
-          }
-          
-          const isThisMonth = startDate.getMonth() === currentMonth && 
-                            startDate.getFullYear() === currentYear;
-          
-          if (isThisMonth) {
-            // If we already have a contract for this vehicle this month,
-            // keep the one with the highest total cost
-            if (acc[vehicleReg]) {
-              if (contract.rental.totalCost > acc[vehicleReg].rental.totalCost) {
-                acc[vehicleReg] = contract;
-              }
-            } else {
-              acc[vehicleReg] = contract;
-            }
-          }
-          
-          return acc;
-        }, {} as Record<string, Contract>);
-
-        const monthlyContracts = Object.values(monthlyContractsMap);
-        
-        monthlyContracts.forEach(contract => {
-          console.log('Contract counted for revenue:', JSON.stringify({
-            id: contract.id,
-            vehicle: contract.vehicle?.registration,
-            startDate: contract.rental.startDate.toDate().toISOString(),
-            totalCost: contract.rental.totalCost,
-            tenant: contract.tenant?.name
-          }, null, 2));
-        });
-
-        const monthlyRevenue = monthlyContracts.reduce((total, contract) => {
-          return total + (contract.rental?.totalCost || 0);
-        }, 0);
-
-        console.log('Monthly revenue calculation:', {
-          numberOfContracts: monthlyContracts.length,
-          totalRevenue: monthlyRevenue,
-          contracts: monthlyContracts.map(c => ({
-            id: c.id,
-            vehicle: c.vehicle?.registration,
-            cost: c.rental?.totalCost
-          }))
+          year: currentYear,
+          contractCount: monthlyContracts.length,
+          total: monthlyRevenue
         });
 
         setStats({
           availableVehicles,
-          activeRentals: uniqueActiveContractsList.length,
+          activeRentals: activeContracts.length,
           totalCustomers: customers.length,
           monthlyRevenue,
         });
