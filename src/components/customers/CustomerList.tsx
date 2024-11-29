@@ -123,11 +123,11 @@ const CustomerList: React.FC = () => {
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Customers</Typography>
+        <Typography variant="h4">Client</Typography>
         <Box display="flex" gap={2}>
           <TextField
             size="small"
-            placeholder="Search customers..."
+            placeholder="Chercher un client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -147,7 +147,7 @@ const CustomerList: React.FC = () => {
             startIcon={<AddIcon />}
             onClick={() => handleOpen()}
           >
-            Add Customer
+            Ajouter un client
           </Button>
         </Box>
       </Box>
@@ -156,12 +156,12 @@ const CustomerList: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>First Name</TableCell>
-              <TableCell>Last Name</TableCell>
+              <TableCell>Prénom</TableCell>
+              <TableCell>Nom</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Driving License</TableCell>
-              <TableCell>Address</TableCell>
+              <TableCell>Telephone</TableCell>
+              <TableCell>Permis de conduire</TableCell>
+              <TableCell>Adresse</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -196,7 +196,7 @@ const CustomerList: React.FC = () => {
               autoFocus
               margin="dense"
               name="firstName"
-              label="First Name"
+              label="Prénom"
               type="text"
               fullWidth
               value={formData.firstName}
@@ -206,7 +206,7 @@ const CustomerList: React.FC = () => {
             <TextField
               margin="dense"
               name="lastName"
-              label="Last Name"
+              label="Nom"
               type="text"
               fullWidth
               value={formData.lastName}
@@ -226,7 +226,7 @@ const CustomerList: React.FC = () => {
             <TextField
               margin="dense"
               name="phone"
-              label="Phone"
+              label="Numéro de Tel"
               type="tel"
               fullWidth
               value={formData.phone}
@@ -236,7 +236,7 @@ const CustomerList: React.FC = () => {
             <TextField
               margin="dense"
               name="drivingLicense"
-              label="Driving License"
+              label="Numéro de permis"
               type="text"
               fullWidth
               value={formData.drivingLicense}
@@ -246,7 +246,7 @@ const CustomerList: React.FC = () => {
             <TextField
               margin="dense"
               name="address"
-              label="Address"
+              label="Addresse"
               type="text"
               fullWidth
               value={formData.address}
@@ -255,9 +255,9 @@ const CustomerList: React.FC = () => {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>Annuler</Button>
             <Button type="submit" variant="contained" color="primary">
-              {editingCustomer ? 'Save' : 'Add'}
+              {editingCustomer ? 'Enregistrer' : 'Ajouter'}
             </Button>
           </DialogActions>
         </form>

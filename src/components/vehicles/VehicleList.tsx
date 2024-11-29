@@ -152,14 +152,14 @@ const VehicleList: React.FC = () => {
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Vehicles</Typography>
+        <Typography variant="h4">Véhicules</Typography>
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={() => handleOpen()}
         >
-          Add Vehicle
+          Ajouter un véhicule
         </Button>
       </Box>
 

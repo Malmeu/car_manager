@@ -33,9 +33,9 @@ const AppBar = styled(MuiAppBar, {
 })<{
   open?: boolean;
 }>(({ theme, open }) => ({
-  background: 'rgba(26, 35, 126, 0.95)',
+  background: '#bfdbf7',
   backdropFilter: 'blur(10px)',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+  borderBottom: '1px solid rgba(191, 219, 247, 0.3)',
   zIndex: theme.zIndex.drawer + 1,
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
@@ -54,10 +54,10 @@ const AppBar = styled(MuiAppBar, {
 const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     '& .MuiDrawer-paper': {
-      background: 'rgba(13, 71, 161, 0.95)',
+      background: '#bfdbf7',
       backdropFilter: 'blur(10px)',
       border: 'none',
-      color: '#fff',
+      color: '#1a237e',
       position: 'relative',
       whiteSpace: 'nowrap',
       width: drawerWidth,
@@ -78,19 +78,19 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
         },
       }),
       '& .MuiListItemIcon-root': {
-        color: '#fff',
+        color: '#1a237e',
         minWidth: 40,
       },
       '& .MuiListItem-root': {
         margin: '8px 0',
         borderRadius: '0 25px 25px 0',
         '&:hover': {
-          background: 'rgba(255, 255, 255, 0.1)',
+          background: 'rgba(26, 35, 126, 0.1)',
         },
         '&.active': {
-          background: 'rgba(255, 255, 255, 0.2)',
+          background: 'rgba(26, 35, 126, 0.2)',
           '&:hover': {
-            background: 'rgba(255, 255, 255, 0.2)',
+            background: 'rgba(26, 35, 126, 0.2)',
           },
         },
       },
@@ -134,7 +134,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <AppBar position="fixed" open={open}>
         <Toolbar sx={{
           pr: '24px',
-          background: 'rgba(26, 35, 126, 0.95)',
+          background: '#bfdbf7',
           backdropFilter: 'blur(10px)',
         }}>
           <IconButton
@@ -169,11 +169,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             px: [1],
           }}
         >
-          <IconButton onClick={toggleDrawer} sx={{ color: '#fff' }}>
+          <IconButton onClick={toggleDrawer} sx={{ color: '#1a237e' }}>
             <ChevronLeftIcon />
           </IconButton>
         </Toolbar>
-        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+        <Divider sx={{ borderColor: 'rgba(26, 35, 126, 0.1)' }} />
         <List component="nav">
           {menuItems.map((item) => (
             <ListItem
@@ -186,19 +186,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 '&:hover': {
                   transform: 'translateX(5px)',
                 },
-                color: '#fff',
+                color: '#1a237e',
                 textDecoration: 'none',
                 '&.active': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  backgroundColor: 'rgba(26, 35, 126, 0.1)',
                 }
               }}
             >
-              <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ color: '#1a237e', minWidth: 40 }}>{item.icon}</ListItemIcon>
               <ListItemText 
                 primary={item.text}
                 sx={{
                   '& .MuiListItemText-primary': {
-                    color: '#fff'
+                    color: '#1a237e'
                   }
                 }}
               />
