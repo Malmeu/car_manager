@@ -90,9 +90,7 @@ export const theme = createTheme({
         root: {
           borderRadius: '6px',
         },
-        filled: {
-          backgroundColor: '#e6f3f8',
-        },
+       
       },
     },
     MuiTextField: {
