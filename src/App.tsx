@@ -1,25 +1,32 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { theme } from './theme';
+import Dashboard from './components/Dashboard';
+import VehicleList from './components/vehicles/VehicleList';
+import CustomerList from './components/customers/CustomerList';
+import RentalList from './components/rentals/RentalList';
+import Reports from './components/reports/Reports';
+import Layout from './components/layout/Layout';
+import Home from './components/Home';
+import ContractView from './components/contracts/ContractView';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          <Route path="/" element={<Layout><Dashboard /></Layout>} />
+          <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+          <Route path="/vehicles/*" element={<Layout><VehicleList /></Layout>} />
+          <Route path="/customers/*" element={<Layout><CustomerList /></Layout>} />
+          <Route path="/rentals/*" element={<Layout><RentalList /></Layout>} />
+          <Route path="/reports/*" element={<Layout><Reports /></Layout>} />
+          <Route path="/contracts/:id" element={<Layout><ContractView /></Layout>} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 
