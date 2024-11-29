@@ -9,7 +9,7 @@ import RentalList from './components/rentals/RentalList';
 import Reports from './components/reports/Reports';
 import Layout from './components/layout/Layout';
 import Home from './components/Home';
-import ContractView from './components/contracts/ContractView';
+import LocationHistory from './components/rentals/LocationHistory';
 
 function App() {
   return (
@@ -22,8 +22,8 @@ function App() {
           <Route path="/vehicles/*" element={<Layout><VehicleList /></Layout>} />
           <Route path="/customers/*" element={<Layout><CustomerList /></Layout>} />
           <Route path="/rentals/*" element={<Layout><RentalList /></Layout>} />
+          <Route path="/location-history" element={<Layout><LocationHistory /></Layout>} />
           <Route path="/reports/*" element={<Layout><Reports /></Layout>} />
-          <Route path="/contracts/:id" element={<Layout><ContractView /></Layout>} />
         </Routes>
       </Router>
     </ThemeProvider>
