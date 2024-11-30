@@ -14,6 +14,8 @@ export interface Vehicle {
   fuelType: string;
   lastMaintenance?: Date;
   imageUrl?: string;
+  editingRental?: boolean;
+  isAvailable?: boolean;
 }
 
 // Add a new vehicle
@@ -51,15 +53,31 @@ export const updateVehicle = async (id: string, vehicleData: Partial<Vehicle>) =
   try {
     console.log(`Mise à jour du véhicule ${id} avec les données:`, vehicleData);
     const vehicleRef = doc(db, 'vehicles', id);
-    await updateDoc(vehicleRef, vehicleData);
+    
+    // Récupérer les données actuelles du véhicule
+    const vehicles = await getAllVehicles();
+    const currentVehicle = vehicles.find(v => v.id === id);
+    if (!currentVehicle) {
+      throw new Error(`Véhicule ${id} non trouvé`);
+    }
+    
+    // Fusionner les données actuelles avec les nouvelles données
+    const updatedData = {
+      ...currentVehicle,
+      ...vehicleData
+    };
+    console.log(`Données complètes pour la mise à jour:`, updatedData);
+    
+    // Mettre à jour avec les données fusionnées
+    await updateDoc(vehicleRef, updatedData);
     console.log(`Véhicule ${id} mis à jour avec succès`);
     
     // Vérifier l'état après la mise à jour
-    const vehicles = await getAllVehicles();
-    const updatedVehicle = vehicles.find(v => v.id === id);
+    const updatedVehicles = await getAllVehicles();
+    const updatedVehicle = updatedVehicles.find(v => v.id === id);
     console.log(`État du véhicule après mise à jour:`, updatedVehicle);
     
-    return { id, ...vehicleData };
+    return updatedVehicle || { id, ...updatedData };
   } catch (error) {
     console.error('Error updating vehicle:', error);
     throw error;
@@ -80,15 +98,18 @@ export const deleteVehicle = async (id: string) => {
 // Get available vehicles
 export const getAvailableVehicles = async (): Promise<Vehicle[]> => {
   try {
-    const q = query(
-      collection(db, 'vehicles'),
-      where('status', '==', 'available')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Vehicle[];
+    const vehicles = await getAllVehicles();
+    console.log('Tous les véhicules avant filtrage:', vehicles);
+    
+    // Filtrer les véhicules qui sont réellement disponibles
+    const availableVehicles = vehicles.filter(vehicle => {
+      const isAvailable = vehicle.status === 'available';
+      console.log(`Véhicule ${vehicle.id} (${vehicle.brand} ${vehicle.model}): status=${vehicle.status}, isAvailable=${isAvailable}`);
+      return isAvailable;
+    });
+    
+    console.log('Véhicules disponibles après filtrage:', availableVehicles);
+    return availableVehicles;
   } catch (error) {
     console.error('Error getting available vehicles:', error);
     throw error;

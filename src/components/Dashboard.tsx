@@ -158,7 +158,10 @@ const Dashboard: React.FC = () => {
                 Revenus Totaux
               </Typography>
               <Typography variant="h4" sx={{ mt: 2, fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' } }}>
-                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalRevenue)}
+                {new Intl.NumberFormat('fr-FR', { 
+                  style: 'decimal',
+                  maximumFractionDigits: 0
+                }).format(totalRevenue)} DZD
               </Typography>
             </CardContent>
           </Card>
@@ -233,7 +236,10 @@ const Dashboard: React.FC = () => {
                     fontSize: 'inherit',
                     display: { xs: 'none', sm: 'block' }
                   }}>
-                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(eventInfo.event.extendedProps.price)}
+                    {new Intl.NumberFormat('fr-FR', { 
+                      style: 'decimal',
+                      maximumFractionDigits: 0
+                    }).format(eventInfo.event.extendedProps.price)} DZD
                   </Typography>
                 </Box>
               );

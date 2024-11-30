@@ -31,6 +31,7 @@ import { Timestamp } from 'firebase/firestore';
 import { createContract, getContract } from '../../services/contractService';
 import { Contract, Customer, Vehicle, Rental } from '../../types';
 import { ContractFormData } from '../../types/contract';
+import { useLocation } from 'react-router-dom';
 
 interface FormData {
   id?: string;
@@ -53,6 +54,7 @@ const RentalList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
+  const location = useLocation();
   const [editingRental, setEditingRental] = useState<Rental | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -88,14 +90,27 @@ const RentalList: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    // Check if we should open the new rental dialog
+    if (location.state?.openNewRental) {
+      handleOpen();
+      // Clear the state to prevent reopening on subsequent navigations
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.openNewRental]);
 
   useEffect(() => {
     if (selectedVehicle && formData.startDate && formData.endDate) {
       const startDate = formData.startDate.toDate();
       const endDate = formData.endDate.toDate();
-      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (days > 0 && selectedVehicle.dailyRate) {
+      
+      // Reset hours to start of day for accurate day calculation
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+      
+      // Calculate days without including the start day
+      const days = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (days >= 0 && selectedVehicle.dailyRate) {
         const totalCost = days * selectedVehicle.dailyRate;
         setFormData(prev => ({
           ...prev,
@@ -141,41 +156,45 @@ const RentalList: React.FC = () => {
   };
 
   const handleOpen = async (rental?: Rental) => {
-    if (rental) {
-      setEditingRental(rental);
-      setFormData({
-        ...rental,
-        startDate: rental.startDate,
-        endDate: rental.endDate,
-      });
-      const vehicle = vehicles.find(v => v.id === rental.vehicleId);
-      setSelectedVehicle(vehicle || null);
-      const customer = customers.find(c => c.id === rental.customerId);
-      setSelectedCustomer(customer || null);
-    } else {
-      setEditingRental(null);
-      // Recharger la liste des véhicules disponibles
-      const availableVehicles = await getAvailableVehicles();
-      console.log('Véhicules disponibles pour nouvelle location:', availableVehicles);
-      setVehicles(availableVehicles);
-      
-      setFormData({
-        vehicleId: '',
-        customerId: '',
-        startDate: Timestamp.now(),
-        endDate: Timestamp.now(),
-        totalCost: 0,
-        status: 'active',
-        paymentStatus: 'pending',
-        paidAmount: 0,
-        wilaya: '',
-        contractId: '',
-        paymentMethod: 'cash'
-      });
-      setSelectedVehicle(null);
-      setSelectedCustomer(null);
+    try {
+      if (rental) {
+        setEditingRental(rental);
+        setFormData({
+          ...rental,
+          startDate: rental.startDate,
+          endDate: rental.endDate,
+        });
+        const vehicle = vehicles.find(v => v.id === rental.vehicleId);
+        setSelectedVehicle(vehicle || null);
+        const customer = customers.find(c => c.id === rental.customerId);
+        setSelectedCustomer(customer || null);
+      } else {
+        setEditingRental(null);
+        // Recharger uniquement les véhicules disponibles
+        const availableVehicles = await getAvailableVehicles();
+        console.log('Véhicules disponibles pour nouvelle location:', availableVehicles);
+        setVehicles(availableVehicles); // Ne montrer que les véhicules disponibles dans le menu
+        
+        setFormData({
+          vehicleId: '',
+          customerId: '',
+          startDate: Timestamp.now(),
+          endDate: Timestamp.now(),
+          totalCost: 0,
+          status: 'active',
+          paymentStatus: 'pending',
+          paidAmount: 0,
+          wilaya: '',
+          contractId: '',
+          paymentMethod: 'cash'
+        });
+        setSelectedVehicle(null);
+        setSelectedCustomer(null);
+      }
+      setOpen(true);
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture du formulaire:', error);
     }
-    setOpen(true);
   };
 
   const handleClose = () => {
@@ -232,7 +251,11 @@ const RentalList: React.FC = () => {
         rentalId = await addRental(rentalData);
         
         // Mettre à jour le statut du véhicule à "rented"
-        await updateVehicle(selectedVehicle.id!, { status: 'rented' });
+        await updateVehicle(selectedVehicle.id!, { 
+          status: 'rented',
+          editingRental: false,
+          isAvailable: false
+        });
       }
 
       // Create contract for new rentals
@@ -319,32 +342,57 @@ const RentalList: React.FC = () => {
   const handleStatusChange = async (rental: Rental, newStatus: 'active' | 'completed') => {
     try {
       if (newStatus === 'completed') {
-        // 1. D'abord mettre à jour le véhicule
-        console.log(`Mise à jour du statut du véhicule ${rental.vehicleId}...`);
-        await updateVehicle(rental.vehicleId, { status: 'available' });
+        // 1. Mettre à jour le véhicule avec une nouvelle tentative si nécessaire
+        console.log(`Mise à jour du statut du véhicule ${rental.vehicleId} à "available"...`);
         
-        // 2. Vérifier que la mise à jour du véhicule a bien été effectuée
-        const updatedVehicles = await getAllVehicles();
-        const updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
-        console.log('Véhicule après mise à jour:', updatedVehicle);
+        // Première tentative de mise à jour
+        await updateVehicle(rental.vehicleId, { 
+          status: 'available',
+          editingRental: false,
+          isAvailable: true
+        });
+        
+        // Vérifier la mise à jour
+        let updatedVehicles = await getAllVehicles();
+        let updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
+        console.log('État du véhicule après première mise à jour:', updatedVehicle);
+        
+        // Si le véhicule n'est toujours pas disponible, faire une deuxième tentative
+        if (!updatedVehicle || updatedVehicle.status !== 'available') {
+          console.log('Première tentative échouée, nouvelle tentative...');
+          await updateVehicle(rental.vehicleId, { 
+            status: 'available',
+            editingRental: false,
+            isAvailable: true
+          });
+          
+          // Vérifier à nouveau
+          updatedVehicles = await getAllVehicles();
+          updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
+          console.log('État du véhicule après seconde mise à jour:', updatedVehicle);
+        }
         
         if (!updatedVehicle || updatedVehicle.status !== 'available') {
-          console.error('Erreur: Le statut du véhicule na pas été mis à jour correctement');
-          throw new Error('La mise à jour du statut du véhicule a échoué');
+          throw new Error('Impossible de mettre à jour le statut du véhicule à "available"');
         }
         
         console.log('Statut du véhicule mis à jour avec succès à "available"');
       }
       
-      // 3. Ensuite mettre à jour la location
+      // 2. Mettre à jour la location
       console.log(`Mise à jour du statut de la location ${rental.id} à "${newStatus}"...`);
       await updateRental(rental.id!, { 
         status: newStatus,
         endDate: newStatus === 'completed' ? Timestamp.now() : rental.endDate
       });
       
-      // 4. Recharger toutes les données
+      // 3. Recharger toutes les données
       await loadData();
+      
+      // 4. Forcer un rechargement des véhicules disponibles
+      const availableVehicles = await getAvailableVehicles();
+      console.log('Liste mise à jour des véhicules disponibles:', availableVehicles);
+      setVehicles(availableVehicles);
       
       console.log('Mise à jour terminée avec succès');
     } catch (error) {
@@ -543,18 +591,27 @@ const RentalList: React.FC = () => {
                   required
                 >
                   {vehicles
-                    .filter(vehicle => 
-                      // Pour une nouvelle location, montrer uniquement les véhicules disponibles
-                      // Pour une modification, montrer le véhicule actuel et les disponibles
-                      !editingRental 
+                    .filter(vehicle => {
+                      const isAvailable = !editingRental 
                         ? vehicle.status === 'available'
-                        : vehicle.status === 'available' || vehicle.id === editingRental.vehicleId
-                    )
-                    .map((vehicle) => (
-                      <MenuItem key={vehicle.id} value={vehicle.id}>
-                        {`${vehicle.brand} ${vehicle.model} (${vehicle.registration})`}
-                      </MenuItem>
-                    ))
+                        : vehicle.status === 'available' || vehicle.id === editingRental.vehicleId;
+                      
+                      console.log(`Véhicule ${vehicle.id} (${vehicle.brand} ${vehicle.model}):`, {
+                        status: vehicle.status,
+                        editingRental: !!editingRental,
+                        isAvailable
+                      });
+                      
+                      return isAvailable;
+                    })
+                    .map((vehicle) => {
+                      console.log('Affichage du véhicule dans le menu:', vehicle);
+                      return (
+                        <MenuItem key={vehicle.id} value={vehicle.id}>
+                          {`${vehicle.brand} ${vehicle.model} (${vehicle.registration})`}
+                        </MenuItem>
+                      );
+                    })
                   }
                 </TextField>
               </Grid>

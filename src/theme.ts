@@ -2,44 +2,73 @@ import { createTheme } from '@mui/material/styles';
 
 export const theme = createTheme({
   palette: {
-    mode: 'light',
     primary: {
-      main: '#78a6c8',     // Bleu clair principal
-      light: '#9ccfe7',    // Bleu très clair
-      dark: '#e9eef2',     // Bleu gris très clair
+      main: '#1a237e',
+      light: '#534bae',
+      dark: '#000051',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#e6f3f8',     // Bleu glacier très clair
-      light: '#f5f9fc',    // Presque blanc avec une touche de bleu
-      dark: '#4a6670',     // Bleu gris foncé pour le contraste
+      main: '#0288d1',
+      light: '#5eb8ff',
+      dark: '#005b9f',
+      contrastText: '#ffffff',
     },
     background: {
-      default: '#ffffff',   // Blanc pur
-      paper: '#f8fafc',    // Blanc légèrement bleuté
+      default: '#f5f7fa',
+      paper: '#ffffff',
     },
     text: {
-      primary: '#2c3e50',  // Bleu gris foncé pour le texte
-      secondary: '#607d8b', // Bleu gris moyen pour le texte secondaire
+      primary: '#1a237e',
+      secondary: '#455a64',
+    },
+  },
+  typography: {
+    fontFamily: "'Poppins', sans-serif",
+    h1: {
+      fontWeight: 600,
+      fontSize: '2.5rem',
+    },
+    h2: {
+      fontWeight: 600,
+      fontSize: '2rem',
+    },
+    h3: {
+      fontWeight: 600,
+      fontSize: '1.75rem',
+    },
+    h4: {
+      fontWeight: 600,
+      fontSize: '1.5rem',
+    },
+    h5: {
+      fontWeight: 600,
+      fontSize: '1.25rem',
+    },
+    h6: {
+      fontWeight: 600,
+      fontSize: '1rem',
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
     },
   },
   components: {
-    MuiToolbar: {
+    MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: '#e6f3f8',
-          color: '#2c3e50',
+          backgroundColor: '#ffffff',
+          color: '#1a237e',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
         },
       },
     },
-    MuiPaper: {
+    MuiToolbar: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
-          backgroundColor: '#f8fafc',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px',
-          border: '1px solid rgba(120, 166, 200, 0.1)',
-          boxShadow: '0 2px 4px rgba(120, 166, 200, 0.05)',
+          backgroundColor: '#ffffff',
+          color: '#1a237e',
         },
       },
     },
@@ -47,10 +76,15 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: '8px',
-          textTransform: 'none',
-          fontWeight: 500,
+          padding: '8px 16px',
+          boxShadow: 'none',
           '&:hover': {
-            backgroundColor: '#9ccfe7',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          },
+        },
+        contained: {
+          '&:hover': {
+            transform: 'translateY(-1px)',
           },
         },
       },
@@ -59,125 +93,44 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: '12px',
-          border: '1px solid rgba(120, 166, 200, 0.1)',
-          boxShadow: '0 4px 6px rgba(120, 166, 200, 0.05)',
-          backgroundColor: '#ffffff',
-        },
-      },
-    },
-    MuiTableHead: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#e6f3f8',
-          '& .MuiTableCell-root': {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-        },
-      },
-    },
-    MuiTableRow: {
-      styleOverrides: {
-        root: {
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+          transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
           '&:hover': {
-            backgroundColor: '#f5f9fc',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.1)',
           },
         },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          borderRadius: '6px',
-        },
-       
       },
     },
     MuiTextField: {
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            '& fieldset': {
-              borderColor: 'rgba(44, 62, 80, 0.2)',
-            },
+            borderRadius: '8px',
             '&:hover fieldset': {
-              borderColor: '#78a6c8',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#78a6c8',
+              borderColor: '#1a237e',
             },
           },
         },
       },
     },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#f8fafc',
-          color: '#2c3e50',
-          boxShadow: '0 1px 2px rgba(44, 62, 80, 0.05)',
-        },
-      },
-    },
-    MuiTypography: {
-      styleOverrides: {
-        root: {
-          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-          h1: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          h2: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          h3: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          h4: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          h5: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          h6: {
-            color: '#2c3e50',
-            fontWeight: 600,
-          },
-          body1: {
-            color: '#2c3e50',
-          },
-          body2: {
-            color: '#607d8b',
-          },
-        },
-      },
-    },
-    MuiDrawer: {
+    MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#f8fafc',
-          borderRight: '1px solid rgba(120, 166, 200, 0.1)',
-          '& .MuiListItemButton-root': {
-            '&:hover': {
-              backgroundColor: '#e6f3f8',
-            },
-            '&.Mui-selected': {
-              backgroundColor: '#e6f3f8',
-              '&:hover': {
-                backgroundColor: '#d1e8f3',
-              },
-            },
-          },
-          '& .MuiListItemIcon-root': {
-            color: '#78a6c8',
-          },
-          '& .MuiListItemText-root': {
-            color: '#2c3e50',
-          },
+          borderRadius: '16px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          padding: '16px',
+        },
+        head: {
+          backgroundColor: '#f5f7fa',
+          color: '#1a237e',
+          fontWeight: 600,
         },
       },
     },

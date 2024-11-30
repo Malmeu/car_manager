@@ -13,6 +13,8 @@ export interface Vehicle {
     fuelType: string;
     lastMaintenance?: Date;
     imageUrl?: string;
+    editingRental?: boolean;
+    isAvailable?: boolean;
 }
 
 export interface Customer {

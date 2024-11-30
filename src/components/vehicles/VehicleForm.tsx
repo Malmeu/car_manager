@@ -24,11 +24,11 @@ const initialState: Omit<Vehicle, 'id'> = {
   model: '',
   year: new Date().getFullYear(),
   registration: '',
-  status: 'available',
   dailyRate: 0,
   mileage: 0,
   fuelType: 'essence',
   kilometers: 0,
+  status: 'available',
 };
 
 const VehicleForm: React.FC<VehicleFormProps> = ({
@@ -141,20 +141,6 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
               error={!!errors.registration}
               helperText={errors.registration}
             />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              select
-              label="État"
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-            >
-              <MenuItem value="available">Disponible</MenuItem>
-              <MenuItem value="rented">Loué</MenuItem>
-              <MenuItem value="maintenance">En maintenance</MenuItem>
-            </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField

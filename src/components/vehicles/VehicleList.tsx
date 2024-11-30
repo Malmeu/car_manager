@@ -275,6 +275,12 @@ const VehicleList: React.FC = () => {
                            vehicle.status === 'available' ? 'Disponible' : 'Indisponible'}
                     color={activeRentals.includes(vehicle.id!) ? 'primary' :
                            vehicle.status === 'available' ? 'success' : 'error'}
+                    onClick={activeRentals.includes(vehicle.id!) ? undefined : () => {
+                      updateVehicle(vehicle.id!, {
+                        status: vehicle.status === 'available' ? 'unavailable' : 'available'
+                      });
+                    }}
+                    sx={{ cursor: activeRentals.includes(vehicle.id!) ? 'default' : 'pointer' }}
                   />
                   <Chip
                     size="small"

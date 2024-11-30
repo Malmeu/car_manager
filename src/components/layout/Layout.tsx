@@ -1,5 +1,6 @@
 import React from 'react';
 import { styled } from '@mui/material/styles';
+import { theme } from '../../theme';
 import {
   Box,
   Drawer as MuiDrawer,
@@ -13,6 +14,9 @@ import {
   ListItemIcon,
   ListItemText,
   CssBaseline,
+  SpeedDial,
+  SpeedDialIcon,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -23,8 +27,9 @@ import {
   Description as ContractIcon,
   Assessment as ReportIcon,
   Settings as SettingsIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const drawerWidth = 240;
 
@@ -33,9 +38,11 @@ const AppBar = styled(MuiAppBar, {
 })<{
   open?: boolean;
 }>(({ theme, open }) => ({
-  background: '#bfdbf7',
-  backdropFilter: 'blur(10px)',
-  borderBottom: '1px solid rgba(191, 219, 247, 0.3)',
+  backgroundColor: '#ffffff',
+  color: '#1a237e',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  borderBottom: '1px solid rgba(26, 35, 126, 0.1)',
+  position: 'fixed',
   zIndex: theme.zIndex.drawer + 1,
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
@@ -54,18 +61,18 @@ const AppBar = styled(MuiAppBar, {
 const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     '& .MuiDrawer-paper': {
-      background: '#bfdbf7',
-      backdropFilter: 'blur(10px)',
-      border: 'none',
+      backgroundColor: '#ffffff',
       color: '#1a237e',
-      position: 'relative',
+      position: 'fixed',
       whiteSpace: 'nowrap',
       width: drawerWidth,
+      boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
       transition: theme.transitions.create('width', {
         easing: theme.transitions.easing.sharp,
         duration: theme.transitions.duration.enteringScreen,
       }),
       boxSizing: 'border-box',
+      height: '100vh',
       ...(!open && {
         overflowX: 'hidden',
         transition: theme.transitions.create('width', {
@@ -82,30 +89,21 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
         minWidth: 40,
       },
       '& .MuiListItem-root': {
-        margin: '8px 0',
-        borderRadius: '0 25px 25px 0',
+        margin: '8px 8px',
+        borderRadius: '8px',
         '&:hover': {
-          background: 'rgba(26, 35, 126, 0.1)',
+          backgroundColor: 'rgba(26, 35, 126, 0.08)',
         },
         '&.active': {
-          background: 'rgba(26, 35, 126, 0.2)',
+          backgroundColor: 'rgba(26, 35, 126, 0.12)',
           '&:hover': {
-            background: 'rgba(26, 35, 126, 0.2)',
+            backgroundColor: 'rgba(26, 35, 126, 0.16)',
           },
         },
       },
     },
   }),
 );
-
-const MainContent = styled('main')(({ theme }) => ({
-  flexGrow: 1,
-  padding: theme.spacing(3),
-  minHeight: '100vh',
-  background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.primary.dark} 100%)`,
-  backgroundAttachment: 'fixed',
-  overflowX: 'hidden',
-}));
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -114,9 +112,14 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = React.useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const toggleDrawer = () => {
     setOpen(!open);
+  };
+
+  const handleNewRental = () => {
+    navigate('/rentals', { state: { openNewRental: true } });
   };
 
   const menuItems = [
@@ -132,32 +135,42 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       <AppBar position="fixed" open={open}>
-        <Toolbar sx={{
-          pr: '24px',
-          background: '#bfdbf7',
-          backdropFilter: 'blur(10px)',
-        }}>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="open drawer"
-            onClick={toggleDrawer}
-            sx={{
-              marginRight: '36px',
-              ...(open && { display: 'none' }),
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography
-            component="h1"
-            variant="h6"
-            color="inherit"
-            noWrap
-            sx={{ flexGrow: 1 }}
-          >
-            Car Manager
-          </Typography>
+        <Toolbar
+          sx={{
+            pr: '24px',
+            minHeight: '64px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="open drawer"
+              onClick={toggleDrawer}
+              sx={{
+                marginRight: '36px',
+                ...(open && { display: 'none' }),
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              component="h1"
+              variant="h6"
+              color="inherit"
+              noWrap
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '1.25rem',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Car Manager
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
       <Drawer variant="permanent" open={open}>
@@ -166,15 +179,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
+            minHeight: '64px',
             px: [1],
           }}
         >
-          <IconButton onClick={toggleDrawer} sx={{ color: '#1a237e' }}>
+          <IconButton onClick={toggleDrawer}>
             <ChevronLeftIcon />
           </IconButton>
         </Toolbar>
-        <Divider sx={{ borderColor: 'rgba(26, 35, 126, 0.1)' }} />
-        <List component="nav">
+        <Divider sx={{ borderColor: 'rgba(26, 35, 126, 0.12)' }} />
+        <List component="nav" sx={{ p: 1 }}>
           {menuItems.map((item) => (
             <ListItem
               component={Link}
@@ -182,34 +196,67 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               key={item.text}
               className={location.pathname === item.path ? 'active' : ''}
               sx={{
-                transition: 'all 0.3s',
-                '&:hover': {
-                  transform: 'translateX(5px)',
-                },
-                color: '#1a237e',
+                mb: 0.5,
+                transition: 'all 0.2s ease-in-out',
                 textDecoration: 'none',
-                '&.active': {
-                  backgroundColor: 'rgba(26, 35, 126, 0.1)',
-                }
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+                py: 1,
+                '&:hover': {
+                  transform: 'translateX(4px)',
+                },
               }}
             >
-              <ListItemIcon sx={{ color: '#1a237e', minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemIcon 
+                sx={{ 
+                  color: 'inherit',
+                  minWidth: 40,
+                  mr: 1
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
               <ListItemText 
                 primary={item.text}
-                sx={{
-                  '& .MuiListItemText-primary': {
-                    color: '#1a237e'
-                  }
+                primaryTypographyProps={{
+                  fontSize: '0.95rem',
+                  fontWeight: location.pathname === item.path ? 600 : 400,
                 }}
               />
             </ListItem>
           ))}
         </List>
       </Drawer>
-      <MainContent>
-        <Toolbar />
+      <Box
+        component="main"
+        sx={{
+          backgroundColor: '#f5f7fa',
+          flexGrow: 1,
+          height: '100vh',
+          overflow: 'auto',
+          pt: '64px',
+          pl: open ? `${drawerWidth}px` : `${theme.spacing(7)}px`,
+          transition: theme.transitions.create('padding', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        }}
+      >
         {children}
-      </MainContent>
+        <Tooltip title="Nouvelle Location" placement="left">
+          <SpeedDial
+            ariaLabel="Nouvelle Location"
+            sx={{
+              position: 'fixed',
+              bottom: 16,
+              right: 16,
+            }}
+            icon={<SpeedDialIcon openIcon={<AddIcon />} />}
+            onClick={handleNewRental}
+          />
+        </Tooltip>
+      </Box>
     </Box>
   );
 };
