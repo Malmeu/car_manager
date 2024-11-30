@@ -20,10 +20,11 @@ import {
   Grid,
   ToggleButton,
   ToggleButtonGroup,
+  Chip
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { getAllRentals, updateRental, addRental, deleteRental } from '../../services/rentalService';
-import { getAllVehicles, getAvailableVehicles } from '../../services/vehicleService';
+import { getAllVehicles, getAvailableVehicles, updateVehicle } from '../../services/vehicleService';
 import { getAllCustomers } from '../../services/customerService';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
@@ -219,6 +220,9 @@ const RentalList: React.FC = () => {
         rentalId = editingRental.id;
       } else {
         rentalId = await addRental(rentalData);
+        
+        // Mettre à jour le statut du véhicule à "rented"
+        await updateVehicle(selectedVehicle.id!, { status: 'rented' });
       }
 
       // Create contract for new rentals
@@ -302,12 +306,18 @@ const RentalList: React.FC = () => {
     }
   };
 
-  const handleStatusChange = (
-    event: React.MouseEvent<HTMLElement>,
-    newStatus: 'active' | 'completed',
-  ) => {
-    if (newStatus !== null) {
-      setRentalStatus(newStatus);
+  const handleStatusChange = async (rental: Rental, newStatus: 'active' | 'completed') => {
+    try {
+      await updateRental(rental.id!, { status: newStatus });
+      
+      // Si la location est terminée, remettre le véhicule comme disponible
+      if (newStatus === 'completed') {
+        await updateVehicle(rental.vehicleId, { status: 'available' });
+      }
+      
+      await loadData();
+    } catch (error) {
+      console.error('Error updating rental status:', error);
     }
   };
 
@@ -319,7 +329,11 @@ const RentalList: React.FC = () => {
           <ToggleButtonGroup
             value={rentalStatus}
             exclusive
-            onChange={handleStatusChange}
+            onChange={(event, newStatus) => {
+              if (newStatus !== null) {
+                setRentalStatus(newStatus);
+              }
+            }}
             aria-label="rental status"
             size="small"
           >
@@ -366,7 +380,14 @@ const RentalList: React.FC = () => {
                   <TableCell>{formatDate(rental.startDate)}</TableCell>
                   <TableCell>{formatDate(rental.endDate)}</TableCell>
                   <TableCell>{rental.totalCost} DA</TableCell>
-                  <TableCell>{rental.status}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={rental.status === 'active' ? 'Active' : 'Terminée'}
+                      color={rental.status === 'active' ? 'primary' : 'default'}
+                      onClick={() => rental.status === 'active' && handleStatusChange(rental, 'completed')}
+                      sx={{ cursor: rental.status === 'active' ? 'pointer' : 'default' }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Typography>
                       Status: {rental.paymentStatus}

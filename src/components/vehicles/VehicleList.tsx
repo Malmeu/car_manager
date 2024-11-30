@@ -29,6 +29,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
+import { getAllRentals } from '../../services/rentalService';
 
 const VehicleList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -47,6 +48,7 @@ const VehicleList: React.FC = () => {
     kilometers: 0,
     fuelType: 'essence'
   });
+  const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
   useEffect(() => {
     loadVehicles();
@@ -63,8 +65,26 @@ const VehicleList: React.FC = () => {
 
   const loadVehicles = async () => {
     try {
-      const data = await getAllVehicles();
-      setVehicles(data);
+      const [vehiclesData, rentalsData] = await Promise.all([
+        getAllVehicles(),
+        getAllRentals()
+      ]);
+
+      // Récupérer les IDs des véhicules actuellement en location
+      const rentedVehicleIds = rentalsData
+        .filter(rental => rental.status === 'active')
+        .map(rental => rental.vehicleId);
+      
+      setActiveRentals(rentedVehicleIds);
+
+      // Mettre à jour le statut des véhicules en fonction des locations actives
+      const updatedVehicles = vehiclesData.map(vehicle => ({
+        ...vehicle,
+        status: rentedVehicleIds.includes(vehicle.id!) ? 'rented' : vehicle.status
+      }));
+
+      setVehicles(updatedVehicles);
+      console.log('Véhicules mis à jour avec les statuts:', updatedVehicles);
     } catch (error) {
       console.error('Error loading vehicles:', error);
     }
@@ -215,10 +235,10 @@ const VehicleList: React.FC = () => {
                 <Box display="flex" gap={1} mb={1}>
                   <Chip
                     size="small"
-                    label={vehicle.status === 'available' ? 'Disponible' : 
-                           vehicle.status === 'rented' ? 'En location' : 'Indisponible'}
-                    color={vehicle.status === 'available' ? 'success' : 
-                           vehicle.status === 'rented' ? 'primary' : 'error'}
+                    label={activeRentals.includes(vehicle.id!) ? 'En location' :
+                           vehicle.status === 'available' ? 'Disponible' : 'Indisponible'}
+                    color={activeRentals.includes(vehicle.id!) ? 'primary' :
+                           vehicle.status === 'available' ? 'success' : 'error'}
                   />
                   <Chip
                     size="small"
