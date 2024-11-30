@@ -52,6 +52,8 @@ interface RentalStats {
 }
 
 const Reports: React.FC = () => {
+  const [rentals, setRentals] = useState<Rental[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<RentalStats>({
     monthlyRevenue: [],
@@ -65,15 +67,17 @@ const Reports: React.FC = () => {
     completedRentals: 0,
     vehicleUtilization: [],
   });
+  const theme = useTheme();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [rentalsData, vehiclesData] = await Promise.all([
           getAllRentals(),
-          getAllVehicles()
+          getAllVehicles(),
         ]);
-
+        setRentals(rentalsData);
+        setVehicles(vehiclesData);
         calculateStats(rentalsData, vehiclesData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -81,7 +85,6 @@ const Reports: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -166,312 +169,296 @@ const Reports: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ 
-      p: 3, 
-      background: 'linear-gradient(145deg, #1a237e 0%, #0d47a1 100%)',
-      minHeight: '100vh',
-      color: 'white'
-    }}>
-      <Typography variant="h4" gutterBottom sx={{ color: '#fff', fontWeight: 'bold' }}>
-        Tableau de Bord
+    <Box sx={{ p: 3, backgroundColor: theme.palette.background.default }}>
+      <Typography variant="h4" sx={{ mb: 4, color: theme.palette.primary.main }}>
+        Tableau de bord des rapports
       </Typography>
-
-      <Grid container spacing={3}>
-        {/* Cartes des statistiques principales */}
-        <Grid item xs={12} md={3}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            transition: 'transform 0.3s',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-            }
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <MoneyIcon sx={{ fontSize: 40, mr: 2, color: '#4fc3f7' }} />
-              <Box>
-                <Typography variant="h6" sx={{ color: '#4fc3f7' }}>Revenu Total</Typography>
-                <Typography variant="h4">{stats.statistics.totalRevenue}</Typography>
+      {loading ? (
+        <CircularProgress />
+      ) : (
+        <Grid container spacing={3}>
+          {/* Cards */}
+          <Grid item xs={12} md={6} lg={3}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                height: 140,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.primary.light}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <MoneyIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
+                <Box>
+                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Revenu Total</Typography>
+                  <Typography variant="h4">{stats.statistics.totalRevenue}</Typography>
+                </Box>
               </Box>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={70} 
-              sx={{ 
-                height: 8, 
-                borderRadius: 4,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#4fc3f7'
-                }
-              }} 
-            />
-          </Paper>
-        </Grid>
+              <LinearProgress 
+                variant="determinate" 
+                value={70} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: theme.palette.primary.main
+                  }
+                }} 
+              />
+            </Paper>
+          </Grid>
 
-        <Grid item xs={12} md={3}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            transition: 'transform 0.3s',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-            }
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <TimelineIcon sx={{ fontSize: 40, mr: 2, color: '#81c784' }} />
-              <Box>
-                <Typography variant="h6" sx={{ color: '#81c784' }}>Durée Moyenne</Typography>
-                <Typography variant="h4">{stats.statistics.averageRentalDuration}</Typography>
+          <Grid item xs={12} md={6} lg={3}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                height: 140,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.primary.light}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <TimelineIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
+                <Box>
+                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Durée Moyenne</Typography>
+                  <Typography variant="h4">{stats.statistics.averageRentalDuration}</Typography>
+                </Box>
               </Box>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={85} 
-              sx={{ 
-                height: 8, 
-                borderRadius: 4,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#81c784'
-                }
-              }} 
-            />
-          </Paper>
-        </Grid>
+              <LinearProgress 
+                variant="determinate" 
+                value={85} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: theme.palette.primary.main
+                  }
+                }} 
+              />
+            </Paper>
+          </Grid>
 
-        <Grid item xs={12} md={3}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            transition: 'transform 0.3s',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-            }
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <CarIcon sx={{ fontSize: 40, mr: 2, color: '#ba68c8' }} />
-              <Box>
-                <Typography variant="h6" sx={{ color: '#ba68c8' }}>Locations Actives</Typography>
-                <Typography variant="h4">{stats.activeRentals}</Typography>
+          <Grid item xs={12} md={6} lg={3}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                height: 140,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.primary.light}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <CarIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
+                <Box>
+                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Locations Actives</Typography>
+                  <Typography variant="h4">{stats.activeRentals}</Typography>
+                </Box>
               </Box>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={60} 
-              sx={{ 
-                height: 8, 
-                borderRadius: 4,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#ba68c8'
-                }
-              }} 
-            />
-          </Paper>
-        </Grid>
+              <LinearProgress 
+                variant="determinate" 
+                value={60} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: theme.palette.primary.main
+                  }
+                }} 
+              />
+            </Paper>
+          </Grid>
 
-        <Grid item xs={12} md={3}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            transition: 'transform 0.3s',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-            }
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <SpeedIcon sx={{ fontSize: 40, mr: 2, color: '#ff8a65' }} />
-              <Box>
-                <Typography variant="h6" sx={{ color: '#ff8a65' }}>Total Locations</Typography>
-                <Typography variant="h4">{stats.statistics.totalRentals}</Typography>
+          <Grid item xs={12} md={6} lg={3}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                height: 140,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.primary.light}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <SpeedIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
+                <Box>
+                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Total Locations</Typography>
+                  <Typography variant="h4">{stats.statistics.totalRentals}</Typography>
+                </Box>
               </Box>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={75} 
-              sx={{ 
-                height: 8, 
-                borderRadius: 4,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#ff8a65'
-                }
-              }} 
-            />
-          </Paper>
-        </Grid>
+              <LinearProgress 
+                variant="determinate" 
+                value={75} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: theme.palette.primary.main
+                  }
+                }} 
+              />
+            </Paper>
+          </Grid>
 
-        {/* Graphique des revenus mensuels */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white'
-          }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-              Revenus Mensuels
-            </Typography>
-            <Box height={400}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.monthlyRevenue}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="month" stroke="#fff" />
-                  <YAxis stroke="#fff" />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value.toLocaleString('fr-FR')} DZD`, 'Revenus']}
-                    contentStyle={{
-                      backgroundColor: 'rgba(0,0,0,0.8)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
-                  <Bar dataKey="amount" fill="#4fc3f7" name="Revenus" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid>
+          {/* Monthly Revenue Chart */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.primary.light}`,
+            }}>
+              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
+                Revenus Mensuels
+              </Typography>
+              <Box height={400}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.monthlyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.primary.light} />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke={theme.palette.text.primary}
+                    />
+                    <YAxis 
+                      stroke={theme.palette.text.primary}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.primary.light}`
+                      }}
+                    />
+                    <Bar dataKey="amount" fill={theme.palette.primary.main} name="Revenus" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Grid>
 
-        {/* Graphique des véhicules les plus loués */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            height: '100%'
-          }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-              Top Véhicules
-            </Typography>
-            <Box height={400}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats.topVehicles}
-                    dataKey="rentals"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    fill="#8884d8"
-                  >
-                    {stats.topVehicles.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#4fc3f7', '#81c784', '#ba68c8', '#ff8a65', '#ffb74d'][index % 5]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [`${value} locations`, '']}
-                    contentStyle={{
-                      backgroundColor: 'rgba(0,0,0,0.8)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => <span style={{ color: '#fff' }}>{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid>
+          {/* Top Vehicles Chart */}
+          <Grid item xs={12} md={4}>
+            <Paper sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.primary.light}`,
+              height: '100%'
+            }}>
+              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
+                Top Véhicules
+              </Typography>
+              <Box height={400}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.topVehicles}
+                      dataKey="rentals"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                    >
+                      {stats.topVehicles.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={[
+                            theme.palette.primary.main,
+                            theme.palette.primary.light,
+                            theme.palette.secondary.main,
+                            theme.palette.secondary.light,
+                            theme.palette.primary.dark
+                          ][index % 5]} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.primary.light}`
+                      }}
+                    />
+                    <Legend 
+                      formatter={(value) => (
+                        <span style={{ color: theme.palette.text.primary }}>{value}</span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Grid>
 
-        {/* Utilisation des véhicules */}
-        <Grid item xs={12}>
-          <Paper sx={{
-            p: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '15px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'white'
-          }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-              Utilisation des Véhicules
-            </Typography>
-            <Box height={300}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart 
-                  innerRadius="10%" 
-                  outerRadius="80%" 
-                  data={stats.vehicleUtilization.map((item, index) => ({
-                    name: item.vehicle,
-                    utilization: Math.round((item.totalDays / 365) * 100),
-                    fill: ['#4fc3f7', '#81c784', '#ba68c8', '#ff8a65', '#ffb74d'][index % 5]
-                  }))}
-                  startAngle={180} 
-                  endAngle={0}
-                >
-                  <RadialBar
-                    background
-                    dataKey="utilization"
-                    label={{
-                      position: 'insideStart',
-                      fill: '#fff',
-                    }}
-                    cornerRadius={10}
-                    stackId="stack"
-                  />
-                  <Legend
-                    iconSize={10}
-                    width={120}
-                    height={140}
+          {/* Vehicle Utilization Chart */}
+          <Grid item xs={12}>
+            <Paper sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.primary.light}`,
+            }}>
+              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
+                Utilisation des Véhicules
+              </Typography>
+              <Box height={400}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={stats.vehicleUtilization}
                     layout="vertical"
-                    verticalAlign="middle"
-                    align="right"
-                    wrapperStyle={{
-                      color: '#fff'
-                    }}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}% d'utilisation`, '']}
-                    contentStyle={{
-                      backgroundColor: 'rgba(0,0,0,0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
-                </RadialBarChart>
-              </ResponsiveContainer>
-            </Box>
-          </Paper>
+                    margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.primary.light} />
+                    <XAxis 
+                      type="number"
+                      stroke={theme.palette.text.primary}
+                    />
+                    <YAxis 
+                      dataKey="vehicle" 
+                      type="category"
+                      stroke={theme.palette.text.primary}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.primary.light}`
+                      }}
+                    />
+                    <Legend
+                      formatter={(value) => (
+                        <span style={{ color: theme.palette.text.primary }}>{value}</span>
+                      )}
+                    />
+                    <Bar 
+                      dataKey="totalDays" 
+                      fill={theme.palette.primary.main}
+                      name="Jours d'utilisation"
+                    />
+                    <Bar 
+                      dataKey="revenue" 
+                      fill={theme.palette.secondary.main}
+                      name="Revenus (€)"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
     </Box>
   );
 };
