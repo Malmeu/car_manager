@@ -2,23 +2,32 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  IconButton,
   Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
   InputAdornment,
+  Avatar,
+  Tooltip,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  DriveEta as LicenseIcon,
+  LocationOn as LocationIcon,
+  Person as PersonIcon,
+} from '@mui/icons-material';
 import { Customer, addCustomer, getAllCustomers, updateCustomer, deleteCustomer, searchCustomersByName } from '../../services/customerService';
 
 const CustomerList: React.FC = () => {
@@ -120,6 +129,15 @@ const CustomerList: React.FC = () => {
     }
   };
 
+  const filteredCustomers = customers.filter(customer =>
+    customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.drivingLicense.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -132,11 +150,9 @@ const CustomerList: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleSearch}>
-                    <SearchIcon />
-                  </IconButton>
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
                 </InputAdornment>
               ),
             }}
@@ -152,41 +168,125 @@ const CustomerList: React.FC = () => {
         </Box>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Prénom</TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Telephone</TableCell>
-              <TableCell>Permis de conduire</TableCell>
-              <TableCell>Adresse</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {customers.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell>{customer.firstName}</TableCell>
-                <TableCell>{customer.lastName}</TableCell>
-                <TableCell>{customer.email}</TableCell>
-                <TableCell>{customer.phone}</TableCell>
-                <TableCell>{customer.drivingLicense}</TableCell>
-                <TableCell>{customer.address}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleOpen(customer)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => customer.id && handleDelete(customer.id)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Grid container spacing={3}>
+        {filteredCustomers.map((customer) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={customer.id}>
+            <Card
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Avatar
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      bgcolor: 'primary.main',
+                      fontSize: '1.5rem',
+                    }}
+                  >
+                    {customer.firstName[0]}{customer.lastName[0]}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                      {customer.firstName} {customer.lastName}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box display="flex" flexDirection="column" gap={1}>
+                  <Tooltip title="Email" placement="left">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <EmailIcon fontSize="small" />
+                      {customer.email || 'Non renseigné'}
+                    </Typography>
+                  </Tooltip>
+
+                  <Tooltip title="Téléphone" placement="left">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      <PhoneIcon fontSize="small" />
+                      {customer.phone}
+                    </Typography>
+                  </Tooltip>
+
+                  <Tooltip title="Permis de conduire" placement="left">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      <LicenseIcon fontSize="small" />
+                      {customer.drivingLicense}
+                    </Typography>
+                  </Tooltip>
+
+                  <Tooltip title="Adresse" placement="left">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <LocationIcon fontSize="small" />
+                      {customer.address}
+                    </Typography>
+                  </Tooltip>
+                </Box>
+              </CardContent>
+
+              <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpen(customer)}
+                  color="primary"
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => handleDelete(customer.id!)}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>

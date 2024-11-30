@@ -1,231 +1,203 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Grid,
-  Paper,
-  Typography,
   Box,
   Card,
   CardContent,
-  useTheme,
-  Skeleton,
+  Typography,
+  Grid,
+  Paper,
 } from '@mui/material';
-import {
-  DirectionsCar as CarIcon,
-  People as PeopleIcon,
-  Assignment as RentalIcon,
-  AttachMoney as MoneyIcon,
-} from '@mui/icons-material';
-import { getAllVehicles, Vehicle } from '../services/vehicleService';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import { getAllRentals } from '../services/rentalService';
+import { getAllVehicles } from '../services/vehicleService';
 import { getAllCustomers } from '../services/customerService';
-import { getContract } from '../services/contractService';
-import { Contract } from '../types/contract';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import { db } from '../config/firebase';
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string | Date;  // Allow both string and Date
+  end: string | Date;    // Allow both string and Date
+  backgroundColor?: string;
+  borderColor?: string;
+  extendedProps?: {
+    vehicleId: string;
+    customerId: string;
+    status: string;
+    vehicleInfo: string;
+    customerInfo: string;
+    price: number;
+  };
+}
 
 const Dashboard: React.FC = () => {
-  const theme = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    availableVehicles: 0,
-    activeRentals: 0,
-    totalCustomers: 0,
-    monthlyRevenue: 0,
-  });
+  const [totalVehicles, setTotalVehicles] = useState(0);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [activeRentals, setActiveRentals] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        console.log('Début du chargement des données du tableau de bord');
-        
-        // Fetch vehicles and customers
-        const [vehicles, customers] = await Promise.all([
+        const [rentalsData, vehiclesData, customersData] = await Promise.all([
+          getAllRentals(),
           getAllVehicles(),
           getAllCustomers(),
         ]);
 
-        console.log('Données récupérées:', {
-          vehiclesCount: vehicles.length,
-          customersCount: customers.length
-        });
-
-        // Fetch all contracts from Firestore
-        const contractsRef = collection(db, 'contracts');
-        const contractsSnapshot = await getDocs(contractsRef);
-        console.log('Contrats trouvés dans Firestore:', contractsSnapshot.size);
+        // Mise à jour des statistiques
+        setTotalVehicles(vehiclesData.length);
+        setTotalCustomers(customersData.length);
         
-        const contracts: Contract[] = [];
-        contractsSnapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.rental?.startDate && data.rental?.endDate && data.vehicle?.registration) {
-            try {
-              // Vérifier que les dates sont bien des Timestamps Firestore
-              const startDate = data.rental.startDate.toDate();
-              const endDate = data.rental.endDate.toDate();
-              contracts.push({
-                ...data,
-                id: doc.id,
-                rental: {
-                  ...data.rental,
-                  startDate: data.rental.startDate,
-                  endDate: data.rental.endDate
-                }
-              } as Contract);
-            } catch (error) {
-              console.error('Erreur de conversion de date pour le contrat:', doc.id, error);
+        const rentals = rentalsData.filter(
+          (rental) => rental.status === 'active'
+        );
+        setActiveRentals(rentals.length);
+
+        const revenue = rentalsData.reduce((acc, rental) => acc + (rental.totalCost || 0), 0);
+        setTotalRevenue(revenue);
+
+        // Préparation des événements du calendrier
+        // Filter only active rentals
+        const activeRentals = rentalsData.filter(rental => rental.status === 'active');
+        
+        const calendarEvents = activeRentals.map((rental) => {
+          const vehicle = vehiclesData.find(v => v.id === rental.vehicleId);
+          const customer = customersData.find(c => c.id === rental.customerId);
+          const eventColor = '#4CAF50'; // Couleur verte pour les locations actives
+          
+          // Formatage du titre pour plus de clarté
+          const title = `🚗 ${vehicle?.brand} ${vehicle?.model}\n👤 ${customer?.firstName} ${customer?.lastName}`;
+          
+          return {
+            id: rental.id!,
+            title: title,
+            start: rental.startDate.toDate().toISOString(),
+            end: rental.endDate.toDate().toISOString(),
+            backgroundColor: eventColor,
+            borderColor: eventColor,
+            extendedProps: {
+              vehicleId: rental.vehicleId,
+              customerId: rental.customerId,
+              status: rental.status,
+              vehicleInfo: `${vehicle?.brand} ${vehicle?.model}`,
+              customerInfo: `${customer?.firstName} ${customer?.lastName}`,
+              price: rental.totalCost
             }
-          } else {
-            console.warn('Contrat invalide ignoré:', doc.id, {
-              hasStartDate: !!data.rental?.startDate,
-              hasEndDate: !!data.rental?.endDate,
-              hasVehicle: !!data.vehicle?.registration
-            });
-          }
-        });
-        
-        console.log('Contrats valides traités:', contracts.length);
-
-        // Calculate active rentals
-        const now = new Date();
-        const activeContracts = contracts.filter(contract => {
-          const startDate = contract.rental.startDate.toDate();
-          const endDate = contract.rental.endDate.toDate();
-          return startDate <= now && endDate >= now;
+          };
         });
 
-        console.log('Locations actives trouvées:', activeContracts.length);
-
-        // Get rented vehicle registrations
-        const rentedVehicleRegistrations = new Set(
-          activeContracts.map(contract => contract.vehicle.registration)
-        );
-
-        // Calculate available vehicles
-        const availableVehicles = vehicles.filter(vehicle => 
-          !rentedVehicleRegistrations.has(vehicle.registration)
-        ).length;
-
-        console.log('Statut des véhicules:', {
-          total: vehicles.length,
-          rented: rentedVehicleRegistrations.size,
-          available: availableVehicles
-        });
-
-        // Calculate monthly revenue
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-
-        const monthlyContracts = contracts.filter(contract => {
-          const startDate = contract.rental.startDate.toDate();
-          return startDate.getMonth() === currentMonth && 
-                 startDate.getFullYear() === currentYear;
-        });
-
-        const monthlyRevenue = monthlyContracts.reduce((total, contract) => 
-          total + (contract.rental.totalCost || 0), 0
-        );
-
-        console.log('Revenus du mois:', {
-          month: currentMonth + 1,
-          year: currentYear,
-          contractCount: monthlyContracts.length,
-          total: monthlyRevenue
-        });
-
-        setStats({
-          availableVehicles,
-          activeRentals: activeContracts.length,
-          totalCustomers: customers.length,
-          monthlyRevenue,
-        });
+        setEvents(calendarEvents);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    fetchData();
   }, []);
 
-  const statsConfig = [
-    {
-      title: 'Véhicules Disponibles',
-      value: stats.availableVehicles.toString(),
-      icon: <CarIcon sx={{ fontSize: 40 }} />,
-      color: theme.palette.primary.main,
-    },
-    {
-      title: 'Locations Actives',
-      value: stats.activeRentals.toString(),
-      icon: <RentalIcon sx={{ fontSize: 40 }} />,
-      color: theme.palette.secondary.main,
-    },
-    {
-      title: 'Clients Total',
-      value: stats.totalCustomers.toString(),
-      icon: <PeopleIcon sx={{ fontSize: 40 }} />,
-      color: '#2e7d32',
-    },
-    {
-      title: 'Revenus du Mois',
-      value: new Intl.NumberFormat('fr-DZ', {
-        style: 'currency',
-        currency: 'DZD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(stats.monthlyRevenue),
-      icon: <MoneyIcon sx={{ fontSize: 40 }} />,
-      color: '#ed6c02',
-    },
-  ];
+  const handleEventClick = (clickInfo: any) => {
+    const event = clickInfo.event;
+    console.log('Event clicked:', {
+      rental: event.id,
+      vehicle: event.extendedProps.vehicleId,
+      customer: event.extendedProps.customerId,
+      status: event.extendedProps.status,
+    });
+  };
 
   return (
-    <Box>
+    <Box p={3}>
       <Typography variant="h4" gutterBottom>
-        Tableau de Bord
+        Tableau de bord
       </Typography>
-      <Grid container spacing={3}>
-        {statsConfig.map((stat) => (
-          <Grid item xs={12} sm={6} md={3} key={stat.title}>
-            <Card>
-              <CardContent>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Box>
-                    <Typography color="textSecondary" gutterBottom>
-                      {stat.title}
-                    </Typography>
-                    {loading ? (
-                      <Skeleton variant="text" width={100} height={60} />
-                    ) : (
-                      <Typography variant="h4">{stat.value}</Typography>
-                    )}
-                  </Box>
-                  <Box
-                    sx={{
-                      backgroundColor: `${stat.color}15`,
-                      borderRadius: '50%',
-                      p: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {React.cloneElement(stat.icon, { sx: { color: stat.color } })}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+
+      <Grid container spacing={3} mb={4}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Véhicules Total
+              </Typography>
+              <Typography variant="h5">{totalVehicles}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Clients Total
+              </Typography>
+              <Typography variant="h5">{totalCustomers}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Locations Actives
+              </Typography>
+              <Typography variant="h5">{activeRentals}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Revenu Total
+              </Typography>
+              <Typography variant="h5">{totalRevenue.toFixed(2)} €</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+
+      <Paper sx={{ p: 2, height: '600px' }}>
+        <Typography variant="h6" gutterBottom>
+          Calendrier des Locations
+        </Typography>
+        <Box sx={{ height: 'calc(100% - 40px)' }}>
+          <FullCalendar
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            }}
+            events={events}
+            eventClick={handleEventClick}
+            height="auto"
+            locale="fr"
+            eventContent={(eventInfo) => {
+              return (
+                <div style={{ padding: '4px', fontSize: '0.85em', lineHeight: '1.3' }}>
+                  <div style={{ fontWeight: 'bold' }}>{eventInfo.event.extendedProps.vehicleInfo}</div>
+                  <div>{eventInfo.event.extendedProps.customerInfo}</div>
+                  <div style={{ marginTop: '2px', color: '#666' }}>
+                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(eventInfo.event.extendedProps.price)}
+                  </div>
+                </div>
+              );
+            }}
+            buttonText={{
+              today: "Aujourd'hui",
+              month: 'Mois',
+              week: 'Semaine',
+              day: 'Jour',
+            }}
+          />
+        </Box>
+      </Paper>
     </Box>
   );
 };
