@@ -115,11 +115,15 @@ const RentalList: React.FC = () => {
 
   const loadData = async () => {
     try {
+      // Toujours charger toutes les locations et tous les clients
       const [rentalsData, vehiclesData, customersData] = await Promise.all([
         getAllRentals(),
-        getAllVehicles(),
+        getAllVehicles(),  // Charger TOUS les véhicules pour l'affichage
         getAllCustomers()
       ]);
+
+      console.log('Toutes les locations:', rentalsData);
+      console.log('Tous les véhicules:', vehiclesData);
 
       // Convert rental data to proper format
       const formattedRentals = rentalsData.map(rental => ({
@@ -127,6 +131,7 @@ const RentalList: React.FC = () => {
         startDate: rental.startDate instanceof Timestamp ? rental.startDate : Timestamp.fromDate(rental.startDate),
         endDate: rental.endDate instanceof Timestamp ? rental.endDate : Timestamp.fromDate(rental.endDate)
       }));
+
       setRentals(formattedRentals);
       setVehicles(vehiclesData);
       setCustomers(customersData);
@@ -135,7 +140,7 @@ const RentalList: React.FC = () => {
     }
   };
 
-  const handleOpen = (rental?: Rental) => {
+  const handleOpen = async (rental?: Rental) => {
     if (rental) {
       setEditingRental(rental);
       setFormData({
@@ -149,6 +154,11 @@ const RentalList: React.FC = () => {
       setSelectedCustomer(customer || null);
     } else {
       setEditingRental(null);
+      // Recharger la liste des véhicules disponibles
+      const availableVehicles = await getAvailableVehicles();
+      console.log('Véhicules disponibles pour nouvelle location:', availableVehicles);
+      setVehicles(availableVehicles);
+      
       setFormData({
         vehicleId: '',
         customerId: '',
@@ -308,16 +318,40 @@ const RentalList: React.FC = () => {
 
   const handleStatusChange = async (rental: Rental, newStatus: 'active' | 'completed') => {
     try {
-      await updateRental(rental.id!, { status: newStatus });
-      
-      // Si la location est terminée, remettre le véhicule comme disponible
       if (newStatus === 'completed') {
+        // 1. D'abord mettre à jour le véhicule
+        console.log(`Mise à jour du statut du véhicule ${rental.vehicleId}...`);
         await updateVehicle(rental.vehicleId, { status: 'available' });
+        
+        // 2. Vérifier que la mise à jour du véhicule a bien été effectuée
+        const updatedVehicles = await getAllVehicles();
+        const updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
+        console.log('Véhicule après mise à jour:', updatedVehicle);
+        
+        if (!updatedVehicle || updatedVehicle.status !== 'available') {
+          console.error('Erreur: Le statut du véhicule na pas été mis à jour correctement');
+          throw new Error('La mise à jour du statut du véhicule a échoué');
+        }
+        
+        console.log('Statut du véhicule mis à jour avec succès à "available"');
       }
       
+      // 3. Ensuite mettre à jour la location
+      console.log(`Mise à jour du statut de la location ${rental.id} à "${newStatus}"...`);
+      await updateRental(rental.id!, { 
+        status: newStatus,
+        endDate: newStatus === 'completed' ? Timestamp.now() : rental.endDate
+      });
+      
+      // 4. Recharger toutes les données
       await loadData();
+      
+      console.log('Mise à jour terminée avec succès');
     } catch (error) {
-      console.error('Error updating rental status:', error);
+      console.error('Erreur lors de la mise à jour:', error);
+      // En cas d'erreur, recharger les données pour s'assurer que l'interface est à jour
+      await loadData();
+      throw error;
     }
   };
 
@@ -500,8 +534,8 @@ const RentalList: React.FC = () => {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
                   select
+                  fullWidth
                   label="Véhicule"
                   name="vehicleId"
                   value={formData.vehicleId}
@@ -509,12 +543,19 @@ const RentalList: React.FC = () => {
                   required
                 >
                   {vehicles
-                    .filter(v => v.status === 'available' || v.id === formData.vehicleId)
-                    .map(vehicle => (
+                    .filter(vehicle => 
+                      // Pour une nouvelle location, montrer uniquement les véhicules disponibles
+                      // Pour une modification, montrer le véhicule actuel et les disponibles
+                      !editingRental 
+                        ? vehicle.status === 'available'
+                        : vehicle.status === 'available' || vehicle.id === editingRental.vehicleId
+                    )
+                    .map((vehicle) => (
                       <MenuItem key={vehicle.id} value={vehicle.id}>
                         {`${vehicle.brand} ${vehicle.model} (${vehicle.registration})`}
                       </MenuItem>
-                    ))}
+                    ))
+                  }
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>

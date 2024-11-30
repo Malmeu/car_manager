@@ -30,6 +30,8 @@ import {
 } from '@mui/icons-material';
 import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
 import { getAllRentals } from '../../services/rentalService';
+import { db } from '../../config/firebase';
+import { onSnapshot, collection } from 'firebase/firestore';
 
 const VehicleList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -52,6 +54,16 @@ const VehicleList: React.FC = () => {
 
   useEffect(() => {
     loadVehicles();
+  }, []); // Initial load
+
+  // Écouter les changements de statut des véhicules
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
+      console.log('Changement détecté dans la collection vehicles');
+      loadVehicles();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -75,13 +87,31 @@ const VehicleList: React.FC = () => {
         .filter(rental => rental.status === 'active')
         .map(rental => rental.vehicleId);
       
+      console.log('Véhicules en location active:', rentedVehicleIds);
       setActiveRentals(rentedVehicleIds);
 
       // Mettre à jour le statut des véhicules en fonction des locations actives
-      const updatedVehicles = vehiclesData.map(vehicle => ({
-        ...vehicle,
-        status: rentedVehicleIds.includes(vehicle.id!) ? 'rented' : vehicle.status
-      }));
+      const updatedVehicles = vehiclesData.map(vehicle => {
+        console.log(`Traitement du véhicule ${vehicle.id} (${vehicle.brand} ${vehicle.model}) - Statut actuel: ${vehicle.status}`);
+        if (rentedVehicleIds.includes(vehicle.id!)) {
+          console.log(`- Véhicule ${vehicle.id} est en location active -> statut: rented`);
+          return { 
+            ...vehicle, 
+            status: 'rented' as const 
+          };
+        }
+        // Si le véhicule était en location (rented) mais n'est plus dans les locations actives,
+        // on le met à "available"
+        if (vehicle.status === 'rented') {
+          console.log(`- Véhicule ${vehicle.id} n'est plus en location -> statut: available`);
+          return {
+            ...vehicle,
+            status: 'available' as const
+          };
+        }
+        console.log(`- Véhicule ${vehicle.id} garde son statut: ${vehicle.status}`);
+        return vehicle;
+      });
 
       setVehicles(updatedVehicles);
       console.log('Véhicules mis à jour avec les statuts:', updatedVehicles);
@@ -138,7 +168,13 @@ const VehicleList: React.FC = () => {
     e.preventDefault();
     try {
       if (editingVehicle?.id) {
-        await updateVehicle(editingVehicle.id, formData);
+        // Si le véhicule est en cours de location, ne pas modifier son statut
+        const isRented = activeRentals.includes(editingVehicle.id);
+        const dataToUpdate = {
+          ...formData,
+          status: isRented ? 'rented' : formData.status
+        };
+        await updateVehicle(editingVehicle.id, dataToUpdate);
       } else {
         await addVehicle(formData);
       }

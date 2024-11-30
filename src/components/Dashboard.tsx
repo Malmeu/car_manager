@@ -110,62 +110,87 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" gutterBottom>
-        Tableau de bord
-      </Typography>
-
-      <Grid container spacing={3} mb={4}>
+    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 2, md: 3 } }}>
+      <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Véhicules Total
+              <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' } }}>
+                Véhicules Totaux
               </Typography>
-              <Typography variant="h5">{totalVehicles}</Typography>
+              <Typography variant="h4" sx={{ mt: 2, fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' } }}>
+                {totalVehicles}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Clients Total
+              <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' } }}>
+                Clients Totaux
               </Typography>
-              <Typography variant="h5">{totalCustomers}</Typography>
+              <Typography variant="h4" sx={{ mt: 2, fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' } }}>
+                {totalCustomers}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
+              <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' } }}>
                 Locations Actives
               </Typography>
-              <Typography variant="h5">{activeRentals}</Typography>
+              <Typography variant="h4" sx={{ mt: 2, fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' } }}>
+                {activeRentals}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Revenu Total
+              <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' } }}>
+                Revenus Totaux
               </Typography>
-              <Typography variant="h5">{totalRevenue.toFixed(2)} €</Typography>
+              <Typography variant="h4" sx={{ mt: 2, fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' } }}>
+                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalRevenue)}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Paper sx={{ p: 2, height: '600px' }}>
-        <Typography variant="h6" gutterBottom>
-          Calendrier des Locations
-        </Typography>
-        <Box sx={{ height: 'calc(100% - 40px)' }}>
+      <Card sx={{ mt: { xs: 2, sm: 3 } }}>
+        <CardContent sx={{ 
+          p: { xs: 1, sm: 2 },
+          '& .fc': {
+            // Styles pour FullCalendar
+            '& .fc-toolbar': {
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 0 },
+              '& .fc-toolbar-chunk': {
+                display: 'flex',
+                justifyContent: 'center',
+                mb: { xs: 1, sm: 0 }
+              }
+            },
+            '& .fc-toolbar-title': {
+              fontSize: { xs: '1.2rem', sm: '1.5rem' }
+            },
+            '& .fc-button': {
+              padding: { xs: '4px 8px', sm: '6px 12px' },
+              fontSize: { xs: '0.8rem', sm: '0.9rem' }
+            },
+            '& .fc-event': {
+              cursor: 'pointer'
+            }
+          }
+        }}>
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
@@ -180,24 +205,48 @@ const Dashboard: React.FC = () => {
             locale="fr"
             eventContent={(eventInfo) => {
               return (
-                <div style={{ padding: '4px', fontSize: '0.85em', lineHeight: '1.3' }}>
-                  <div style={{ fontWeight: 'bold' }}>{eventInfo.event.extendedProps.vehicleInfo}</div>
-                  <div>{eventInfo.event.extendedProps.customerInfo}</div>
-                  <div style={{ marginTop: '2px', color: '#666' }}>
+                <Box sx={{ 
+                  p: { xs: '2px', sm: '4px' }, 
+                  fontSize: { xs: '0.75em', sm: '0.85em' }, 
+                  lineHeight: '1.3' 
+                }}>
+                  <Typography sx={{ 
+                    fontWeight: 'bold',
+                    fontSize: 'inherit',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {eventInfo.event.extendedProps.vehicleInfo}
+                  </Typography>
+                  <Typography sx={{ 
+                    fontSize: 'inherit',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {eventInfo.event.extendedProps.customerInfo}
+                  </Typography>
+                  <Typography sx={{ 
+                    mt: '2px',
+                    color: '#666',
+                    fontSize: 'inherit',
+                    display: { xs: 'none', sm: 'block' }
+                  }}>
                     {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(eventInfo.event.extendedProps.price)}
-                  </div>
-                </div>
+                  </Typography>
+                </Box>
               );
             }}
             buttonText={{
               today: "Aujourd'hui",
               month: 'Mois',
               week: 'Semaine',
-              day: 'Jour',
+              day: 'Jour'
             }}
           />
-        </Box>
-      </Paper>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

@@ -49,8 +49,16 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
 // Update a vehicle
 export const updateVehicle = async (id: string, vehicleData: Partial<Vehicle>) => {
   try {
+    console.log(`Mise à jour du véhicule ${id} avec les données:`, vehicleData);
     const vehicleRef = doc(db, 'vehicles', id);
     await updateDoc(vehicleRef, vehicleData);
+    console.log(`Véhicule ${id} mis à jour avec succès`);
+    
+    // Vérifier l'état après la mise à jour
+    const vehicles = await getAllVehicles();
+    const updatedVehicle = vehicles.find(v => v.id === id);
+    console.log(`État du véhicule après mise à jour:`, updatedVehicle);
+    
     return { id, ...vehicleData };
   } catch (error) {
     console.error('Error updating vehicle:', error);
