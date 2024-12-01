@@ -8,9 +8,9 @@ import CustomerList from './components/customers/CustomerList';
 import RentalList from './components/rentals/RentalList';
 import Reports from './components/reports/Reports';
 import Layout from './components/layout/Layout';
-import Home from './components/Home';
 import LocationHistory from './components/rentals/LocationHistory';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import { auth } from './config/firebase';
 
 interface ProtectedRouteProps {
@@ -45,13 +45,11 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
+          {/* Pages publiques */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout><Dashboard /></Layout>
-            </ProtectedRoute>
-          } />
+          {/* Pages protégées */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Layout><Dashboard /></Layout>
@@ -83,8 +81,8 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* Rediriger toutes les autres routes vers la page de connexion */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Redirection par défaut */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </ThemeProvider>
