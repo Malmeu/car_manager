@@ -53,68 +53,80 @@ const VehicleList: React.FC = () => {
   const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
   useEffect(() => {
+    console.log('VehicleList - Component mounted');
     loadVehicles();
+
+    // Écouter les changements de la collection vehicles
+    const unsubscribe = onSnapshot(
+      collection(db, 'vehicles'),
+      (snapshot) => {
+        console.log('Firestore - Vehicle collection update detected');
+        console.log('Number of documents:', snapshot.size);
+        snapshot.docChanges().forEach((change) => {
+          console.log('Document change type:', change.type);
+          console.log('Document data:', change.doc.data());
+        });
+        loadVehicles();
+      },
+      (error) => {
+        console.error('Firestore - Error listening to vehicles:', error);
+      }
+    );
+
+    return () => {
+      console.log('VehicleList - Component unmounting');
+      unsubscribe();
+    };
   }, []); // Initial load
 
-  // Écouter les changements de statut des véhicules
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
-      console.log('Changement détecté dans la collection vehicles');
-      loadVehicles();
+    console.log('Filtering vehicles:', {
+      totalVehicles: vehicles.length,
+      searchTerm,
     });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
+    
     const filtered = vehicles.filter(vehicle => 
       vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.registration.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    console.log('Filtered vehicles:', filtered.length);
     setFilteredVehicles(filtered);
   }, [vehicles, searchTerm]);
 
   const loadVehicles = async () => {
     try {
+      console.log('Loading vehicles and rentals...');
       const [vehiclesData, rentalsData] = await Promise.all([
         getAllVehicles(),
         getAllRentals()
       ]);
+
+      console.log('Vehicles data received:', vehiclesData.length);
+      console.log('Rentals data received:', rentalsData.length);
 
       // Récupérer les IDs des véhicules actuellement en location
       const rentedVehicleIds = rentalsData
         .filter(rental => rental.status === 'active')
         .map(rental => rental.vehicleId);
       
-      console.log('Véhicules en location active:', rentedVehicleIds);
+      console.log('Active rental vehicle IDs:', rentedVehicleIds);
       setActiveRentals(rentedVehicleIds);
 
       // Mettre à jour le statut des véhicules en fonction des locations actives
       const updatedVehicles = vehiclesData.map(vehicle => {
-        console.log(`Traitement du véhicule ${vehicle.id} (${vehicle.brand} ${vehicle.model}) - Statut actuel: ${vehicle.status}`);
-        if (rentedVehicleIds.includes(vehicle.id!)) {
-          console.log(`- Véhicule ${vehicle.id} est en location active -> statut: rented`);
-          return { 
-            ...vehicle, 
-            status: 'rented' as const 
-          };
-        }
-        // Si le véhicule était en location (rented) mais n'est plus dans les locations actives,
-        // on le met à "available"
-        if (vehicle.status === 'rented') {
-          console.log(`- Véhicule ${vehicle.id} n'est plus en location -> statut: available`);
-          return {
-            ...vehicle,
-            status: 'available' as const
-          };
-        }
-        console.log(`- Véhicule ${vehicle.id} garde son statut: ${vehicle.status}`);
-        return vehicle;
+        const isRented = rentedVehicleIds.includes(vehicle.id!);
+        console.log(`Vehicle ${vehicle.id} (${vehicle.brand} ${vehicle.model}) - Rented: ${isRented}`);
+        
+        return {
+          ...vehicle,
+          status: isRented ? 'rented' as const : vehicle.status
+        };
       });
 
+      console.log('Setting updated vehicles:', updatedVehicles.length);
       setVehicles(updatedVehicles);
-      console.log('Véhicules mis à jour avec les statuts:', updatedVehicles);
     } catch (error) {
       console.error('Error loading vehicles:', error);
     }

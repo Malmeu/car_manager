@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
 import Dashboard from './components/Dashboard';
@@ -10,6 +10,34 @@ import Reports from './components/reports/Reports';
 import Layout from './components/layout/Layout';
 import Home from './components/Home';
 import LocationHistory from './components/rentals/LocationHistory';
+import LoginPage from './pages/LoginPage';
+import { auth } from './config/firebase';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setIsAuthenticated(!!user);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (isAuthenticated === null) {
+    return null; // ou un composant de chargement
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -17,13 +45,46 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/vehicles/*" element={<Layout><VehicleList /></Layout>} />
-          <Route path="/customers/*" element={<Layout><CustomerList /></Layout>} />
-          <Route path="/rentals/*" element={<Layout><RentalList /></Layout>} />
-          <Route path="/location-history" element={<Layout><LocationHistory /></Layout>} />
-          <Route path="/reports/*" element={<Layout><Reports /></Layout>} />
+          <Route path="/login" element={<LoginPage />} />
+          
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout><Dashboard /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Layout><Dashboard /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/vehicles/*" element={
+            <ProtectedRoute>
+              <Layout><VehicleList /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/customers/*" element={
+            <ProtectedRoute>
+              <Layout><CustomerList /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/rentals/*" element={
+            <ProtectedRoute>
+              <Layout><RentalList /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/location-history" element={
+            <ProtectedRoute>
+              <Layout><LocationHistory /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/reports/*" element={
+            <ProtectedRoute>
+              <Layout><Reports /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Rediriger toutes les autres routes vers la page de connexion */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </ThemeProvider>

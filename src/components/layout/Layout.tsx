@@ -17,6 +17,7 @@ import {
   SpeedDial,
   SpeedDialIcon,
   Tooltip,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,8 +29,11 @@ import {
   Assessment as ReportIcon,
   Settings as SettingsIcon,
   Add as AddIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 
 const drawerWidth = 240;
 
@@ -122,6 +126,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/rentals', { state: { openNewRental: true } });
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      window.location.href = '/login'; // Redirection forcée vers la page de connexion
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+  };
+
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Véhicules', icon: <CarIcon />, path: '/vehicles' },
@@ -171,6 +184,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               Car Manager
             </Typography>
           </Box>
+          <Button
+            color="inherit"
+            onClick={handleLogout}
+            startIcon={<LogoutIcon />}
+            sx={{
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: 'rgba(26, 35, 126, 0.04)',
+              }
+            }}
+          >
+            Déconnexion
+          </Button>
         </Toolbar>
       </AppBar>
       <Drawer variant="permanent" open={open}>
