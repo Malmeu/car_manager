@@ -49,11 +49,20 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
+interface Tier {
+  title: string;
+  price: string;
+  description: string[];
+  buttonText: string;
+  buttonVariant: 'outlined' | 'contained' | 'text';
+}
+
 const LandingPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
 
   // Menu mobile
   const mobileMenu = (
@@ -208,41 +217,44 @@ const LandingPage: React.FC = () => {
     }
   ];
 
-  const tiers = [
+  const tiers: Tier[] = [
     {
-      title: 'Gratuit',
-      price: '0 DZD',
+      title: 'Starter',
+      price: billingPeriod === 'monthly' ? '2,999 DZD/mois' : '29,990 DZD/an',
       description: [
-        'Jusqu\'à 3 véhicules',
-        'Suivi kilométrage',
-        'Rappels maintenance',
-        'Support email',
+        'Jusqu\'à 10 véhicules',
+        'Gestion des locations',
+        'Tableau de bord basique',
+        'Support par email',
       ],
-      buttonText: 'Commencer',
+      buttonText: 'Commencer gratuitement',
+      buttonVariant: 'outlined' as const,
     },
     {
       title: 'Pro',
-      price: '4,999 DZD/mois',
+      price: billingPeriod === 'monthly' ? '4,999 DZD/mois' : '49,990 DZD/an',
       description: [
-        'Jusqu\'à 15 véhicules',
-        'Suivi des coûts',
-        'Rapports mensuels',
+        'Jusqu\'à 25 véhicules',
+        'Gestion des locations avancée',
+        'Tableau de bord complet',
         'Support prioritaire',
-        'API Access',
+        'Rapports personnalisés',
       ],
-      buttonText: 'Commencer',
+      buttonText: 'Commencer l\'essai',
+      buttonVariant: 'contained' as const,
     },
     {
-      title: 'Entreprise',
-      price: '19,999 DZD/mois',
+      title: 'Enterprise',
+      price: billingPeriod === 'monthly' ? '9,999 DZD/mois' : '99,990 DZD/an',
       description: [
         'Véhicules illimités',
-        'Analyses avancées',
+        'Fonctionnalités complètes',
+        'API personnalisée',
         'Support dédié 24/7',
-        'Personnalisation complète',
-        'Formation incluse',
+        'Formation personnalisée',
       ],
-      buttonText: 'Contactez-nous',
+      buttonText: 'Contacter les ventes',
+      buttonVariant: 'outlined' as const,
     },
   ];
 
@@ -524,7 +536,7 @@ const LandingPage: React.FC = () => {
                       fontSize: '1.1rem',
                       fontWeight: 'bold',
                       borderRadius: '30px',
-                      boxShadow: `0 8px 20px -3px ${theme.palette.primary.main}66`,
+                      boxShadow: `0 8px 20px ${theme.palette.primary.main}66`,
                     }}
                   >
                     Commencer gratuitement
@@ -796,9 +808,26 @@ const LandingPage: React.FC = () => {
             >
               Nos tarifs
             </Typography>
-            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}>
               Des forfaits adaptés à vos besoins
             </Typography>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mb: 6 }}>
+              <Button
+                variant={billingPeriod === 'monthly' ? 'contained' : 'outlined'}
+                onClick={() => setBillingPeriod('monthly')}
+                sx={{ borderRadius: 2 }}
+              >
+                Mensuel
+              </Button>
+              <Button
+                variant={billingPeriod === 'annual' ? 'contained' : 'outlined'}
+                onClick={() => setBillingPeriod('annual')}
+                sx={{ borderRadius: 2 }}
+              >
+                Annuel
+              </Button>
+            </Box>
           </Box>
 
           <Grid container spacing={4} alignItems="center">
@@ -847,7 +876,7 @@ const LandingPage: React.FC = () => {
                     </Box>
                   )}
                   <Box sx={{ mb: 4 }}>
-                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700 }}>
                       {tier.title}
                     </Typography>
                     <Typography variant="h3" sx={{ fontWeight: 700 }}>
@@ -869,7 +898,7 @@ const LandingPage: React.FC = () => {
                   </List>
                   <Button
                     fullWidth
-                    variant={tier.title === 'Pro' ? 'contained' : 'outlined'}
+                    variant={tier.buttonVariant}
                     sx={{
                       py: 1.5,
                       borderRadius: 3,
