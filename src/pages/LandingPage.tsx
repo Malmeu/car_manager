@@ -250,7 +250,7 @@ const LandingPage: React.FC = () => {
     {
       name: 'Karim Benzarti',
       role: 'Directeur de flotte, Logistique Express',
-      content: 'Car Manager a révolutionné notre gestion de flotte. Nous avons réduit nos coûts de maintenance de 30% en seulement 6 mois.',
+      content: 'Carma a révolutionné notre gestion de flotte. Nous avons réduit nos coûts de maintenance de 30% en seulement 6 mois.',
       avatar: 'KB',
     },
     {
@@ -269,11 +269,11 @@ const LandingPage: React.FC = () => {
 
   const faqs = [
     {
-      question: 'Comment commencer avec Car Manager ?',
+      question: 'Comment commencer avec Carma ?',
       answer: 'C\'est très simple ! Inscrivez-vous gratuitement, ajoutez vos véhicules et commencez à suivre votre flotte. Notre guide de démarrage vous accompagnera pas à pas.',
     },
     {
-      question: 'Puis-je essayer Car Manager avant de m\'abonner ?',
+      question: 'Puis-je essayer Carma avant de m\'abonner ?',
       answer: 'Oui, vous pouvez utiliser notre version gratuite sans limite de temps. Elle inclut toutes les fonctionnalités de base pour gérer jusqu\'à 3 véhicules.',
     },
     {
@@ -307,7 +307,7 @@ const LandingPage: React.FC = () => {
             {/* À propos */}
             <Grid item xs={12} sm={6} md={3}>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                À propos de Car Manager
+                À propos de Carma
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
                 Solution innovante de gestion de flotte automobile.
@@ -354,7 +354,7 @@ const LandingPage: React.FC = () => {
                   <ListItemIcon sx={{ minWidth: 30 }}>
                     <EmailIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary="contact@carmanager.com" />
+                  <ListItemText primary="contact@carma.com" />
                 </ListItem>
                 <ListItem disablePadding>
                   <ListItemIcon sx={{ minWidth: 30 }}>
@@ -391,7 +391,7 @@ const LandingPage: React.FC = () => {
             align="center"
             sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider' }}
           >
-            {new Date().getFullYear()} Car Manager. Tous droits réservés.
+            {new Date().getFullYear()} Carma. Tous droits réservés.
           </Typography>
         </Container>
       </Box>
@@ -410,22 +410,24 @@ const LandingPage: React.FC = () => {
         <Container maxWidth="lg">
           <Toolbar disableGutters sx={{ height: 70 }}>
             {/* Logo */}
-            <Typography
-              variant="h6"
-              component="div"
+            <Box
               onClick={() => navigate('/')}
               sx={{
                 flexGrow: 1,
-                fontWeight: 700,
                 cursor: 'pointer',
-                color: 'primary.main',
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <CarIcon sx={{ mr: 1 }} />
-              Car Manager
-            </Typography>
+              <img 
+                src="/logocarma.png" 
+                alt="Carma Logo" 
+                style={{ 
+                  height: '32px',
+                  marginRight: '8px'
+                }}
+              />
+            </Box>
 
             {/* Menu desktop */}
             {!isMobile && desktopMenu}
@@ -603,7 +605,7 @@ const LandingPage: React.FC = () => {
                 <Box
                   component="img"
                   src="/location.png"
-                  alt="Car Manager Dashboard"
+                  alt="Carma Dashboard"
                   sx={{
                     width: '100%',
                     height: 'auto',
@@ -1198,10 +1200,10 @@ const LandingPage: React.FC = () => {
                       Email
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                      contact@carmanager.com
+                      contact@carma.com
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      support@carmanager.com
+                      support@carma.com
                     </Typography>
                   </Box>
                 </Box>
@@ -1295,7 +1297,7 @@ const LandingPage: React.FC = () => {
                 Prêt à commencer ?
               </Typography>
               <Typography variant="h5" sx={{ mb: 4, opacity: 0.9, color: 'white' }}>
-                Essayez Car Manager gratuitement pendant 14 jours
+                Essayez Carma gratuitement pendant 14 jours
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Button
