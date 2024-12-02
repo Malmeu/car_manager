@@ -11,6 +11,7 @@ import {
   Card,
   CardContent,
   useTheme,
+  Alert,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
@@ -18,7 +19,7 @@ import {
   Assessment as ReportIcon,
   Login as LoginIcon,
 } from '@mui/icons-material';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,16 +27,68 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const theme = useTheme();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!email || !password) {
+      setError('Veuillez remplir tous les champs');
+      return;
+    }
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/');
+      console.log('Tentative de connexion avec:', email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Connexion réussie:', userCredential.user.uid);
+      navigate('/dashboard');
     } catch (error: any) {
-      setError('Email ou mot de passe incorrect');
+      console.error('Erreur de connexion:', error);
+      
+      switch (error.code) {
+        case 'auth/invalid-email':
+          setError('Adresse email invalide');
+          break;
+        case 'auth/user-disabled':
+          setError('Ce compte a été désactivé');
+          break;
+        case 'auth/user-not-found':
+          setError('Aucun compte ne correspond à cet email');
+          break;
+        case 'auth/wrong-password':
+          setError('Mot de passe incorrect');
+          break;
+        default:
+          setError('Une erreur est survenue lors de la connexion');
+      }
+    }
+  };
+
+  const createTestAccount = async () => {
+    const testEmail = 'test@carmanager.com';
+    const testPassword = 'Test123!';
+    
+    try {
+      setError('');
+      setSuccess('');
+      
+      await createUserWithEmailAndPassword(auth, testEmail, testPassword);
+      setSuccess(`Compte de test créé avec succès! Email: ${testEmail}, Mot de passe: ${testPassword}`);
+      setEmail(testEmail);
+      setPassword(testPassword);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setSuccess(`Le compte de test existe déjà. Utilisez: Email: ${testEmail}, Mot de passe: ${testPassword}`);
+        setEmail(testEmail);
+        setPassword(testPassword);
+      } else {
+        console.error('Erreur création compte test:', error);
+        setError('Erreur lors de la création du compte de test');
+      }
     }
   };
 
@@ -158,6 +211,18 @@ const LoginPage: React.FC = () => {
                   </Typography>
                 </Box>
 
+                {error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+
+                {success && (
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    {success}
+                  </Alert>
+                )}
+
                 <TextField
                   label="Email"
                   type="email"
@@ -176,7 +241,6 @@ const LoginPage: React.FC = () => {
                   fullWidth
                   required
                   error={!!error}
-                  helperText={error}
                 />
 
                 <Button
@@ -191,6 +255,19 @@ const LoginPage: React.FC = () => {
                   }}
                 >
                   Se connecter
+                </Button>
+
+                <Divider sx={{ my: 2 }}>ou</Divider>
+
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={createTestAccount}
+                  sx={{
+                    py: 1.5,
+                  }}
+                >
+                  Créer un compte de test
                 </Button>
               </Box>
             </Paper>

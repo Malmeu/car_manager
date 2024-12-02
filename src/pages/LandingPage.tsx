@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Container,
@@ -11,6 +11,19 @@ import {
   Paper,
   Stack,
   Divider,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Menu,
+  MenuItem,
+  useMediaQuery,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemButton,
+  TextField,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
@@ -20,12 +33,89 @@ import {
   Security as SecurityIcon,
   CloudDone as CloudIcon,
   MonetizationOn as PricingIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
+import {
+  Menu as MenuIconFooter,
+  Facebook as FacebookIcon,
+  Twitter as TwitterIcon,
+  Instagram as InstagramIcon,
+  LinkedIn as LinkedInIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 const LandingPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const menuItems = [
+    { label: 'Fonctionnalités', href: '#features' },
+    { label: 'Avantages', href: '#benefits' },
+    { label: 'Tarifs', href: '#pricing' },
+    { label: 'Contact', href: '#contact' },
+  ];
+
+  const handleMenuClick = (href: string) => {
+    const element = document.querySelector(href);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+    setMobileMenuOpen(false);
+  };
+
+  // Menu mobile
+  const mobileMenu = (
+    <Drawer
+      anchor="right"
+      open={mobileMenuOpen}
+      onClose={() => setMobileMenuOpen(false)}
+      PaperProps={{
+        sx: {
+          width: 240,
+          bgcolor: 'background.paper',
+        },
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <IconButton onClick={() => setMobileMenuOpen(false)}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <List>
+        {menuItems.map((item) => (
+          <ListItem 
+            key={item.label}
+            button 
+            onClick={() => handleMenuClick(item.href)}
+            sx={{ py: 2 }}
+          >
+            <ListItemText 
+              primary={item.label}
+              primaryTypographyProps={{
+                sx: { fontWeight: 500 }
+              }}
+            />
+          </ListItem>
+        ))}
+        <ListItem>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => navigate('/login')}
+            sx={{ mt: 2 }}
+          >
+            Se connecter
+          </Button>
+        </ListItem>
+      </List>
+    </Drawer>
+  );
 
   const features = [
     {
@@ -102,10 +192,230 @@ const LandingPage: React.FC = () => {
     }
   ];
 
+  const Footer = () => {
+    return (
+      <Box
+        component="footer"
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'white',
+          py: 6,
+          mt: 'auto',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Grid container spacing={4}>
+            {/* À propos */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="h6" gutterBottom>
+                À propos de Car Manager
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Solution innovante de gestion de flotte automobile pour les professionnels et particuliers.
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <IconButton color="inherit" aria-label="Facebook">
+                  <FacebookIcon />
+                </IconButton>
+                <IconButton color="inherit" aria-label="Twitter">
+                  <TwitterIcon />
+                </IconButton>
+                <IconButton color="inherit" aria-label="Instagram">
+                  <InstagramIcon />
+                </IconButton>
+                <IconButton color="inherit" aria-label="LinkedIn">
+                  <LinkedInIcon />
+                </IconButton>
+              </Stack>
+            </Grid>
+
+            {/* Liens rapides */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="h6" gutterBottom>
+                Liens rapides
+              </Typography>
+              <List dense sx={{ p: 0 }}>
+                {['Accueil', 'Fonctionnalités', 'Tarifs', 'Blog', 'FAQ'].map((text) => (
+                  <ListItem key={text} sx={{ px: 0 }}>
+                    <ListItemButton sx={{ px: 0 }}>
+                      <ListItemText primary={text} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Grid>
+
+            {/* Contact */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="h6" gutterBottom>
+                Contact
+              </Typography>
+              <List dense sx={{ p: 0 }}>
+                <ListItem sx={{ px: 0 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <PhoneIcon sx={{ color: 'white' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="+33 1 23 45 67 89" />
+                </ListItem>
+                <ListItem sx={{ px: 0 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <EmailIcon sx={{ color: 'white' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="contact@carmanager.com" />
+                </ListItem>
+                <ListItem sx={{ px: 0 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <LocationIcon sx={{ color: 'white' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="123 Avenue des Champs-Élysées, 75008 Paris" />
+                </ListItem>
+              </List>
+            </Grid>
+
+            {/* Newsletter */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="h6" gutterBottom>
+                Newsletter
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Inscrivez-vous pour recevoir nos actualités
+              </Typography>
+              <Box component="form" noValidate>
+                <TextField
+                  fullWidth
+                  placeholder="Votre email"
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    bgcolor: 'white',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': { border: 'none' },
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  sx={{
+                    mt: 1,
+                    bgcolor: 'secondary.main',
+                    '&:hover': {
+                      bgcolor: 'secondary.dark',
+                    },
+                  }}
+                >
+                  S'inscrire
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+
+          {/* Copyright */}
+          <Box
+            sx={{
+              borderTop: 1,
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+              mt: 4,
+              pt: 4,
+              textAlign: 'center',
+            }}
+          >
+            <Typography variant="body2" color="inherit">
+              {new Date().getFullYear()} Car Manager. Tous droits réservés.
+            </Typography>
+          </Box>
+        </Container>
+      </Box>
+    );
+  };
+
   return (
-    <Box sx={{ bgcolor: '#f5f5f5' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: '100vh',
+      bgcolor: '#f5f5f5' 
+    }}>
+      {/* Navigation */}
+      <AppBar 
+        position="fixed" 
+        color="inherit" 
+        elevation={0}
+        sx={{ 
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Toolbar disableGutters sx={{ height: 70 }}>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                flexGrow: 1,
+                fontWeight: 700,
+                color: 'primary.main',
+                fontSize: '1.5rem',
+              }}
+            >
+              Car Manager
+            </Typography>
+
+            {/* Menu desktop */}
+            {!isMobile && (
+              <Stack direction="row" spacing={4} alignItems="center">
+                {menuItems.map((item) => (
+                  <Typography
+                    key={item.label}
+                    component="a"
+                    href={item.href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleMenuClick(item.href);
+                    }}
+                    sx={{
+                      color: 'text.primary',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        color: 'primary.main',
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
+                ))}
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/login')}
+                >
+                  Se connecter
+                </Button>
+              </Stack>
+            )}
+
+            {/* Menu mobile burger */}
+            {isMobile && (
+              <IconButton
+                size="large"
+                onClick={() => setMobileMenuOpen(true)}
+                color="inherit"
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+          </Toolbar>
+        </Container>
+      </AppBar>
+      {mobileMenu}
+
       {/* Hero Section */}
       <Box
+        id="hero"
         sx={{
           bgcolor: 'background.paper',
           pt: 12,
@@ -171,7 +481,7 @@ const LandingPage: React.FC = () => {
       </Box>
 
       {/* Features Section */}
-      <Container sx={{ py: 8 }} maxWidth="lg">
+      <Container id="features" sx={{ py: 8 }} maxWidth="lg">
         <Typography
           component="h2"
           variant="h3"
@@ -212,7 +522,7 @@ const LandingPage: React.FC = () => {
       </Container>
 
       {/* Benefits Section */}
-      <Box sx={{ bgcolor: 'background.paper', py: 8 }}>
+      <Box id="benefits" sx={{ bgcolor: 'background.paper', py: 8 }}>
         <Container maxWidth="lg">
           <Typography
             component="h2"
@@ -252,7 +562,7 @@ const LandingPage: React.FC = () => {
       </Box>
 
       {/* Pricing Section */}
-      <Container sx={{ py: 8 }} maxWidth="lg">
+      <Container id="pricing" sx={{ py: 8 }} maxWidth="lg">
         <Typography
           component="h2"
           variant="h3"
@@ -346,6 +656,7 @@ const LandingPage: React.FC = () => {
 
       {/* CTA Section */}
       <Box
+        id="contact"
         sx={{
           bgcolor: 'primary.main',
           color: 'primary.contrastText',
@@ -378,6 +689,7 @@ const LandingPage: React.FC = () => {
           </Button>
         </Container>
       </Box>
+      <Footer />
     </Box>
   );
 };
