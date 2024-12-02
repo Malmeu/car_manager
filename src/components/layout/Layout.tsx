@@ -136,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
+    { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Véhicules', icon: <CarIcon />, path: '/vehicles' },
     { text: 'Clients', icon: <PeopleIcon />, path: '/customers' },
     { text: 'Locations', icon: <ContractIcon />, path: '/rentals' },

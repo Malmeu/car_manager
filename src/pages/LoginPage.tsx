@@ -7,17 +7,17 @@ import {
   TextField,
   Button,
   Grid,
-  Divider,
   Card,
   CardContent,
   useTheme,
   Alert,
+  AppBar,
+  Toolbar,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
   People as PeopleIcon,
   Assessment as ReportIcon,
-  Login as LoginIcon,
 } from '@mui/icons-material';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -42,7 +42,6 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      console.log('Tentative de connexion avec:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('Connexion réussie:', userCredential.user.uid);
       navigate('/dashboard');
@@ -69,7 +68,7 @@ const LoginPage: React.FC = () => {
   };
 
   const createTestAccount = async () => {
-    const testEmail = 'test@carmanager.com';
+    const testEmail = 'test@carma.com';
     const testPassword = 'Test123!';
     
     try {
@@ -92,68 +91,144 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const features = [
-    {
-      icon: <CarIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Gestion de Flotte',
-      description: 'Gérez facilement votre parc automobile avec un suivi en temps réel des véhicules disponibles et loués.'
-    },
-    {
-      icon: <PeopleIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Gestion Clients',
-      description: 'Suivez vos clients, leur historique de location et gérez leurs informations en toute simplicité.'
-    },
-    {
-      icon: <ReportIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Rapports Détaillés',
-      description: 'Accédez à des rapports détaillés sur les locations, les revenus et l\'utilisation des véhicules.'
-    }
-  ];
-
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Container maxWidth="lg" sx={{ mt: 8, mb: 8 }}>
-        <Grid container spacing={4}>
-          {/* Section de gauche - Présentation */}
-          <Grid item xs={12} md={7}>
-            <Box sx={{ mb: 6 }}>
-              <Typography
-                variant="h3"
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  color: theme.palette.primary.main,
-                  mb: 2,
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* Header */}
+      <AppBar position="fixed" sx={{ bgcolor: 'background.default', boxShadow: 1 }}>
+        <Container maxWidth="lg">
+          <Toolbar disableGutters sx={{ height: 70 }}>
+            <Box
+              onClick={() => navigate('/')}
+              sx={{
+                flexGrow: 1,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <img 
+                src="/logocarma.png" 
+                alt="Carma Logo" 
+                style={{ 
+                  height: '32px',
+                  marginRight: '8px'
                 }}
-              >
-                Car Manager
-              </Typography>
-              <Typography
-                variant="h5"
-                sx={{
-                  color: 'text.secondary',
-                  mb: 4,
-                }}
-              >
-                La solution complète pour la gestion de votre entreprise de location de véhicules
-              </Typography>
+              />
             </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
 
+      {/* Main Content */}
+      <Container 
+        maxWidth="lg" 
+        sx={{ 
+          pt: 15,
+          pb: 8,
+          display: 'flex',
+          minHeight: '100vh'
+        }}
+      >
+        <Grid container spacing={4} alignItems="center">
+          {/* Left side - Login form */}
+          <Grid item xs={12} md={6}>
+            <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
+              Connexion
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary' }}>
+              Accédez à votre espace de gestion de flotte
+            </Typography>
+
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Box
+                component="form"
+                onSubmit={handleLogin}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {error && <Alert severity="error">{error}</Alert>}
+                {success && <Alert severity="success">{success}</Alert>}
+                
+                <TextField
+                  fullWidth
+                  label="Email"
+                  variant="outlined"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                />
+                
+                <TextField
+                  fullWidth
+                  label="Mot de passe"
+                  variant="outlined"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                />
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  sx={{ mt: 2 }}
+                >
+                  Se connecter
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  size="large"
+                  fullWidth
+                  onClick={createTestAccount}
+                  sx={{ mt: 1 }}
+                >
+                  Créer un compte de test
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Right side - Features */}
+          <Grid item xs={12} md={6}>
             <Grid container spacing={3}>
-              {features.map((feature, index) => (
+              {[
+                {
+                  icon: <CarIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+                  title: 'Gestion de Flotte',
+                  description: 'Suivez et gérez votre flotte de véhicules en temps réel'
+                },
+                {
+                  icon: <PeopleIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+                  title: 'Gestion Clients',
+                  description: 'Gérez vos clients et leurs locations efficacement'
+                },
+                {
+                  icon: <ReportIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+                  title: 'Analyses Détaillées',
+                  description: 'Accédez à des rapports et statistiques complets'
+                }
+              ].map((feature, index) => (
                 <Grid item xs={12} key={index}>
                   <Card
                     elevation={0}
                     sx={{
-                      height: '100%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       transition: 'transform 0.2s',
                       '&:hover': {
                         transform: 'translateY(-4px)',
@@ -163,13 +238,7 @@ const LoginPage: React.FC = () => {
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         {feature.icon}
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            ml: 2,
-                            fontWeight: 600,
-                          }}
-                        >
+                        <Typography variant="h6" sx={{ ml: 2, fontWeight: 600 }}>
                           {feature.title}
                         </Typography>
                       </Box>
@@ -181,96 +250,6 @@ const LoginPage: React.FC = () => {
                 </Grid>
               ))}
             </Grid>
-          </Grid>
-
-          {/* Section de droite - Formulaire de connexion */}
-          <Grid item xs={12} md={5}>
-            <Paper
-              elevation={2}
-              sx={{
-                p: 4,
-                backgroundColor: 'white',
-                borderRadius: 2,
-              }}
-            >
-              <Box
-                component="form"
-                onSubmit={handleLogin}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                }}
-              >
-                <Box sx={{ mb: 2, textAlign: 'center' }}>
-                  <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-                    Connexion
-                  </Typography>
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    Connectez-vous pour accéder à votre espace
-                  </Typography>
-                </Box>
-
-                {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
-                    {success}
-                  </Alert>
-                )}
-
-                <TextField
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  fullWidth
-                  required
-                  error={!!error}
-                />
-
-                <TextField
-                  label="Mot de passe"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  fullWidth
-                  required
-                  error={!!error}
-                />
-
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  startIcon={<LoginIcon />}
-                  sx={{
-                    mt: 2,
-                    py: 1.5,
-                    fontWeight: 600,
-                  }}
-                >
-                  Se connecter
-                </Button>
-
-                <Divider sx={{ my: 2 }}>ou</Divider>
-
-                <Button
-                  variant="outlined"
-                  size="large"
-                  onClick={createTestAccount}
-                  sx={{
-                    py: 1.5,
-                  }}
-                >
-                  Créer un compte de test
-                </Button>
-              </Box>
-            </Paper>
           </Grid>
         </Grid>
       </Container>
