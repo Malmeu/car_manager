@@ -851,9 +851,9 @@ const LandingPage: React.FC = () => {
                       {tier.title}
                     </Typography>
                     <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                      {tier.price} DZD
+                      {tier.price}
                       <Typography component="span" variant="h6" color="text.secondary">
-                        /mois
+                        
                       </Typography>
                     </Typography>
                   </Box>
