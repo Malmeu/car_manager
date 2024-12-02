@@ -3,6 +3,16 @@ import {
   AppBar,
   Box,
   Button,
+  Card,
+  CardContent,
+  Typography,
+  useTheme,
+  Stack,
+  Paper,
+  Toolbar,
+  Drawer,
+  useMediaQuery,
+  Rating,
   Container,
   Grid,
   IconButton,
@@ -17,15 +27,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
-  Card,
-  CardContent,
-  Typography,
-  useTheme,
-  Stack,
-  Paper,
-  Toolbar,
-  Drawer,
-  useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -36,8 +37,9 @@ import {
   LinkedIn as LinkedInIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  LocationOn as LocationIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
   ExpandMore as ExpandMoreIcon,
+  LocationOn as LocationIcon,
   DirectionsCar as CarIcon,
   People as PeopleIcon,
   Assessment as ReportIcon,
@@ -53,31 +55,17 @@ const LandingPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const menuItems = [
-    { label: 'Fonctionnalités', href: '#features' },
-    { label: 'Avantages', href: '#benefits' },
-    { label: 'Tarifs', href: '#pricing' },
-    { label: 'Contact', href: '#contact' },
-  ];
-
-  const handleMenuClick = (href: string) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-    setMobileMenuOpen(false);
-  };
-
   // Menu mobile
   const mobileMenu = (
     <Drawer
-      anchor="right"
+      anchor="left"
       open={mobileMenuOpen}
       onClose={() => setMobileMenuOpen(false)}
       PaperProps={{
         sx: {
-          width: 240,
-          bgcolor: 'background.paper',
+          width: 280,
+          bgcolor: 'background.default',
+          boxShadow: 1,
         },
       }}
     >
@@ -86,34 +74,102 @@ const LandingPage: React.FC = () => {
           <CloseIcon />
         </IconButton>
       </Box>
-      <List>
-        {menuItems.map((item) => (
-          <ListItem 
-            key={item.label}
-            button 
-            onClick={() => handleMenuClick(item.href)}
-            sx={{ py: 2 }}
-          >
-            <ListItemText 
-              primary={item.label}
-              primaryTypographyProps={{
-                sx: { fontWeight: 500 }
-              }}
-            />
-          </ListItem>
-        ))}
-        <ListItem>
+      <List sx={{ px: 2 }}>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setMobileMenuOpen(false);
+            const element = document.getElementById('features');
+            element?.scrollIntoView({ behavior: 'smooth' });
+          }}>
+            <ListItemText primary="Fonctionnalités" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setMobileMenuOpen(false);
+            const element = document.getElementById('pricing');
+            element?.scrollIntoView({ behavior: 'smooth' });
+          }}>
+            <ListItemText primary="Tarifs" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setMobileMenuOpen(false);
+            const element = document.getElementById('faq');
+            element?.scrollIntoView({ behavior: 'smooth' });
+          }}>
+            <ListItemText primary="FAQ" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setMobileMenuOpen(false);
+            navigate('/login');
+          }}>
+            <ListItemText primary="Se connecter" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem sx={{ mt: 2 }}>
           <Button
             fullWidth
             variant="contained"
-            onClick={() => navigate('/login')}
-            sx={{ mt: 2 }}
+            color="primary"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              navigate('/register');
+            }}
           >
-            Se connecter
+            S'inscrire
           </Button>
         </ListItem>
       </List>
     </Drawer>
+  );
+
+  // Menu desktop
+  const desktopMenu = (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Button
+        color="inherit"
+        onClick={() => {
+          const element = document.getElementById('features');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      >
+        Fonctionnalités
+      </Button>
+      <Button
+        color="inherit"
+        onClick={() => {
+          const element = document.getElementById('pricing');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      >
+        Tarifs
+      </Button>
+      <Button
+        color="inherit"
+        onClick={() => {
+          const element = document.getElementById('faq');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      >
+        FAQ
+      </Button>
+      <Button
+        color="inherit"
+        onClick={() => navigate('/login')}
+      >
+        Se connecter
+      </Button>
+      <Button
+        variant="contained"
+        onClick={() => navigate('/register')}
+      >
+        S'inscrire
+      </Button>
+    </Stack>
   );
 
   const features = [
@@ -152,42 +208,41 @@ const LandingPage: React.FC = () => {
     }
   ];
 
-  const pricingPlans = [
+  const tiers = [
     {
       title: 'Gratuit',
       price: '0 DZD',
-      description: 'Pour les particuliers',
-      features: [
+      description: [
         'Jusqu\'à 3 véhicules',
         'Suivi kilométrage',
         'Rappels maintenance',
         'Support email',
       ],
+      buttonText: 'Commencer',
     },
     {
       title: 'Pro',
       price: '4,999 DZD/mois',
-      description: 'Pour les petites entreprises',
-      features: [
+      description: [
         'Jusqu\'à 15 véhicules',
         'Suivi des coûts',
         'Rapports mensuels',
         'Support prioritaire',
         'API Access',
       ],
-      popular: true,
+      buttonText: 'Commencer',
     },
     {
       title: 'Entreprise',
       price: '19,999 DZD/mois',
-      description: 'Pour les grandes flottes',
-      features: [
+      description: [
         'Véhicules illimités',
         'Analyses avancées',
         'Support dédié 24/7',
         'Personnalisation complète',
         'Formation incluse',
       ],
+      buttonText: 'Contactez-nous',
     },
   ];
 
@@ -351,65 +406,29 @@ const LandingPage: React.FC = () => {
       bgcolor: '#f5f5f5' 
     }}>
       {/* Navigation */}
-      <AppBar 
-        position="fixed" 
-        color="inherit" 
-        elevation={0}
-        sx={{ 
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
+      <AppBar position="fixed" sx={{ bgcolor: 'background.default', boxShadow: 1 }}>
         <Container maxWidth="lg">
           <Toolbar disableGutters sx={{ height: 70 }}>
+            {/* Logo */}
             <Typography
               variant="h6"
               component="div"
+              onClick={() => navigate('/')}
               sx={{
                 flexGrow: 1,
                 fontWeight: 700,
+                cursor: 'pointer',
                 color: 'primary.main',
-                fontSize: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
+              <CarIcon sx={{ mr: 1 }} />
               Car Manager
             </Typography>
 
             {/* Menu desktop */}
-            {!isMobile && (
-              <Stack direction="row" spacing={4} alignItems="center">
-                {menuItems.map((item) => (
-                  <Typography
-                    key={item.label}
-                    component="a"
-                    href={item.href}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleMenuClick(item.href);
-                    }}
-                    sx={{
-                      color: 'text.primary',
-                      textDecoration: 'none',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        color: 'primary.main',
-                      },
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-                ))}
-                <Button
-                  variant="contained"
-                  onClick={() => navigate('/login')}
-                >
-                  Se connecter
-                </Button>
-              </Stack>
-            )}
+            {!isMobile && desktopMenu}
 
             {/* Menu mobile burger */}
             {isMobile && (
@@ -428,291 +447,621 @@ const LandingPage: React.FC = () => {
 
       {/* Hero Section */}
       <Box
-        id="hero"
         sx={{
+          position: 'relative',
           bgcolor: 'background.paper',
-          pt: 12,
-          pb: 8,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          pt: { xs: 12, md: 16 },
+          pb: { xs: 8, md: 12 },
+          overflow: 'hidden',
         }}
       >
-        <Container maxWidth="lg">
+        {/* Cercles décoratifs */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '40%',
+            height: '40%',
+            background: `radial-gradient(circle, ${theme.palette.primary.light}22 0%, transparent 70%)`,
+            top: -100,
+            right: -100,
+            borderRadius: '50%',
+            zIndex: 0,
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '30%',
+            height: '30%',
+            background: `radial-gradient(circle, ${theme.palette.secondary.light}22 0%, transparent 70%)`,
+            bottom: -50,
+            left: -50,
+            borderRadius: '50%',
+            zIndex: 0,
+          }}
+        />
+
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Grid container spacing={4} alignItems="center">
             <Grid item xs={12} md={6}>
-              <Typography
-                component="h1"
-                variant="h2"
-                color="primary"
-                gutterBottom
-                sx={{ fontWeight: 700 }}
-              >
-                Car Manager
-              </Typography>
-              <Typography
-                variant="h5"
-                color="text.secondary"
-                paragraph
-                sx={{ mb: 4 }}
-              >
-                La solution SaaS complète pour la gestion de votre entreprise de location de véhicules
-              </Typography>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => navigate('/login')}
-                  sx={{ px: 4, py: 1.5 }}
+              <Box sx={{ maxWidth: 580 }}>
+                <Typography
+                  variant="h1"
+                  sx={{
+                    fontSize: { xs: '2.5rem', md: '3.5rem' },
+                    fontWeight: 800,
+                    lineHeight: 1.2,
+                    mb: 3,
+                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
                 >
-                  Commencer maintenant
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="large"
-                  sx={{ px: 4, py: 1.5 }}
+                  Gérez votre flotte automobile en toute simplicité
+                </Typography>
+                <Typography
+                  variant="h5"
+                  color="text.secondary"
+                  sx={{ mb: 4, lineHeight: 1.6 }}
                 >
-                  Voir la démo
-                </Button>
-              </Stack>
+                  La solution tout-en-un qui simplifie la gestion de vos véhicules, optimise vos coûts et améliore votre productivité.
+                </Typography>
+
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  sx={{ mb: 4 }}
+                >
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate('/login')}
+                    sx={{
+                      py: 1.5,
+                      px: 4,
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      borderRadius: '30px',
+                      boxShadow: `0 8px 20px -3px ${theme.palette.primary.main}66`,
+                    }}
+                  >
+                    Commencer gratuitement
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    sx={{
+                      py: 1.5,
+                      px: 4,
+                      fontSize: '1.1rem',
+                      borderRadius: '30px',
+                    }}
+                  >
+                    Voir la démo
+                  </Button>
+                </Stack>
+
+                {/* Statistiques */}
+                <Grid container spacing={3} sx={{ mt: 2 }}>
+                  {[
+                    { number: '1000+', label: 'Clients satisfaits' },
+                    { number: '50K+', label: 'Véhicules gérés' },
+                    { number: '30%', label: 'Économies réalisées' },
+                  ].map((stat, index) => (
+                    <Grid item xs={12} sm={4} key={index}>
+                      <Box sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography
+                          variant="h4"
+                          sx={{
+                            fontWeight: 'bold',
+                            color: 'primary.main',
+                            mb: 0.5,
+                          }}
+                        >
+                          {stat.number}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 500 }}
+                        >
+                          {stat.label}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            <Grid
+              item
+              xs={12}
+              md={6}
+              sx={{
+                position: 'relative',
+                display: { xs: 'none', md: 'block' },
+              }}
+            >
+              {/* Image principale */}
               <Box
-                component="img"
-                src="/dashboard-preview.png"
-                alt="Dashboard Preview"
                 sx={{
-                  width: '100%',
-                  maxWidth: 600,
-                  height: 'auto',
-                  borderRadius: 2,
-                  boxShadow: 3,
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: '10%',
+                    left: '10%',
+                    right: '-10%',
+                    bottom: '-10%',
+                    background: `linear-gradient(45deg, ${theme.palette.primary.main}22, ${theme.palette.secondary.main}22)`,
+                    borderRadius: '20px',
+                    transform: 'rotate(-3deg)',
+                  },
                 }}
-              />
+              >
+                <Box
+                  component="img"
+                  src="/location.png"
+                  alt="Car Manager Dashboard"
+                  sx={{
+                    width: '100%',
+                    height: 'auto',
+                    maxWidth: 600,
+                    borderRadius: '20px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+                    transform: 'rotate(3deg)',
+                    transition: 'transform 0.3s ease-in-out',
+                    '&:hover': {
+                      transform: 'rotate(3deg) scale(1.02)',
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Badge flottant */}
+              <Card
+                sx={{
+                  position: 'absolute',
+                  bottom: '10%',
+                  left: '-5%',
+                  maxWidth: 200,
+                  p: 2,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  borderRadius: '16px',
+                  animation: 'float 3s ease-in-out infinite',
+                  '@keyframes float': {
+                    '0%, 100%': {
+                      transform: 'translateY(0)',
+                    },
+                    '50%': {
+                      transform: 'translateY(-10px)',
+                    },
+                  },
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '12px',
+                      bgcolor: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                    }}
+                  >
+                    <SpeedIcon />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      Interface intuitive
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Prise en main rapide
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Card>
             </Grid>
           </Grid>
         </Container>
       </Box>
 
-      {/* Features Section */}
-      <Container id="features" sx={{ py: 8 }} maxWidth="lg">
-        <Typography
-          component="h2"
-          variant="h3"
-          align="center"
-          color="text.primary"
-          gutterBottom
-          sx={{ fontWeight: 700, mb: 8 }}
-        >
-          Fonctionnalités Principales
-        </Typography>
-        <Grid container spacing={4}>
-          {features.map((feature, index) => (
-            <Grid item key={index} xs={12} md={4}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    transition: 'transform 0.3s ease-in-out',
-                  },
-                }}
-              >
-                <CardContent>
-                  <Box sx={{ mb: 2 }}>{feature.icon}</Box>
-                  <Typography gutterBottom variant="h5" component="h3" sx={{ fontWeight: 600 }}>
-                    {feature.title}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    {feature.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+      {/* Section Fonctionnalités */}
+      <Box
+        id="features"
+        sx={{
+          py: 10,
+          bgcolor: 'background.paper',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Cercles décoratifs */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '40%',
+            height: '40%',
+            background: `radial-gradient(circle, ${theme.palette.primary.light}11 0%, transparent 70%)`,
+            top: -100,
+            left: -100,
+            borderRadius: '50%',
+          }}
+        />
 
-      {/* Benefits Section */}
-      <Box id="benefits" sx={{ bgcolor: 'background.paper', py: 8 }}>
         <Container maxWidth="lg">
-          <Typography
-            component="h2"
-            variant="h3"
-            align="center"
-            color="text.primary"
-            gutterBottom
-            sx={{ fontWeight: 700, mb: 8 }}
-          >
-            Pourquoi Choisir Car Manager ?
-          </Typography>
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                mb: 2,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Fonctionnalités principales
+            </Typography>
+            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+              Des outils puissants pour une gestion efficace de votre flotte
+            </Typography>
+          </Box>
+
           <Grid container spacing={4}>
-            {benefits.map((benefit, index) => (
+            {features.map((feature, index) => (
               <Grid item key={index} xs={12} md={4}>
-                <Paper
-                  elevation={0}
+                <Card
                   sx={{
-                    p: 3,
                     height: '100%',
-                    bgcolor: 'transparent',
-                    border: '1px solid',
-                    borderColor: 'divider',
+                    p: 4,
+                    borderRadius: 4,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: `0 20px 40px ${theme.palette.primary.main}22`,
+                    },
                   }}
                 >
-                  <Box sx={{ mb: 2 }}>{benefit.icon}</Box>
-                  <Typography gutterBottom variant="h5" component="h3" sx={{ fontWeight: 600 }}>
-                    {benefit.title}
+                  <Box
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 3,
+                      bgcolor: `${theme.palette.primary.main}11`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 3,
+                    }}
+                  >
+                    {React.cloneElement(feature.icon, {
+                      sx: { fontSize: 32, color: theme.palette.primary.main },
+                    })}
+                  </Box>
+                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                    {feature.title}
                   </Typography>
-                  <Typography color="text.secondary">
-                    {benefit.description}
+                  <Typography variant="body1" color="text.secondary">
+                    {feature.description}
                   </Typography>
-                </Paper>
+                </Card>
               </Grid>
             ))}
           </Grid>
         </Container>
       </Box>
 
-      {/* Pricing Section */}
-      <Container id="pricing" sx={{ py: 8 }} maxWidth="lg">
-        <Typography
-          component="h2"
-          variant="h3"
-          align="center"
-          color="text.primary"
-          gutterBottom
-          sx={{ fontWeight: 700, mb: 8 }}
-        >
-          Tarifs Transparents
-        </Typography>
-        <Grid container spacing={4} alignItems="stretch">
-          {pricingPlans.map((plan, index) => (
-            <Grid item key={index} xs={12} md={4}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative',
-                  ...(plan.popular && {
-                    border: `2px solid ${theme.palette.primary.main}`,
-                    transform: 'scale(1.05)',
-                  }),
-                }}
-              >
-                {plan.popular && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 1,
-                    }}
-                  >
-                    Recommandé
-                  </Box>
-                )}
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h5" component="h3" sx={{ fontWeight: 600 }}>
-                    {plan.title}
-                  </Typography>
-                  <Box sx={{ my: 2 }}>
-                    <Typography variant="h3" component="p" sx={{ fontWeight: 700 }}>
-                      {plan.price}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary">
-                      {plan.description}
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ my: 2 }} />
-                  {plan.features.map((feature, idx) => (
-                    <Typography
-                      key={idx}
-                      component="li"
-                      sx={{
-                        listStyle: 'none',
-                        py: 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        '&:before': {
-                          content: '"✓"',
-                          marginRight: 1,
-                          color: 'primary.main',
-                          fontWeight: 'bold',
-                        },
-                      }}
-                    >
-                      {feature}
-                    </Typography>
-                  ))}
-                </CardContent>
-                <Box sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    fullWidth
-                    variant={plan.popular ? 'contained' : 'outlined'}
-                    size="large"
-                    onClick={() => navigate('/login')}
-                  >
-                    {plan.title === 'Entreprise' ? 'Contactez-nous' : 'Commencer'}
-                  </Button>
-                </Box>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+      {/* Section Tarifs */}
+      <Box
+        id="pricing"
+        sx={{
+          py: 10,
+          bgcolor: 'background.paper',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Cercles décoratifs */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '60%',
+            height: '60%',
+            background: `radial-gradient(circle, ${theme.palette.primary.light}11 0%, transparent 70%)`,
+            top: -200,
+            right: -200,
+            borderRadius: '50%',
+            transform: 'rotate(45deg)',
+          }}
+        />
 
-      {/* Témoignages */}
-      <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
         <Container maxWidth="lg">
-          <Typography
-            variant="h3"
-            align="center"
-            gutterBottom
-            sx={{ mb: 6, fontWeight: 'bold' }}
-          >
-            Ils nous font confiance
-          </Typography>
-          <Grid container spacing={4}>
-            {testimonials.map((testimonial, index) => (
-              <Grid item xs={12} md={4} key={index}>
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                mb: 2,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Nos tarifs
+            </Typography>
+            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+              Des forfaits adaptés à vos besoins
+            </Typography>
+          </Box>
+
+          <Grid container spacing={4} alignItems="center">
+            {tiers.map((tier) => (
+              <Grid
+                item
+                key={tier.title}
+                xs={12}
+                md={4}
+              >
                 <Card
                   sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    p: 3,
+                    p: 4,
+                    borderRadius: 4,
+                    position: 'relative',
+                    transition: 'all 0.3s ease',
+                    ...(tier.title === 'Pro' && {
+                      bgcolor: `${theme.palette.primary.main}05`,
+                      border: `2px solid ${theme.palette.primary.main}22`,
+                    }),
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: `0 20px 40px ${theme.palette.primary.main}22`,
+                    },
+                  }}
+                >
+                  {tier.title === 'Pro' && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        bgcolor: theme.palette.primary.main,
+                        color: 'white',
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 4,
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Populaire
+                    </Box>
+                  )}
+                  <Box sx={{ mb: 4 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+                      {tier.title}
+                    </Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                      {tier.price} DZD
+                      <Typography component="span" variant="h6" color="text.secondary">
+                        /mois
+                      </Typography>
+                    </Typography>
+                  </Box>
+                  <List sx={{ mb: 4, flex: 1 }}>
+                    {tier.description.map((line) => (
+                      <ListItem key={line} sx={{ px: 0, py: 1 }}>
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          <CheckCircleOutlineIcon sx={{ color: theme.palette.primary.main }} />
+                        </ListItemIcon>
+                        <ListItemText primary={line} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <Button
+                    fullWidth
+                    variant={tier.title === 'Pro' ? 'contained' : 'outlined'}
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3,
+                      ...(tier.title === 'Pro' && {
+                        background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      }),
+                    }}
+                  >
+                    {tier.buttonText}
+                  </Button>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* Section Avantages */}
+      <Box
+        sx={{
+          py: 10,
+          bgcolor: 'grey.50',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Cercle décoratif */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '50%',
+            height: '50%',
+            background: `radial-gradient(circle, ${theme.palette.secondary.light}11 0%, transparent 70%)`,
+            bottom: -200,
+            right: -200,
+            borderRadius: '50%',
+          }}
+        />
+
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                mb: 2,
+                background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Pourquoi nous choisir ?
+            </Typography>
+            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+              Découvrez les avantages qui font la différence
+            </Typography>
+          </Box>
+
+          <Grid container spacing={4}>
+            {benefits.map((benefit, index) => (
+              <Grid item key={index} xs={12} md={4}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    p: 4,
+                    borderRadius: 4,
+                    background: 'white',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: `0 20px 40px ${theme.palette.secondary.main}22`,
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 3,
+                      bgcolor: `${theme.palette.secondary.main}11`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 3,
+                    }}
+                  >
+                    {React.cloneElement(benefit.icon, {
+                      sx: { fontSize: 32, color: theme.palette.secondary.main },
+                    })}
+                  </Box>
+                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                    {benefit.title}
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    {benefit.description}
+                  </Typography>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* Section Témoignages */}
+      <Box
+        sx={{
+          py: 10,
+          bgcolor: 'grey.50',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Cercle décoratif */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '50%',
+            height: '50%',
+            background: `radial-gradient(circle, ${theme.palette.secondary.light}11 0%, transparent 70%)`,
+            top: -100,
+            left: -100,
+            borderRadius: '50%',
+          }}
+        />
+
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                mb: 2,
+                background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Ce que disent nos clients
+            </Typography>
+            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+              Découvrez les expériences de ceux qui nous font confiance
+            </Typography>
+          </Box>
+
+          <Grid container spacing={4}>
+            {testimonials.map((testimonial, index) => (
+              <Grid item key={index} xs={12} md={4}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    p: 4,
+                    borderRadius: 4,
+                    background: 'white',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: `0 20px 40px ${theme.palette.secondary.main}22`,
+                    },
                   }}
                 >
                   <Box sx={{ mb: 3 }}>
-                    <Avatar
-                      sx={{
-                        bgcolor: 'primary.main',
-                        width: 56,
-                        height: 56,
-                      }}
-                    >
-                      {testimonial.avatar}
-                    </Avatar>
+                    <Rating value={5} readOnly />
                   </Box>
                   <Typography
                     variant="body1"
-                    sx={{ mb: 3, fontStyle: 'italic' }}
+                    sx={{
+                      mb: 3,
+                      fontStyle: 'italic',
+                      color: 'text.secondary',
+                      flex: 1,
+                    }}
                   >
                     "{testimonial.content}"
                   </Typography>
-                  <Box sx={{ mt: 'auto' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      {testimonial.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {testimonial.role}
-                    </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar
+                      src={testimonial.avatar}
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        mr: 2,
+                        bgcolor: theme.palette.primary.main,
+                      }}
+                    >
+                      {testimonial.name.charAt(0)}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {testimonial.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {testimonial.role}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Card>
               </Grid>
