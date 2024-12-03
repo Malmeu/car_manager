@@ -29,6 +29,7 @@ const initialState: Omit<Vehicle, 'id'> = {
   fuelType: 'essence',
   kilometers: 0,
   status: 'available',
+  userId: '',
 };
 
 const VehicleForm: React.FC<VehicleFormProps> = ({

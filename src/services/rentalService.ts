@@ -8,7 +8,11 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  query,
+  where,
 } from 'firebase/firestore';
+
+const COLLECTION_NAME = 'rentals';
 
 export interface Rental {
   id?: string;
@@ -23,8 +27,25 @@ export interface Rental {
   wilaya: string;
   contractId: string;
   paymentMethod: 'cash' | 'bank_transfer' | 'other';
+  userId: string;
 }
 
+// Get all rentals for a specific user
+export const getAllRentals = async (userId: string): Promise<Rental[]> => {
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Rental));
+  } catch (error) {
+    console.error('Error getting rentals:', error);
+    throw error;
+  }
+};
+
+// Add a new rental
 export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<string> => {
   try {
     // Ensure we're working with Timestamps
@@ -38,7 +59,7 @@ export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<string>
         : Timestamp.fromDate(new Date(rentalData.endDate)),
     };
 
-    const docRef = await addDoc(collection(db, 'rentals'), rental);
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), rental);
     return docRef.id;
   } catch (error) {
     console.error('Error adding rental:', error);
@@ -46,9 +67,10 @@ export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<string>
   }
 };
 
+// Update a rental
 export const updateRental = async (id: string, rentalData: Partial<Rental>): Promise<void> => {
   try {
-    const rentalRef = doc(db, 'rentals', id);
+    const rentalRef = doc(db, COLLECTION_NAME, id);
     const updateData: Partial<Rental> = { ...rentalData };
 
     // Convert dates to Timestamps if they exist
@@ -71,27 +93,37 @@ export const updateRental = async (id: string, rentalData: Partial<Rental>): Pro
   }
 };
 
-export const getAllRentals = async (): Promise<Rental[]> => {
+// Delete a rental
+export const deleteRental = async (id: string): Promise<void> => {
   try {
-    const querySnapshot = await getDocs(collection(db, 'rentals'));
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        startDate: data.startDate,
-        endDate: data.endDate,
-      } as Rental;
-    });
+    const rentalRef = doc(db, COLLECTION_NAME, id);
+    await deleteDoc(rentalRef);
   } catch (error) {
-    console.error('Error getting rentals:', error);
+    console.error('Error deleting rental:', error);
     throw error;
   }
 };
 
+// Get active rentals for a specific user
+export const getActiveRentals = async (userId: string): Promise<Rental[]> => {
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Rental));
+  } catch (error) {
+    console.error('Error getting active rentals:', error);
+    throw error;
+  }
+};
+
+// Get a rental
 export const getRental = async (id: string): Promise<Rental | null> => {
   try {
-    const docRef = doc(db, 'rentals', id);
+    const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
@@ -106,16 +138,6 @@ export const getRental = async (id: string): Promise<Rental | null> => {
     return null;
   } catch (error) {
     console.error('Error getting rental:', error);
-    throw error;
-  }
-};
-
-export const deleteRental = async (id: string): Promise<void> => {
-  try {
-    const rentalRef = doc(db, 'rentals', id);
-    await deleteDoc(rentalRef);
-  } catch (error) {
-    console.error('Error deleting rental:', error);
     throw error;
   }
 };

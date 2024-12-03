@@ -15,6 +15,7 @@ import { getAllRentals, Rental } from '../../services/rentalService';
 import { getAllVehicles, Vehicle } from '../../services/vehicleService';
 import { getAllCustomers, Customer } from '../../services/customerService';
 import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Define the shape of the data from Firebase
 interface DisplayRental extends Omit<Rental, 'id'> {
@@ -25,15 +26,18 @@ const LocationHistory: React.FC = () => {
   const [locations, setLocations] = useState<DisplayRental[]>([]);
   const [vehicles, setVehicles] = useState<Record<string, Vehicle>>({});
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const loadData = async () => {
+      if (!currentUser?.uid) return;
+      
       try {
         // Load all data in parallel
         const [rentalsData, vehiclesData, customersData] = await Promise.all([
-          getAllRentals(),
-          getAllVehicles(),
-          getAllCustomers(),
+          getAllRentals(currentUser.uid),
+          getAllVehicles(currentUser.uid),
+          getAllCustomers(currentUser.uid),
         ]);
 
         // Create lookup maps for vehicles and customers
@@ -78,8 +82,8 @@ const LocationHistory: React.FC = () => {
       }
     };
 
-    loadData();
-  }, []);
+    loadData(); 
+  }, [currentUser]);
 
   const getStatusColor = (status: string): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
     switch (status.toLowerCase()) {

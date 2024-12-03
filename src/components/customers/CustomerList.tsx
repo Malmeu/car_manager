@@ -29,13 +29,16 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { Customer, addCustomer, getAllCustomers, updateCustomer, deleteCustomer, searchCustomersByName } from '../../services/customerService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CustomerList: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>({
+    userId: currentUser?.uid || '',
     firstName: '',
     lastName: '',
     email: '',
@@ -46,38 +49,38 @@ const CustomerList: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    if (currentUser?.uid) {
+      loadCustomers();
+    }
+  }, [currentUser]);
 
   const loadCustomers = async () => {
     try {
-      const data = await getAllCustomers();
+      if (!currentUser?.uid) return;
+      const data = await getAllCustomers(currentUser.uid);
       setCustomers(data);
     } catch (error) {
       console.error('Error loading customers:', error);
     }
   };
 
-  const handleSearch = async () => {
-    if (searchTerm.trim()) {
-      try {
-        const results = await searchCustomersByName(searchTerm);
-        setCustomers(results);
-      } catch (error) {
-        console.error('Error searching customers:', error);
-      }
-    } else {
-      loadCustomers();
-    }
-  };
-
-  const handleOpen = (customer?: Customer) => {
+  const handleOpenDialog = (customer?: Customer) => {
     if (customer) {
       setEditingCustomer(customer);
-      setFormData(customer);
+      setFormData({
+        userId: customer.userId,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        drivingLicense: customer.drivingLicense,
+        rentalsHistory: customer.rentalsHistory
+      });
     } else {
       setEditingCustomer(null);
       setFormData({
+        userId: currentUser?.uid || '',
         firstName: '',
         lastName: '',
         email: '',
@@ -88,6 +91,21 @@ const CustomerList: React.FC = () => {
       });
     }
     setOpen(true);
+  };
+
+  const handleSearch = async () => {
+    if (!currentUser?.uid) return;
+    
+    if (searchTerm.trim()) {
+      try {
+        const results = await searchCustomersByName(searchTerm);
+        setCustomers(results);
+      } catch (error) {
+        console.error('Error searching customers:', error);
+      }
+    } else {
+      loadCustomers();
+    }
   };
 
   const handleClose = () => {
@@ -161,7 +179,7 @@ const CustomerList: React.FC = () => {
             variant="contained"
             color="primary"
             startIcon={<AddIcon />}
-            onClick={() => handleOpen()}
+            onClick={() => handleOpenDialog()}
           >
             Ajouter un client
           </Button>
@@ -270,7 +288,7 @@ const CustomerList: React.FC = () => {
               <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
                 <IconButton
                   size="small"
-                  onClick={() => handleOpen(customer)}
+                  onClick={() => handleOpenDialog(customer)}
                   color="primary"
                 >
                   <EditIcon />

@@ -23,6 +23,7 @@ import {
   Chip
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { useAuth } from '../../contexts/AuthContext';
 import { getAllRentals, updateRental, addRental, deleteRental } from '../../services/rentalService';
 import { getAllVehicles, getAvailableVehicles, updateVehicle } from '../../services/vehicleService';
 import { getAllCustomers } from '../../services/customerService';
@@ -46,9 +47,13 @@ interface FormData {
   wilaya: string;
   contractId: string;
   paymentMethod: 'cash' | 'bank_transfer' | 'other';
+  userId: string;
 }
 
-const RentalList: React.FC = () => {
+interface RentalListProps {}
+
+const RentalList: React.FC<RentalListProps> = () => {
+  const { currentUser } = useAuth();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [filteredRentals, setFilteredRentals] = useState<Rental[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -69,7 +74,8 @@ const RentalList: React.FC = () => {
     paidAmount: 0,
     wilaya: '',
     contractId: '',
-    paymentMethod: 'cash'
+    paymentMethod: 'cash',
+    userId: ''
   });
 
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -89,6 +95,7 @@ const RentalList: React.FC = () => {
   ];
 
   useEffect(() => {
+    if (!currentUser?.uid) return;
     loadData();
     // Check if we should open the new rental dialog
     if (location.state?.openNewRental) {
@@ -129,12 +136,14 @@ const RentalList: React.FC = () => {
   }, [rentals, rentalStatus]);
 
   const loadData = async () => {
+    if (!currentUser?.uid) return;
+    
     try {
       // Toujours charger toutes les locations et tous les clients
       const [rentalsData, vehiclesData, customersData] = await Promise.all([
-        getAllRentals(),
-        getAllVehicles(),  // Charger TOUS les véhicules pour l'affichage
-        getAllCustomers()
+        getAllRentals(currentUser.uid),
+        getAllVehicles(currentUser.uid),
+        getAllCustomers(currentUser.uid)
       ]);
 
       console.log('Toutes les locations:', rentalsData);
@@ -156,6 +165,8 @@ const RentalList: React.FC = () => {
   };
 
   const handleOpen = async (rental?: Rental) => {
+    if (!currentUser?.uid) return;
+    
     try {
       if (rental) {
         setEditingRental(rental);
@@ -163,6 +174,7 @@ const RentalList: React.FC = () => {
           ...rental,
           startDate: rental.startDate,
           endDate: rental.endDate,
+          userId: currentUser.uid, // Add this line
         });
         const vehicle = vehicles.find(v => v.id === rental.vehicleId);
         setSelectedVehicle(vehicle || null);
@@ -171,7 +183,7 @@ const RentalList: React.FC = () => {
       } else {
         setEditingRental(null);
         // Recharger uniquement les véhicules disponibles
-        const availableVehicles = await getAvailableVehicles();
+        const availableVehicles = await getAvailableVehicles(currentUser.uid);
         console.log('Véhicules disponibles pour nouvelle location:', availableVehicles);
         setVehicles(availableVehicles); // Ne montrer que les véhicules disponibles dans le menu
         
@@ -186,7 +198,8 @@ const RentalList: React.FC = () => {
           paidAmount: 0,
           wilaya: '',
           contractId: '',
-          paymentMethod: 'cash'
+          paymentMethod: 'cash',
+          userId: currentUser.uid
         });
         setSelectedVehicle(null);
         setSelectedCustomer(null);
@@ -204,7 +217,7 @@ const RentalList: React.FC = () => {
     setSelectedCustomer(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -235,49 +248,51 @@ const RentalList: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVehicle || !selectedCustomer) return;
-
+    if (!currentUser?.uid) return;
+    
     try {
       const rentalData = {
         ...formData,
       };
 
-      let rentalId;
+      let rentalId: string | null = null;
       if (editingRental) {
-        await updateRental(editingRental.id!, rentalData);
-        rentalId = editingRental.id;
+        rentalId = editingRental.id ?? null;
       } else {
-        rentalId = await addRental(rentalData);
+        const newRentalId = await addRental(rentalData);
         
-        // Mettre à jour le statut du véhicule à "rented"
-        await updateVehicle(selectedVehicle.id!, { 
-          status: 'rented',
-          editingRental: false,
-          isAvailable: false
-        });
+        if (!newRentalId) {
+          console.error('Failed to create rental');
+          return;
+        }
+        
+        rentalId = newRentalId ?? null;
+      }
+
+      if (rentalId === null) {
+        throw new Error('Rental ID is null');
       }
 
       // Create contract for new rentals
       if (!editingRental && rentalId) {
         const contractData: ContractFormData = {
-          rentalId: rentalId,
+          rentalId,
           lessor: {
             name: "Auto Location",
             address: "123 Rue Principal",
             phone: "0123456789"
           },
           tenant: {
-            name: `${selectedCustomer.firstName} ${selectedCustomer.lastName}`,
-            address: selectedCustomer.address,
-            phone: selectedCustomer.phone,
-            drivingLicense: selectedCustomer.drivingLicense
+            name: `${selectedCustomer!.firstName} ${selectedCustomer!.lastName}`,
+            address: selectedCustomer!.address,
+            phone: selectedCustomer!.phone,
+            drivingLicense: selectedCustomer!.drivingLicense
           },
           vehicle: {
-            brand: selectedVehicle.brand,
-            model: selectedVehicle.model,
-            year: selectedVehicle.year,
-            registration: selectedVehicle.registration
+            brand: selectedVehicle!.brand,
+            model: selectedVehicle!.model,
+            year: selectedVehicle!.year,
+            registration: selectedVehicle!.registration
           },
           rental: {
             startDate: formData.startDate,
@@ -301,6 +316,10 @@ const RentalList: React.FC = () => {
         setSelectedContract(contract);
         setContractDialogOpen(true);
       }
+
+      // Recharger les données
+      const updatedVehicles = await getAllVehicles(currentUser.uid);
+      setVehicles(updatedVehicles);
 
       loadData();
       handleClose();
@@ -353,7 +372,10 @@ const RentalList: React.FC = () => {
         });
         
         // Vérifier la mise à jour
-        let updatedVehicles = await getAllVehicles();
+        if (!currentUser) {
+          throw new Error('Utilisateur non connecté');
+        }
+        let updatedVehicles = await getAllVehicles(currentUser.uid);
         let updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
         console.log('État du véhicule après première mise à jour:', updatedVehicle);
         
@@ -367,7 +389,10 @@ const RentalList: React.FC = () => {
           });
           
           // Vérifier à nouveau
-          updatedVehicles = await getAllVehicles();
+          if (!currentUser) {
+            throw new Error('Utilisateur non connecté');
+          }
+          updatedVehicles = await getAllVehicles(currentUser.uid);
           updatedVehicle = updatedVehicles.find(v => v.id === rental.vehicleId);
           console.log('État du véhicule après seconde mise à jour:', updatedVehicle);
         }
@@ -390,7 +415,11 @@ const RentalList: React.FC = () => {
       await loadData();
       
       // 4. Forcer un rechargement des véhicules disponibles
-      const availableVehicles = await getAvailableVehicles();
+      if (!currentUser) {
+        console.warn('No current user found');
+        return;
+      }
+      const availableVehicles = await getAvailableVehicles(currentUser.uid);
       console.log('Liste mise à jour des véhicules disponibles:', availableVehicles);
       setVehicles(availableVehicles);
       
@@ -411,7 +440,7 @@ const RentalList: React.FC = () => {
           <ToggleButtonGroup
             value={rentalStatus}
             exclusive
-            onChange={(event, newStatus) => {
+            onChange={(event: React.MouseEvent<HTMLElement>, newStatus: 'active' | 'completed' | null) => {
               if (newStatus !== null) {
                 setRentalStatus(newStatus);
               }

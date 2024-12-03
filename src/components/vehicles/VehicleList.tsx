@@ -32,8 +32,10 @@ import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } fro
 import { getAllRentals } from '../../services/rentalService';
 import { db } from '../../config/firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
 const VehicleList: React.FC = () => {
+  const { currentUser } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,7 +50,8 @@ const VehicleList: React.FC = () => {
     dailyRate: 0,
     mileage: 0,
     kilometers: 0,
-    fuelType: 'essence'
+    fuelType: 'essence',
+    userId: currentUser?.uid || ''
   });
   const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
@@ -96,11 +99,13 @@ const VehicleList: React.FC = () => {
   }, [vehicles, searchTerm]);
 
   const loadVehicles = async () => {
+    if (!currentUser?.uid) return;  // Add guard clause
+    
     try {
       console.log('Loading vehicles and rentals...');
       const [vehiclesData, rentalsData] = await Promise.all([
-        getAllVehicles(),
-        getAllRentals()
+        getAllVehicles(currentUser.uid),
+        getAllRentals(currentUser.uid)
       ]);
 
       console.log('Vehicles data received:', vehiclesData.length);
@@ -144,7 +149,8 @@ const VehicleList: React.FC = () => {
         dailyRate: vehicle.dailyRate,
         mileage: vehicle.mileage,
         kilometers: vehicle.kilometers,
-        fuelType: vehicle.fuelType
+        fuelType: vehicle.fuelType,
+        userId: vehicle.userId
       });
     } else {
       setEditingVehicle(null);
@@ -157,7 +163,8 @@ const VehicleList: React.FC = () => {
         dailyRate: 0,
         mileage: 0,
         kilometers: 0,
-        fuelType: 'essence'
+        fuelType: '',
+        userId: ''
       });
     }
     setOpen(true);
@@ -179,6 +186,8 @@ const VehicleList: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (!currentUser?.uid) return;  // Add guard clause
+      
       if (editingVehicle?.id) {
         // Si le véhicule est en cours de location, ne pas modifier son statut
         const isRented = activeRentals.includes(editingVehicle.id);
@@ -188,7 +197,11 @@ const VehicleList: React.FC = () => {
         };
         await updateVehicle(editingVehicle.id, dataToUpdate);
       } else {
-        await addVehicle(formData);
+        // Ajouter le userId aux données du véhicule
+        await addVehicle({
+          ...formData,
+          userId: currentUser.uid
+        });
       }
       handleClose();
       loadVehicles();

@@ -37,6 +37,7 @@ import { Timestamp } from 'firebase/firestore';
 import { Vehicle, Rental } from '../../types';
 import { getAllRentals } from '../../services/rentalService';
 import { getAllVehicles } from '../../services/vehicleService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface RentalStats {
   monthlyRevenue: Array<{ month: string; amount: number }>;
@@ -52,6 +53,7 @@ interface RentalStats {
 }
 
 const Reports: React.FC = () => {
+  const { currentUser } = useAuth();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,23 +72,27 @@ const Reports: React.FC = () => {
   const theme = useTheme();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [rentalsData, vehiclesData] = await Promise.all([
-          getAllRentals(),
-          getAllVehicles(),
-        ]);
-        setRentals(rentalsData);
-        setVehicles(vehiclesData);
-        calculateStats(rentalsData, vehiclesData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    if (!currentUser?.uid) return;
+    loadData();
+  }, [currentUser]);
+
+  const loadData = async () => {
+    if (!currentUser?.uid) return;
+    
+    try {
+      const [rentalsData, vehiclesData] = await Promise.all([
+        getAllRentals(currentUser.uid),
+        getAllVehicles(currentUser.uid),
+      ]);
+      setRentals(rentalsData);
+      setVehicles(vehiclesData);
+      calculateStats(rentalsData, vehiclesData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const calculateStats = (rentalsData: Rental[], vehiclesData: Vehicle[]) => {
     try {

@@ -13,15 +13,24 @@ import {
   Alert,
   AppBar,
   Toolbar,
+  Link,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
   People as PeopleIcon,
   Assessment as ReportIcon,
 } from '@mui/icons-material';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { subscriptionService } from '../services/subscriptionService';
+import { PlanType } from '../models/subscription';
+
+interface LocationState {
+  returnUrl?: string;
+  selectedPlan?: PlanType;
+  billingPeriod?: 'monthly' | 'annual';
+}
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -29,7 +38,10 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { returnUrl, selectedPlan, billingPeriod } = (location.state as LocationState) || {};
   const theme = useTheme();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,9 +54,19 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('Connexion réussie:', userCredential.user.uid);
-      navigate('/dashboard');
+      await login(email, password);
+      console.log('Connexion réussie');
+      
+      if (selectedPlan) {
+        navigate('/subscription', { 
+          state: { 
+            selectedPlan,
+            billingPeriod 
+          }
+        });
+      } else {
+        navigate(returnUrl || '/dashboard');
+      }
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
       
@@ -67,6 +89,22 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const handleLoginSuccess = async (user: any) => {
+    try {
+      // Si un plan a été sélectionné, créer l'abonnement
+      if (selectedPlan && billingPeriod) {
+        await subscriptionService.createSubscription(user.uid, selectedPlan, billingPeriod);
+        navigate('/dashboard');
+      } else {
+        // Sinon, rediriger vers la page demandée ou le tableau de bord par défaut
+        navigate(returnUrl || '/dashboard');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'abonnement:', error);
+      // Gérer l'erreur
+    }
+  };
+
   const createTestAccount = async () => {
     const testEmail = 'test@carma.com';
     const testPassword = 'Test123!';
@@ -75,7 +113,7 @@ const LoginPage: React.FC = () => {
       setError('');
       setSuccess('');
       
-      await createUserWithEmailAndPassword(auth, testEmail, testPassword);
+      // await createUserWithEmailAndPassword(auth, testEmail, testPassword);
       setSuccess(`Compte de test créé avec succès! Email: ${testEmail}, Mot de passe: ${testPassword}`);
       setEmail(testEmail);
       setPassword(testPassword);
@@ -181,13 +219,18 @@ const LoginPage: React.FC = () => {
 
                 <Button
                   type="submit"
-                  variant="contained"
-                  size="large"
                   fullWidth
-                  sx={{ mt: 2 }}
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
                 >
                   Se connecter
                 </Button>
+
+                <Box sx={{ textAlign: 'center', mt: 2 }}>
+                  <Link component={RouterLink} to="/signup" variant="body2">
+                    Pas encore de compte ? Inscrivez-vous
+                  </Link>
+                </Box>
 
                 <Button
                   variant="outlined"

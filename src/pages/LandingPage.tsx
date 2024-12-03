@@ -48,6 +48,10 @@ import {
   Cloud as CloudIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { auth } from '../config/firebase';
+import { subscriptionService } from '../services/subscriptionService';
+import { sessionService } from '../services/sessionService';
+import { PLANS } from '../models/subscription';
 
 interface Tier {
   title: string;
@@ -55,6 +59,7 @@ interface Tier {
   description: string[];
   buttonText: string;
   buttonVariant: 'outlined' | 'contained' | 'text';
+  id: 'starter' | 'pro' | 'enterprise';
 }
 
 const LandingPage: React.FC = () => {
@@ -63,6 +68,76 @@ const LandingPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+
+  const handleSubscribe = async (planId: 'starter' | 'pro' | 'enterprise') => {
+    try {
+      const user = auth.currentUser;
+      
+      if (!user) {
+        // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
+        navigate('/register', { 
+          state: { 
+            returnUrl: '/',
+            selectedPlan: planId,
+            billingPeriod
+          } 
+        });
+        return;
+      }
+
+      // Créer l'abonnement
+      await subscriptionService.createSubscription(user.uid, planId, billingPeriod, false);
+      await sessionService.initializeNewSession(user.uid);
+      
+      // Rediriger vers le tableau de bord
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Erreur lors de la souscription:', error);
+      // Gérer l'erreur (vous pourriez vouloir afficher un message à l'utilisateur)
+    }
+  };
+
+  const handleStartTrial = async (planId: 'starter' | 'pro' | 'enterprise') => {
+    try {
+      const user = auth.currentUser;
+      
+      if (!user) {
+        // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
+        navigate('/register', { 
+          state: { 
+            returnUrl: '/',
+            selectedPlan: planId,
+            billingPeriod: 'monthly',
+            isTrial: true
+          } 
+        });
+        return;
+      }
+
+      // Créer l'abonnement d'essai et une nouvelle session
+      await subscriptionService.createSubscription(user.uid, planId, 'monthly', true);
+      await sessionService.initializeNewSession(user.uid);
+      
+      // Rediriger vers le tableau de bord
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'essai:', error);
+    }
+  };
+
+  const handleSubscriptionClick = (planId: 'starter' | 'pro' | 'enterprise') => {
+    navigate('/register', { 
+      state: { 
+        selectedPlan: planId,
+        billingPeriod: billingPeriod
+      } 
+    });
+  };
+
+  const handleNewsletterSubscription = (event: React.FormEvent) => {
+    event.preventDefault();
+    // Logique pour la newsletter
+  };
 
   // Menu mobile
   const mobileMenu = (
@@ -126,7 +201,7 @@ const LandingPage: React.FC = () => {
             color="primary"
             onClick={() => {
               setMobileMenuOpen(false);
-              navigate('/register');
+              navigate('/signup');
             }}
           >
             S'inscrire
@@ -174,7 +249,7 @@ const LandingPage: React.FC = () => {
       </Button>
       <Button
         variant="contained"
-        onClick={() => navigate('/register')}
+        onClick={() => navigate('/signup')}
       >
         S'inscrire
       </Button>
@@ -229,6 +304,7 @@ const LandingPage: React.FC = () => {
       ],
       buttonText: 'Commencer gratuitement',
       buttonVariant: 'outlined' as const,
+      id: 'starter'
     },
     {
       title: 'Pro',
@@ -242,6 +318,7 @@ const LandingPage: React.FC = () => {
       ],
       buttonText: 'Commencer l\'essai',
       buttonVariant: 'contained' as const,
+      id: 'pro'
     },
     {
       title: 'Enterprise',
@@ -255,6 +332,7 @@ const LandingPage: React.FC = () => {
       ],
       buttonText: 'Contacter les ventes',
       buttonVariant: 'outlined' as const,
+      id: 'enterprise'
     },
   ];
 
@@ -389,8 +467,13 @@ const LandingPage: React.FC = () => {
                   placeholder="Votre email"
                   sx={{ mb: 1 }}
                 />
-                <Button variant="contained" fullWidth size="small">
-                  S'inscrire
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="small"
+                  onClick={handleNewsletterSubscription}
+                >
+                  S'abonner à la newsletter
                 </Button>
               </Box>
             </Grid>
@@ -899,6 +982,7 @@ const LandingPage: React.FC = () => {
                   <Button
                     fullWidth
                     variant={tier.buttonVariant}
+                    onClick={() => handleSubscriptionClick(tier.id)}
                     sx={{
                       py: 1.5,
                       borderRadius: 3,

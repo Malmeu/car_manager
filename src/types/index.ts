@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface Vehicle {
     id?: string;
+    userId: string;
     brand: string;
     model: string;
     year: number;

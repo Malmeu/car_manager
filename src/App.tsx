@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
 import Dashboard from './components/Dashboard';
@@ -8,83 +8,70 @@ import CustomerList from './components/customers/CustomerList';
 import RentalList from './components/rentals/RentalList';
 import Reports from './components/reports/Reports';
 import Layout from './components/layout/Layout';
-import LocationHistory from './components/rentals/LocationHistory';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import LandingPage from './pages/LandingPage';
-import { auth } from './config/firebase';
+import UserManagementPage from './pages/UserManagementPage';
+import AdminSubscriptionPage from './pages/AdminSubscriptionPage';
+import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
+import SubscriptionPendingPage from './pages/SubscriptionPendingPage';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+const AdminLayout = () => {
+  return (
+    <ProtectedRoute adminOnly>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </ProtectedRoute>
+  );
+};
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setIsAuthenticated(!!user);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  if (isAuthenticated === null) {
-    return null; // ou un composant de chargement
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  return <>{children}</>;
+const UserLayout = () => {
+  return (
+    <ProtectedRoute>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </ProtectedRoute>
+  );
 };
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Routes>
-          {/* Pages publiques */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          
-          {/* Pages protégées */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Layout><Dashboard /></Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/vehicles/*" element={
-            <ProtectedRoute>
-              <Layout><VehicleList /></Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/customers/*" element={
-            <ProtectedRoute>
-              <Layout><CustomerList /></Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/rentals/*" element={
-            <ProtectedRoute>
-              <Layout><RentalList /></Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/location-history" element={
-            <ProtectedRoute>
-              <Layout><LocationHistory /></Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/reports/*" element={
-            <ProtectedRoute>
-              <Layout><Reports /></Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Redirection par défaut */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
+            <Route path="/subscription-pending" element={<SubscriptionPendingPage />} />
+            
+            {/* Routes Admin */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/users" replace />} />
+              <Route path="users" element={<UserManagementPage />} />
+              <Route path="subscriptions" element={<AdminSubscriptionPage />} />
+            </Route>
+
+            {/* Routes Utilisateur */}
+            <Route element={<UserLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/vehicles" element={<VehicleList />} />
+              <Route path="/customers" element={<CustomerList />} />
+              <Route path="/rentals" element={<RentalList />} />
+              <Route path="/reports" element={<Reports />} />
+            </Route>
+
+            {/* Redirection par défaut */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
