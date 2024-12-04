@@ -21,13 +21,15 @@ import {
   Card,
   CardContent,
   Box,
+  IconButton,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import {
   DatePicker
 } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { collection, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -299,6 +301,29 @@ const ExpenseManager: React.FC = () => {
     }
   };
 
+  // Ajout des fonctions de suppression
+  const handleDeleteVehicleExpense = async (expenseId: string) => {
+    try {
+      await deleteDoc(doc(db, 'expenses', expenseId));
+      // Mise à jour de l'état local
+      setExpenses(expenses.filter(expense => expense.id !== expenseId));
+      // Refresh all vehicle expenses to update totals
+      fetchAllVehicleExpenses();
+    } catch (error) {
+      console.error("Erreur lors de la suppression des frais véhicule:", error);
+    }
+  };
+
+  const handleDeleteBusinessExpense = async (expenseId: string) => {
+    try {
+      await deleteDoc(doc(db, 'businessExpenses', expenseId));
+      // Mise à jour de l'état local
+      setBusinessExpenses(businessExpenses.filter(expense => expense.id !== expenseId));
+    } catch (error) {
+      console.error("Erreur lors de la suppression des frais entreprise:", error);
+    }
+  };
+
   // Combine and sort all transactions by date
   const allTransactions = useMemo(() => {
     // Créer les transactions pour les revenus (locations)
@@ -373,390 +398,261 @@ const ExpenseManager: React.FC = () => {
   }, [allVehicleExpenses, cars]);
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg">
+      <Typography variant="h4" gutterBottom>
+        Gestion des frais
+      </Typography>
+
+      <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
+        <Tab label="Frais véhicules" />
+        <Tab label="Frais entreprise" />
+      </Tabs>
+
+      {activeTab === 0 ? (
+        // Frais véhicules
         <Grid container spacing={3}>
-          {/* Left side - Main content */}
-          <Grid item xs={12} md={9}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h4" gutterBottom>
-                Gestion des Frais
-              </Typography>
-
-              <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
-                <Tab label="Frais Véhicules" />
-                <Tab label="Frais Entreprise" />
-              </Tabs>
-
-              {activeTab === 0 ? (
-                // Car expenses content
-                <>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
-                      <FormControl fullWidth sx={{ mb: 3 }}>
-                        <InputLabel>Sélectionner une voiture</InputLabel>
-                        <Select
-                          value={selectedCar}
-                          label="Sélectionner une voiture"
-                          onChange={(e) => setSelectedCar(e.target.value)}
-                        >
-                          {cars.map((car) => (
-                            <MenuItem key={car.id} value={car.id}>
-                              {car.brand} {car.model} - {car.registration}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <form onSubmit={handleSubmit}>
-                        <TextField
-                          fullWidth
-                          label="Nom des frais"
-                          value={expenseName}
-                          onChange={(e) => setExpenseName(e.target.value)}
-                          sx={{ mb: 2 }}
-                        />
-                        <TextField
-                          fullWidth
-                          label="Montant"
-                          type="number"
-                          value={expenseAmount}
-                          onChange={(e) => setExpenseAmount(e.target.value)}
-                          sx={{ mb: 2 }}
-                        />
-                        <DatePicker
-                          label="Date des frais"
-                          value={expenseDate}
-                          onChange={(newValue) => setExpenseDate(newValue)}
-                          sx={{ mb: 2, width: '100%' }}
-                        />
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          color="primary"
-                          fullWidth
-                          disabled={!selectedCar}
-                        >
-                          Ajouter les frais
-                        </Button>
-                      </form>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>
-                        Frais du mois en cours
-                      </Typography>
-                      <TableContainer>
-                        <Table>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Date</TableCell>
-                              <TableCell>Nom</TableCell>
-                              <TableCell align="right">Montant</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {expenses.map((expense) => (
-                              <TableRow key={expense.id}>
-                                <TableCell>
-                                  {expense.date.toLocaleDateString('fr-FR')}
-                                </TableCell>
-                                <TableCell>{expense.name}</TableCell>
-                                <TableCell align="right">
-                                  {expense.amount.toLocaleString('fr-FR', {
-                                    style: 'currency',
-                                    currency: 'DZD',
-                                  })}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                            {/* Total row for vehicle expenses */}
-                            <TableRow>
-                              <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-                                Total du mois
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                {expenses.reduce((sum, expense) => sum + expense.amount, 0).toLocaleString('fr-FR', {
-                                  style: 'currency',
-                                  currency: 'DZD',
-                                })}
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </Grid>
-                  </Grid>
-                </>
-              ) : (
-                // Business expenses content
-                <>
-                  <form onSubmit={handleBusinessExpenseSubmit}>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={4}>
-                        <TextField
-                          fullWidth
-                          label="Désignation"
-                          value={businessDesignation}
-                          onChange={(e) => setBusinessDesignation(e.target.value)}
-                          required
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <TextField
-                          fullWidth
-                          label="Montant"
-                          type="number"
-                          value={businessAmount}
-                          onChange={(e) => setBusinessAmount(e.target.value)}
-                          required
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <DatePicker
-                          label="Date"
-                          value={businessDate}
-                          onChange={(newValue) => setBusinessDate(newValue)}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Button type="submit" variant="contained" color="primary">
-                          Ajouter
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </form>
-
-                  <TableContainer component={Paper} sx={{ mt: 4 }}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Désignation</TableCell>
-                          <TableCell>Montant</TableCell>
-                          <TableCell>Date</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {businessExpenses.map((expense) => (
-                          <TableRow key={expense.id}>
-                            <TableCell>{expense.designation}</TableCell>
-                            <TableCell>{expense.amount.toFixed(2)} DZD</TableCell>
-                            <TableCell>
-                              {new Date(expense.date).toLocaleDateString('fr-FR')}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {/* Total row for business expenses */}
-                        <TableRow>
-                          <TableCell colSpan={1} sx={{ fontWeight: 'bold' }}>
-                            Total du mois
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: 'bold' }}>
-                            {businessExpenses.reduce((sum, expense) => sum + expense.amount, 0).toFixed(2)} DZD
-                          </TableCell>
-                          <TableCell />
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </>
-              )}
-            </Paper>
-          </Grid>
-
-          {/* Right side - Summary Cards */}
-          <Grid item xs={12} md={3}>
-            {/* Vehicle Summary Card */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Synthèse par Véhicule
-                </Typography>
-                
-                <Box sx={{ mt: 3 }}>
-                  {Object.entries(expensesByVehicle).map(([carId, data]) => (
-                    <Box key={carId} sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        {data.name}
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {data.total.toLocaleString('fr-FR', {
-                          style: 'currency',
-                          currency: 'DZD',
-                        })}
-                      </Typography>
-                    </Box>
-                  ))}
-
-                  <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      Total Véhicules
-                    </Typography>
-                    <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {totalAllVehicles.toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'DZD',
-                      })}
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Rental Income Card */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Revenus des Locations
-                </Typography>
-                
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Revenus du mois
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {totalRentalIncome.toLocaleString('fr-FR', {
-                      style: 'currency',
-                      currency: 'DZD',
-                    })}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Total Expenses Card */}
+          <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Total Général
+                  Ajouter des frais véhicule
                 </Typography>
-                
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Frais Véhicules
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {totalAllVehicles.toLocaleString('fr-FR', {
-                      style: 'currency',
-                      currency: 'DZD',
-                    })}
-                  </Typography>
+                <form onSubmit={handleSubmit}>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Véhicule</InputLabel>
+                    <Select
+                      value={selectedCar}
+                      onChange={(e) => setSelectedCar(e.target.value)}
+                      required
+                    >
+                      {cars.map((car) => (
+                        <MenuItem key={car.id} value={car.id}>
+                          {car.brand} {car.model} - {car.registration}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
-                    Frais Entreprise
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {totalBusinessExpenses.toLocaleString('fr-FR', {
-                      style: 'currency',
-                      currency: 'DZD',
-                    })}
-                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="Nom de la dépense"
+                    value={expenseName}
+                    onChange={(e) => setExpenseName(e.target.value)}
+                    required
+                    sx={{ mb: 2 }}
+                  />
 
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
-                    Revenus des Locations
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {totalRentalIncome.toLocaleString('fr-FR', {
-                      style: 'currency',
-                      currency: 'DZD',
-                    })}
-                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="Montant"
+                    type="number"
+                    value={expenseAmount}
+                    onChange={(e) => setExpenseAmount(e.target.value)}
+                    required
+                    sx={{ mb: 2 }}
+                  />
 
-                  <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      Total Général
-                    </Typography>
-                    <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {(totalAllVehicles + totalBusinessExpenses).toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'DZD',
-                      })}
-                    </Typography>
-                    <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mt: 2 }}>
-                      Bénéfice Net: {netIncome.toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'DZD',
-                      })}
-                    </Typography>
-                  </Box>
-                </Box>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
+                    <DatePicker
+                      label="Date"
+                      value={expenseDate}
+                      onChange={(newValue) => setExpenseDate(newValue)}
+                      sx={{ width: '100%', mb: 2 }}
+                    />
+                  </LocalizationProvider>
+
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                  >
+                    Ajouter
+                  </Button>
+                </form>
               </CardContent>
             </Card>
 
-            {/* Journal des transactions */}
-            <TableContainer component={Paper} sx={{ mt: 3 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Revenus</TableCell>
-                    <TableCell align="right">Sorties</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {allTransactions.map((transaction, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        {new Date(transaction.date).toLocaleDateString('fr-FR')}
-                      </TableCell>
-                      <TableCell>{transaction.description}</TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ 
-                          color: 'success.main',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {transaction.type === 'entrée' ? `${transaction.amount.toLocaleString('fr-FR')} DA` : '-'}
-                      </TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ 
-                          color: 'error.main',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {transaction.type === 'sortie' ? `${Math.abs(transaction.amount).toLocaleString('fr-FR')} DA` : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  
-                  {/* Ligne des totaux */}
-                  <TableRow sx={{ 
-                    backgroundColor: 'grey.100',
-                    '& td': { fontWeight: 'bold' }
-                  }}>
-                    <TableCell colSpan={2}>
-                      Totaux
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'success.main' }}>
-                      {totals.entrées.toLocaleString('fr-FR')} DA
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'error.main' }}>
-                      {totals.sorties.toLocaleString('fr-FR')} DA
-                    </TableCell>
-                  </TableRow>
-                  <TableRow sx={{ 
-                    backgroundColor: 'grey.200',
-                    '& td': { fontWeight: 'bold' }
-                  }}>
-                    <TableCell colSpan={2}>
-                      Solde
-                    </TableCell>
-                    <TableCell colSpan={2} align="right" sx={{ 
-                      color: totals.total >= 0 ? 'success.main' : 'error.main'
-                    }}>
-                      {totals.total.toLocaleString('fr-FR')} DA
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Card sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Total des frais par véhicule
+                </Typography>
+                {Object.entries(expensesByVehicle).map(([carId, data]) => (
+                  <Box key={carId} sx={{ mb: 2 }}>
+                    <Typography variant="subtitle1">
+                      {data.name}
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {data.total.toLocaleString('fr-FR')} DA
+                    </Typography>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Détails des frais véhicules
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Nom</TableCell>
+                        <TableCell align="right">Montant</TableCell>
+                        <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {expenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell>
+                            {expense.date.toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>{expense.name}</TableCell>
+                          <TableCell align="right">
+                            {expense.amount.toLocaleString('fr-FR')} DA
+                          </TableCell>
+                          <TableCell align="center">
+                            <IconButton
+                              onClick={() => handleDeleteVehicleExpense(expense.id)}
+                              color="error"
+                              size="small"
+                              title="Supprimer"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+                          Total
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {expenses.reduce((sum, expense) => sum + expense.amount, 0).toLocaleString('fr-FR')} DA
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
-      </Container>
-    </LocalizationProvider>
+      ) : (
+        // Frais entreprise
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Ajouter des frais entreprise
+                </Typography>
+                <form onSubmit={handleBusinessExpenseSubmit}>
+                  <TextField
+                    fullWidth
+                    label="Désignation"
+                    value={businessDesignation}
+                    onChange={(e) => setBusinessDesignation(e.target.value)}
+                    required
+                    sx={{ mb: 2 }}
+                  />
+
+                  <TextField
+                    fullWidth
+                    label="Montant"
+                    type="number"
+                    value={businessAmount}
+                    onChange={(e) => setBusinessAmount(e.target.value)}
+                    required
+                    sx={{ mb: 2 }}
+                  />
+
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
+                    <DatePicker
+                      label="Date"
+                      value={businessDate}
+                      onChange={(newValue) => setBusinessDate(newValue)}
+                      sx={{ width: '100%', mb: 2 }}
+                    />
+                  </LocalizationProvider>
+
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                  >
+                    Ajouter
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Détails des frais entreprise
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Désignation</TableCell>
+                        <TableCell align="right">Montant</TableCell>
+                        <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {businessExpenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell>
+                            {new Date(expense.date).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>{expense.designation}</TableCell>
+                          <TableCell align="right">
+                            {expense.amount.toLocaleString('fr-FR')} DA
+                          </TableCell>
+                          <TableCell align="center">
+                            <IconButton
+                              onClick={() => handleDeleteBusinessExpense(expense.id)}
+                              color="error"
+                              size="small"
+                              title="Supprimer"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+                          Total
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {businessExpenses.reduce((sum, expense) => sum + expense.amount, 0).toLocaleString('fr-FR')} DA
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+    </Container>
   );
 };
 
