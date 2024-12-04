@@ -12,7 +12,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   CardActions,
   Chip,
   InputAdornment,
@@ -261,79 +260,94 @@ const VehicleList: React.FC = () => {
                 height: '100%', 
                 display: 'flex', 
                 flexDirection: 'column',
-                transition: 'transform 0.2s',
+                transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: 4,
+                  boxShadow: 6,
                 },
+                borderRadius: 2,
+                overflow: 'hidden',
               }}
             >
-              <CardMedia
-                component="div"
+              <Box
                 sx={{
-                  height: 200,
-                  backgroundColor: '#f5f5f5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  p: 2,
+                  background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                  color: 'white',
                 }}
               >
-                {vehicle.imageUrl ? (
-                  <img
-                    src={vehicle.imageUrl}
-                    alt={`${vehicle.brand} ${vehicle.model}`}
-                    style={{ 
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                ) : (
-                  <CarIcon sx={{ fontSize: 100, color: 'rgba(0, 0, 0, 0.3)' }} />
-                )}
-              </CardMedia>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   {vehicle.brand} {vehicle.model}
                 </Typography>
-                <Box display="flex" gap={1} mb={1}>
+                <Box display="flex" gap={1}>
                   <Chip
                     size="small"
                     label={activeRentals.includes(vehicle.id!) ? 'En location' :
                            vehicle.status === 'available' ? 'Disponible' : 'Indisponible'}
-                    color={activeRentals.includes(vehicle.id!) ? 'primary' :
+                    color={activeRentals.includes(vehicle.id!) ? 'warning' :
                            vehicle.status === 'available' ? 'success' : 'error'}
                     onClick={activeRentals.includes(vehicle.id!) ? undefined : () => {
                       updateVehicle(vehicle.id!, {
                         status: vehicle.status === 'available' ? 'unavailable' : 'available'
                       });
                     }}
-                    sx={{ cursor: activeRentals.includes(vehicle.id!) ? 'default' : 'pointer' }}
+                    sx={{ 
+                      cursor: activeRentals.includes(vehicle.id!) ? 'default' : 'pointer',
+                      backgroundColor: activeRentals.includes(vehicle.id!) ? '#ed6c02' :
+                                    vehicle.status === 'available' ? '#2e7d32' : '#d32f2f',
+                      color: 'white',
+                    }}
                   />
                   <Chip
                     size="small"
                     label={`${vehicle.year}`}
                     icon={<DateIcon />}
+                    sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: 'white' }}
                   />
                 </Box>
-                <Box display="flex" flexDirection="column" gap={1}>
-                  <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" gap={1}>
-                    <FuelIcon fontSize="small" />
-                    {vehicle.fuelType}
+              </Box>
+              <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                <Box display="flex" flexDirection="column" gap={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <FuelIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                      {vehicle.fuelType}
+                    </Typography>
+                  </Box>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <SpeedIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {vehicle.kilometers.toLocaleString()} km
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    backgroundColor: '#f5f5f5',
+                    p: 1,
+                    borderRadius: 1
+                  }}>
+                    <span style={{ fontWeight: 500 }}>Immat:</span> {vehicle.registration}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" gap={1}>
-                    <SpeedIcon fontSize="small" />
-                    {vehicle.kilometers.toLocaleString()} km
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Immatriculation: {vehicle.registration}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Tarif: {vehicle.dailyRate.toLocaleString()} DZD/jour
+                  <Typography variant="h6" color="primary" sx={{ 
+                    mt: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#e3f2fd',
+                    p: 1,
+                    borderRadius: 1
+                  }}>
+                    {vehicle.dailyRate.toLocaleString()} DZD/jour
                   </Typography>
                 </Box>
               </CardContent>
-              <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+              <CardActions sx={{ 
+                justifyContent: 'flex-end', 
+                p: 1.5,
+                borderTop: '1px solid #eee'
+              }}>
                 <IconButton
                   size="small"
                   onClick={() => handleOpen(vehicle)}

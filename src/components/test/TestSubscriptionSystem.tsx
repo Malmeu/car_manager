@@ -1,80 +1,76 @@
-import React from 'react';
-import {
-  Box,
-  Button,
-  Typography,
-  Paper,
-  Divider,
-} from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
-import { createTestSubscription, createExpiredSubscription } from '../../utils/testSubscription';
+import React, { useState, useEffect } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+
+interface SubscriptionData {
+  isActive: boolean;
+  expiryDate: string;
+  plan: string;
+}
 
 const TestSubscriptionSystem: React.FC = () => {
-  const { currentUser } = useAuth();
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreateTestSubscription = async () => {
-    if (!currentUser) return;
-    try {
-      await createTestSubscription(currentUser.uid);
-      alert('Abonnement de test créé avec succès (expire dans 6 jours)');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Erreur lors de la création de l\'abonnement de test');
-    }
-  };
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const docRef = doc(db, 'subscriptions', 'test');
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setSubscription(docSnap.data() as SubscriptionData);
+        } else {
+          // Initialize with default test subscription
+          const defaultSubscription: SubscriptionData = {
+            isActive: true,
+            expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+            plan: 'test'
+          };
+          await setDoc(docRef, defaultSubscription);
+          setSubscription(defaultSubscription);
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleCreateExpiredSubscription = async () => {
-    if (!currentUser) return;
-    try {
-      await createExpiredSubscription(currentUser.uid);
-      alert('Abonnement expiré créé avec succès');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Erreur lors de la création de l\'abonnement expiré');
-    }
-  };
+    fetchSubscription();
+  }, []);
 
-  if (!currentUser) {
-    return null;
+  if (loading) {
+    return <div>Loading subscription status...</div>;
   }
 
+  const daysRemaining = subscription
+    ? Math.ceil((new Date(subscription.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return (
-    <Paper sx={{ p: 3, mt: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        Test du Système d'Abonnement
-      </Typography>
-      <Divider sx={{ my: 2 }} />
-      
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleCreateTestSubscription}
-        >
-          Créer un abonnement qui expire bientôt
-        </Button>
-
-        <Button
-          variant="contained"
-          color="error"
-          onClick={handleCreateExpiredSubscription}
-        >
-          Créer un abonnement expiré
-        </Button>
-      </Box>
-
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="body2" color="textSecondary">
-          Instructions de test :
-        </Typography>
-        <ul>
-          <li>Cliquez sur les boutons pour créer différents types d'abonnements</li>
-          <li>Vérifiez les notifications dans l'icône de notification</li>
-          <li>Vérifiez le statut de l'abonnement en haut de la page</li>
-          <li>Testez le processus de renouvellement</li>
-        </ul>
-      </Box>
-    </Paper>
+    <div className="bg-white shadow rounded-lg p-4 mb-4">
+      <h2 className="text-xl font-semibold mb-2">Test Subscription Status</h2>
+      {subscription && (
+        <div>
+          <p className="mb-2">
+            Status:{' '}
+            <span
+              className={`font-semibold ${
+                subscription.isActive ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {subscription.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </p>
+          <p className="mb-2">Plan: {subscription.plan}</p>
+          <p className="mb-2">Days Remaining: {daysRemaining}</p>
+          <p className="text-sm text-gray-600">
+            Expires: {new Date(subscription.expiryDate).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+    </div>
   );
 };
 
