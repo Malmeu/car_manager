@@ -37,6 +37,8 @@ import {
   ExpandLess,
   ExpandMore,
   ChevronRight as ChevronRightIcon,
+  Euro as EuroIcon,
+  AccountBalance as AccountBalanceIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -270,6 +272,16 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       text: 'Locations',
       icon: <ContractIcon />,
       path: '/rentals'
+    },
+    {
+      text: 'Frais',
+      icon: <EuroIcon />,
+      path: '/expenses',
+    },
+    {
+      text: 'Caisse',
+      icon: <AccountBalanceIcon />,
+      path: '/cash-journal',
     },
     {
       text: 'Rapports',

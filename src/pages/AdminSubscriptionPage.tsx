@@ -403,7 +403,7 @@ const AdminSubscriptionPage: React.FC = () => {
                   <Typography variant="body2" color="textSecondary">{request.phoneNumber}</Typography>
                 </TableCell>
                 <TableCell>{request.subscriptionRequest.planName}</TableCell>
-                <TableCell>{request.subscriptionRequest.price}€/mois</TableCell>
+                <TableCell>{request.subscriptionRequest.price} DZD/mois</TableCell>
                 <TableCell>
                   {format(new Date(request.subscriptionRequest.requestDate), 'dd/MM/yyyy HH:mm', { locale: fr })}
                 </TableCell>
@@ -620,7 +620,7 @@ const AdminSubscriptionPage: React.FC = () => {
                     <TableCell>
                       {format(new Date(invoice.issueDate), 'dd/MM/yyyy')}
                     </TableCell>
-                    <TableCell>{invoice.amount}€</TableCell>
+                    <TableCell>{invoice.amount} DZD</TableCell>
                     <TableCell>
                       <Chip
                         label={invoice.status}

@@ -5,6 +5,7 @@ export interface Vehicle {
   model: string;
   year: number;
   registration: string;
+  licensePlate: string;
   status: 'available' | 'rented' | 'unavailable';
   dailyRate: number;
   mileage: number;

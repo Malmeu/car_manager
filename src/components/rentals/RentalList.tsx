@@ -248,33 +248,55 @@ const RentalList: React.FC<RentalListProps> = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Ajouter cette ligne pour empêcher le rechargement de la page
     if (!currentUser?.uid) return;
     
     try {
+      // Vérifier que toutes les données requises sont présentes
+      if (!formData.vehicleId || !formData.customerId || !formData.wilaya) {
+        alert('Veuillez remplir tous les champs obligatoires');
+        return;
+      }
+
+      // Vérifier que la date de fin est après la date de début
+      if (formData.endDate.toDate() <= formData.startDate.toDate()) {
+        alert('La date de fin doit être après la date de début');
+        return;
+      }
+
       const rentalData = {
         ...formData,
+        userId: currentUser.uid,
+        status: 'active' as const,
+        paymentStatus: (formData.paidAmount >= formData.totalCost 
+          ? 'paid' 
+          : formData.paidAmount > 0 
+            ? 'partial' 
+            : 'pending') as 'paid' | 'partial' | 'pending'
       };
+
+      console.log('Données de location à soumettre:', rentalData);
 
       let rentalId: string | null = null;
       if (editingRental) {
-        rentalId = editingRental.id ?? null;
+        // Mise à jour d'une location existante
+        await updateRental(editingRental.id!, rentalData);
+        rentalId = editingRental.id!;
+        console.log('Location mise à jour avec succès');
       } else {
-        const newRentalId = await addRental(rentalData);
+        // Création d'une nouvelle location
+        rentalId = await addRental(rentalData);
+        console.log('Nouvelle location créée avec ID:', rentalId);
         
-        if (!newRentalId) {
-          console.error('Failed to create rental');
-          return;
+        if (!rentalId) {
+          throw new Error('Échec de la création de la location');
         }
+      }
+
+      // Créer le contrat pour les nouvelles locations
+      if (!editingRental && rentalId && selectedCustomer && selectedVehicle) {
+        console.log('Création du contrat pour la location:', rentalId);
         
-        rentalId = newRentalId ?? null;
-      }
-
-      if (rentalId === null) {
-        throw new Error('Rental ID is null');
-      }
-
-      // Create contract for new rentals
-      if (!editingRental && rentalId) {
         const contractData: ContractFormData = {
           rentalId,
           lessor: {
@@ -283,16 +305,16 @@ const RentalList: React.FC<RentalListProps> = () => {
             phone: "0123456789"
           },
           tenant: {
-            name: `${selectedCustomer!.firstName} ${selectedCustomer!.lastName}`,
-            address: selectedCustomer!.address,
-            phone: selectedCustomer!.phone,
-            drivingLicense: selectedCustomer!.drivingLicense
+            name: `${selectedCustomer.firstName} ${selectedCustomer.lastName}`,
+            address: selectedCustomer.address,
+            phone: selectedCustomer.phone,
+            drivingLicense: selectedCustomer.drivingLicense
           },
           vehicle: {
-            brand: selectedVehicle!.brand,
-            model: selectedVehicle!.model,
-            year: selectedVehicle!.year,
-            registration: selectedVehicle!.registration
+            brand: selectedVehicle.brand,
+            model: selectedVehicle.model,
+            year: selectedVehicle.year,
+            registration: selectedVehicle.registration
           },
           rental: {
             startDate: formData.startDate,
@@ -309,22 +331,41 @@ const RentalList: React.FC<RentalListProps> = () => {
           wilaya: formData.wilaya
         };
 
-        const contract = await createContract(contractData);
-        await updateRental(rentalId, { contractId: contract.id });
+        try {
+          console.log('Création du contrat avec les données:', contractData);
+          const contract = await createContract(contractData);
+          console.log('Contrat créé avec succès:', contract);
+          
+          await updateRental(rentalId, { contractId: contract.id });
+          console.log('ID du contrat ajouté à la location');
 
-        // Afficher le contrat dans une boîte de dialogue
-        setSelectedContract(contract);
-        setContractDialogOpen(true);
+          setSelectedContract(contract);
+          setContractDialogOpen(true);
+        } catch (error) {
+          console.error('Erreur lors de la création du contrat:', error);
+        }
+      }
+
+      // Mettre à jour le statut du véhicule
+      if (selectedVehicle && selectedVehicle.id) {
+        try {
+          await updateVehicle(selectedVehicle.id, {
+            status: 'rented',
+            isAvailable: false
+          });
+          console.log('Statut du véhicule mis à jour');
+        } catch (error) {
+          console.error('Erreur lors de la mise à jour du statut du véhicule:', error);
+        }
       }
 
       // Recharger les données
-      const updatedVehicles = await getAllVehicles(currentUser.uid);
-      setVehicles(updatedVehicles);
-
-      loadData();
+      await loadData();
       handleClose();
+      
     } catch (error) {
-      console.error('Error submitting rental:', error);
+      console.error('Erreur lors de la soumission de la location:', error);
+      alert('Une erreur est survenue lors de la création de la location. Veuillez réessayer.');
     }
   };
 

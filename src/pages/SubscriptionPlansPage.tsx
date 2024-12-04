@@ -136,7 +136,7 @@ const SubscriptionPlansPage = () => {
                   color="primary"
                   sx={{ my: 2 }}
                 >
-                  {plan.price}€
+                  {plan.price} DZD
                   <Typography component="span" variant="subtitle1">
                     /mois
                   </Typography>

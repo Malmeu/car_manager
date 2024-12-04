@@ -7,6 +7,7 @@ import VehicleList from './components/vehicles/VehicleList';
 import CustomerList from './components/customers/CustomerList';
 import RentalList from './components/rentals/RentalList';
 import Reports from './components/reports/Reports';
+import CashJournal from './components/CashJournal';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -15,6 +16,7 @@ import UserManagementPage from './pages/UserManagementPage';
 import AdminSubscriptionPage from './pages/AdminSubscriptionPage';
 import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
 import SubscriptionPendingPage from './pages/SubscriptionPendingPage';
+import ExpenseManager from './components/ExpenseManager';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -65,6 +67,8 @@ function App() {
               <Route path="/customers" element={<CustomerList />} />
               <Route path="/rentals" element={<RentalList />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/expenses" element={<ExpenseManager />} />
+              <Route path="/cash-journal" element={<CashJournal />} />
             </Route>
 
             {/* Redirection par défaut */}

@@ -120,12 +120,12 @@ const SubscriptionStatus: React.FC = () => {
             <FormControlLabel
               value="monthly"
               control={<Radio />}
-              label="Mensuel (29.99€/mois)"
+              label="Mensuel (29.99 DZD/mois)"
             />
             <FormControlLabel
               value="annual"
               control={<Radio />}
-              label="Annuel (299.99€/an - 2 mois gratuits)"
+              label="Annuel (299.99 DZD/an - 2 mois gratuits)"
             />
           </RadioGroup>
         </DialogContent>

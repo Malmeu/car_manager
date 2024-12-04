@@ -456,7 +456,7 @@ const Reports: React.FC = () => {
                     <Bar 
                       dataKey="revenue" 
                       fill={theme.palette.secondary.main}
-                      name="Revenus (€)"
+                      name="Revenus (DZD)"
                     />
                   </BarChart>
                 </ResponsiveContainer>

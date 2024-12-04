@@ -51,7 +51,8 @@ const VehicleList: React.FC = () => {
     mileage: 0,
     kilometers: 0,
     fuelType: 'essence',
-    userId: currentUser?.uid || ''
+    userId: currentUser?.uid || '',
+    licensePlate: ''
   });
   const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
@@ -150,7 +151,8 @@ const VehicleList: React.FC = () => {
         mileage: vehicle.mileage,
         kilometers: vehicle.kilometers,
         fuelType: vehicle.fuelType,
-        userId: vehicle.userId
+        userId: vehicle.userId,
+        licensePlate: vehicle.licensePlate
       });
     } else {
       setEditingVehicle(null);
@@ -164,7 +166,8 @@ const VehicleList: React.FC = () => {
         mileage: 0,
         kilometers: 0,
         fuelType: '',
-        userId: ''
+        userId: '',
+        licensePlate: ''
       });
     }
     setOpen(true);
@@ -437,6 +440,16 @@ const VehicleList: React.FC = () => {
               type="text"
               fullWidth
               value={formData.fuelType}
+              onChange={handleInputChange}
+              required
+            />
+            <TextField
+              margin="dense"
+              name="licensePlate"
+              label="Plaque d'immatriculation"
+              type="text"
+              fullWidth
+              value={formData.licensePlate}
               onChange={handleInputChange}
               required
             />
