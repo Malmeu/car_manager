@@ -294,6 +294,11 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       text: 'Rapports',
       icon: <ReportIcon />,
       path: '/reports'
+    },
+    {
+      text: 'Mon Abonnement',
+      icon: <CreditCardIcon />,
+      path: '/subscription'
     }
   ];
 

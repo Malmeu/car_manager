@@ -40,12 +40,13 @@ import {
   CheckCircleOutline as CheckCircleOutlineIcon,
   ExpandMore as ExpandMoreIcon,
   LocationOn as LocationIcon,
-  DirectionsCar as CarIcon,
+  DirectionsCar as DirectionsCarIcon,
   People as PeopleIcon,
-  Assessment as ReportIcon,
+  Assessment as AssessmentIcon,
   Speed as SpeedIcon,
   Security as SecurityIcon,
   Cloud as CloudIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../config/firebase';
@@ -59,7 +60,7 @@ interface Tier {
   description: string[];
   buttonText: string;
   buttonVariant: 'outlined' | 'contained' | 'text';
-  id: 'starter' | 'pro' | 'enterprise';
+  id: 'basic' | 'pro' | 'enterprise';
 }
 
 const LandingPage: React.FC = () => {
@@ -69,13 +70,13 @@ const LandingPage: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
 
-  const handleSubscribe = async (planId: 'starter' | 'pro' | 'enterprise') => {
+  const handleSubscribe = async (planId: 'basic' | 'pro' | 'enterprise') => {
     try {
       const user = auth.currentUser;
       
       if (!user) {
         // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
-        navigate('/register', { 
+        navigate('/signup', { 
           state: { 
             returnUrl: '/',
             selectedPlan: planId,
@@ -97,7 +98,7 @@ const LandingPage: React.FC = () => {
     }
   };
 
-  const handleStartTrial = async (planId: 'starter' | 'pro' | 'enterprise') => {
+  const handleStartTrial = async (planId: 'basic' | 'pro' | 'enterprise') => {
     try {
       const user = auth.currentUser;
       
@@ -125,7 +126,14 @@ const LandingPage: React.FC = () => {
     }
   };
 
-  const handleSubscriptionClick = (planId: 'starter' | 'pro' | 'enterprise') => {
+  const handleSubscriptionClick = (planId: 'basic' | 'pro' | 'enterprise') => {
+    if (planId === 'enterprise') {
+      // Pour le plan Enterprise, rediriger vers une page de contact ou ouvrir un formulaire
+      window.location.href = 'mailto:contact@carma.com?subject=Demande%20de%20renseignements%20Enterprise';
+      return;
+    }
+
+    // Pour les autres plans, rediriger vers l'inscription
     navigate('/register', { 
       state: { 
         selectedPlan: planId,
@@ -258,21 +266,167 @@ const LandingPage: React.FC = () => {
 
   const features = [
     {
-      icon: <CarIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Gestion de Flotte Intelligente',
-      description: 'Gérez votre flotte de véhicules en temps réel. Suivez la disponibilité, la maintenance et l\'historique de chaque véhicule.'
+      title: 'Gestion de Flotte Avancée',
+      description: 'Suivez en temps réel l\'état de vos véhicules, les maintenances programmées, et gérez efficacement votre flotte automobile. Accédez à l\'historique complet de chaque véhicule.',
+      icon: <DirectionsCarIcon sx={{ fontSize: 40 }} />,
+      image: 'https://img.freepik.com/free-vector/car-rental-concept-illustration_114360-9267.jpg',
+      benefits: [
+        'Suivi kilométrage et consommation',
+        'Alertes maintenance préventive',
+        'Historique des interventions',
+        'État technique en temps réel'
+      ]
     },
     {
-      icon: <PeopleIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Gestion Client Simplifiée',
-      description: 'Base de données clients centralisée avec historique complet des locations et préférences personnalisées.'
+      title: 'Gestion des Locations Simplifiée',
+      description: 'Gérez vos contrats de location de manière professionnelle. Générez automatiquement des contrats personnalisés et suivez les retours de véhicules.',
+      icon: <AssignmentIcon sx={{ fontSize: 40 }} />,
+      image: 'https://img.freepik.com/free-vector/signing-contract-concept-illustration_114360-4894.jpg',
+      benefits: [
+        'Contrats personnalisables',
+        'Signatures électroniques',
+        'Suivi des paiements',
+        'Gestion des cautions'
+      ]
     },
     {
-      icon: <ReportIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: 'Analyses & Rapports',
-      description: 'Tableaux de bord détaillés et rapports personnalisables pour optimiser votre activité.'
+      title: 'Gestion Financière Complète',
+      description: 'Suivez toutes vos dépenses et revenus. Générez des rapports détaillés pour optimiser votre rentabilité et prendre des décisions éclairées.',
+      icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
+      image: 'https://img.freepik.com/free-vector/financial-report-concept-illustration_114360-1213.jpg',
+      benefits: [
+        'Tableau de bord financier',
+        'Rapports personnalisés',
+        'Suivi des revenus/dépenses',
+        'Analyses de rentabilité'
+      ]
+    },
+    {
+      title: 'Gestion des Clients',
+      description: 'Centralisez toutes les informations de vos clients, leur historique de location et leurs préférences pour un service personnalisé.',
+      icon: <PeopleIcon sx={{ fontSize: 40 }} />,
+      image: 'https://img.freepik.com/free-vector/customer-support-illustration_23-2148889374.jpg',
+      benefits: [
+        'Base de données clients',
+        'Historique des locations',
+        'Système de fidélité',
+        'Communications automatisées'
+      ]
     }
   ];
+
+  const renderFeatures = () => (
+    <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Typography
+        component="h2"
+        variant="h3"
+        align="center"
+        color="text.primary"
+        gutterBottom
+        sx={{ mb: 6 }}
+      >
+        Fonctionnalités Principales
+      </Typography>
+
+      <Grid container spacing={3}>
+        {features.map((feature, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: 3,
+                borderRadius: 2,
+                '&:hover': {
+                  boxShadow: 6,
+                  transform: 'translateY(-8px)',
+                  transition: 'all 0.3s ease-in-out'
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'relative',
+                  paddingTop: '60%', // Ratio 16:9
+                  '& img': {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }
+                }}
+              >
+                <img src={feature.image} alt={feature.title} />
+              </Box>
+              
+              <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Box 
+                    sx={{ 
+                      p: 1, 
+                      borderRadius: 1, 
+                      bgcolor: 'primary.light',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 1
+                    }}
+                  >
+                    {React.cloneElement(feature.icon, { sx: { fontSize: 24, color: 'primary.main' } })}
+                  </Box>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold' }}>
+                    {feature.title}
+                  </Typography>
+                </Box>
+                
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary" 
+                  sx={{ 
+                    mb: 2,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {feature.description}
+                </Typography>
+
+                <List dense>
+                  {feature.benefits.map((benefit, idx) => (
+                    <ListItem key={idx} sx={{ p: 0, mb: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 28 }}>
+                        <CheckCircleOutlineIcon color="primary" sx={{ fontSize: 18 }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={benefit} 
+                        primaryTypographyProps={{ 
+                          variant: 'body2',
+                          sx: { 
+                            fontWeight: 500,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }
+                        }} 
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Container>
+  );
 
   const benefits = [
     {
@@ -294,41 +448,47 @@ const LandingPage: React.FC = () => {
 
   const tiers: Tier[] = [
     {
-      title: 'Starter',
-      price: billingPeriod === 'monthly' ? '2,999 DZD/mois' : '29,990 DZD/an',
+      title: 'Basic',
+      price: billingPeriod === 'monthly' ? '5,000 DZD/mois' : '50,000 DZD/an',
       description: [
-        'Jusqu\'à 10 véhicules',
+        'Jusqu\'à 20 véhicules',
+        'Jusqu\'à 50 dépenses',
         'Gestion des locations',
         'Tableau de bord basique',
         'Support par email',
+        'Rapports mensuels',
       ],
-      buttonText: 'Commencer gratuitement',
+      buttonText: 'Commencer',
       buttonVariant: 'outlined' as const,
-      id: 'starter'
+      id: 'basic'
     },
     {
       title: 'Pro',
-      price: billingPeriod === 'monthly' ? '4,999 DZD/mois' : '49,990 DZD/an',
+      price: billingPeriod === 'monthly' ? '10,000 DZD/mois' : '100,000 DZD/an',
       description: [
-        'Jusqu\'à 25 véhicules',
+        'Jusqu\'à 50 véhicules',
+        'Jusqu\'à 100 dépenses',
         'Gestion des locations avancée',
         'Tableau de bord complet',
         'Support prioritaire',
         'Rapports personnalisés',
+        'Analyses avancées',
       ],
-      buttonText: 'Commencer l\'essai',
+      buttonText: 'Choisir Pro',
       buttonVariant: 'contained' as const,
       id: 'pro'
     },
     {
       title: 'Enterprise',
-      price: billingPeriod === 'monthly' ? '9,999 DZD/mois' : '99,990 DZD/an',
+      price: 'Sur devis',
       description: [
         'Véhicules illimités',
+        'Dépenses illimitées',
         'Fonctionnalités complètes',
         'API personnalisée',
         'Support dédié 24/7',
         'Formation personnalisée',
+        'Solutions sur mesure',
       ],
       buttonText: 'Contacter les ventes',
       buttonVariant: 'outlined' as const,
@@ -691,7 +851,7 @@ const LandingPage: React.FC = () => {
                     left: '10%',
                     right: '-10%',
                     bottom: '-10%',
-                    background: `linear-gradient(45deg, ${theme.palette.primary.main}22, ${theme.palette.secondary.main}22)`,
+                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                     borderRadius: '20px',
                     transform: 'rotate(-3deg)',
                   },
@@ -790,135 +950,62 @@ const LandingPage: React.FC = () => {
           }}
         />
 
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 800,
-                mb: 2,
-                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Fonctionnalités principales
-            </Typography>
-            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-              Des outils puissants pour une gestion efficace de votre flotte
-            </Typography>
-          </Box>
-
-          <Grid container spacing={4}>
-            {features.map((feature, index) => (
-              <Grid item key={index} xs={12} md={4}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    p: 4,
-                    borderRadius: 4,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: `0 20px 40px ${theme.palette.primary.main}22`,
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 3,
-                      bgcolor: `${theme.palette.primary.main}11`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mb: 3,
-                    }}
-                  >
-                    {React.cloneElement(feature.icon, {
-                      sx: { fontSize: 32, color: theme.palette.primary.main },
-                    })}
-                  </Box>
-                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-                    {feature.title}
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {feature.description}
-                  </Typography>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
+        {renderFeatures()}
       </Box>
 
       {/* Section Tarifs */}
       <Box
         id="pricing"
         sx={{
-          py: 10,
+          py: 8,
+          px: 2,
           bgcolor: 'background.paper',
-          position: 'relative',
-          overflow: 'hidden',
         }}
       >
-        {/* Cercles décoratifs */}
-        <Box
-          sx={{
-            position: 'absolute',
-            width: '60%',
-            height: '60%',
-            background: `radial-gradient(circle, ${theme.palette.primary.light}11 0%, transparent 70%)`,
-            top: -200,
-            right: -200,
-            borderRadius: '50%',
-            transform: 'rotate(45deg)',
-          }}
-        />
-
         <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 800,
-                mb: 2,
-                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
+          <Typography
+            component="h2"
+            variant="h3"
+            align="center"
+            color="text.primary"
+            gutterBottom
+          >
+            Tarifs
+          </Typography>
+          <Typography
+            variant="h6"
+            align="center"
+            color="text.secondary"
+            component="p"
+            sx={{ mb: 4 }}
+          >
+            Choisissez le plan qui correspond à vos besoins
+          </Typography>
+
+          {/* Toggle Mensuel/Annuel */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Button
+              variant={billingPeriod === 'monthly' ? 'contained' : 'outlined'}
+              onClick={() => setBillingPeriod('monthly')}
+              sx={{ mr: 1 }}
             >
-              Nos tarifs
-            </Typography>
-            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}>
-              Des forfaits adaptés à vos besoins
-            </Typography>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mb: 6 }}>
-              <Button
-                variant={billingPeriod === 'monthly' ? 'contained' : 'outlined'}
-                onClick={() => setBillingPeriod('monthly')}
-                sx={{ borderRadius: 2 }}
-              >
-                Mensuel
-              </Button>
-              <Button
-                variant={billingPeriod === 'annual' ? 'contained' : 'outlined'}
-                onClick={() => setBillingPeriod('annual')}
-                sx={{ borderRadius: 2 }}
-              >
-                Annuel
-              </Button>
-            </Box>
+              Mensuel
+            </Button>
+            <Button
+              variant={billingPeriod === 'annual' ? 'contained' : 'outlined'}
+              onClick={() => setBillingPeriod('annual')}
+            >
+              Annuel
+            </Button>
           </Box>
 
-          <Grid container spacing={4} alignItems="center">
+          <Grid container spacing={4} alignItems="stretch">
             {tiers.map((tier) => (
               <Grid
                 item
                 key={tier.title}
                 xs={12}
+                sm={tier.title === 'Pro' ? 12 : 6}
                 md={4}
               >
                 <Card
@@ -926,73 +1013,89 @@ const LandingPage: React.FC = () => {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    p: 4,
-                    borderRadius: 4,
                     position: 'relative',
-                    transition: 'all 0.3s ease',
                     ...(tier.title === 'Pro' && {
-                      bgcolor: `${theme.palette.primary.main}05`,
-                      border: `2px solid ${theme.palette.primary.main}22`,
+                      border: `2px solid ${theme.palette.primary.main}`,
                     }),
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: `0 20px 40px ${theme.palette.primary.main}22`,
-                    },
                   }}
                 >
                   {tier.title === 'Pro' && (
                     <Box
                       sx={{
                         position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        bgcolor: theme.palette.primary.main,
+                        top: 0,
+                        right: 0,
+                        backgroundColor: theme.palette.primary.main,
                         color: 'white',
                         px: 2,
                         py: 0.5,
-                        borderRadius: 4,
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
+                        borderBottomLeftRadius: 8,
                       }}
                     >
                       Populaire
                     </Box>
                   )}
-                  <Box sx={{ mb: 4 }}>
-                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700 }}>
-                      {tier.title}
-                    </Typography>
-                    <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                      {tier.price}
-                      <Typography component="span" variant="h6" color="text.secondary">
-                        
+                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                    <Box sx={{ mb: 3 }}>
+                      <Typography
+                        component="h3"
+                        variant="h4"
+                        color="text.primary"
+                        gutterBottom
+                      >
+                        {tier.title}
                       </Typography>
-                    </Typography>
+                      <Typography
+                        component="h4"
+                        variant="h5"
+                        color="text.primary"
+                      >
+                        {tier.price}
+                      </Typography>
+                      {billingPeriod === 'annual' && tier.id !== 'enterprise' && (
+                        <Typography
+                          variant="subtitle1"
+                          color="success.main"
+                          sx={{ mt: 1 }}
+                        >
+                          Économisez 20% avec la facturation annuelle
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ mb: 3 }}>
+                      {tier.description.map((line) => (
+                        <Box
+                          key={line}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            mb: 1,
+                          }}
+                        >
+                          <CheckCircleOutlineIcon
+                            sx={{ mr: 1, color: 'success.main' }}
+                          />
+                          <Typography
+                            component="span"
+                            variant="body1"
+                            color="text.primary"
+                          >
+                            {line}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </CardContent>
+                  <Box sx={{ p: 3, pt: 0 }}>
+                    <Button
+                      fullWidth
+                      variant={tier.buttonVariant}
+                      color={tier.title === 'Pro' ? 'primary' : 'inherit'}
+                      onClick={() => handleSubscriptionClick(tier.id)}
+                    >
+                      {tier.buttonText}
+                    </Button>
                   </Box>
-                  <List sx={{ mb: 4, flex: 1 }}>
-                    {tier.description.map((line) => (
-                      <ListItem key={line} sx={{ px: 0, py: 1 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircleOutlineIcon sx={{ color: theme.palette.primary.main }} />
-                        </ListItemIcon>
-                        <ListItemText primary={line} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  <Button
-                    fullWidth
-                    variant={tier.buttonVariant}
-                    onClick={() => handleSubscriptionClick(tier.id)}
-                    sx={{
-                      py: 1.5,
-                      borderRadius: 3,
-                      ...(tier.title === 'Pro' && {
-                        background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                      }),
-                    }}
-                  >
-                    {tier.buttonText}
-                  </Button>
                 </Card>
               </Grid>
             ))}

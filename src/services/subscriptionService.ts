@@ -5,76 +5,137 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
-  limit,
   addDoc,
   updateDoc,
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Subscription, Plan, PLANS } from '../models/subscription';
+import { Subscription, Plan, PLANS, BillingPeriod } from '../models/subscription';
 
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 const NOTIFICATIONS_COLLECTION = 'notifications';
 
+// Fonction utilitaire pour mettre à jour le statut d'un abonnement
+const updateSubscriptionStatus = async (subscriptionId: string, status: Subscription['status']): Promise<void> => {
+  const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
+  await updateDoc(subscriptionRef, { status });
+};
+
 export const subscriptionService = {
   // Créer un nouvel abonnement
-  async createSubscription(userId: string, planId: Plan['id'], billingPeriod: 'monthly' | 'annual', isTrial: boolean = false): Promise<Subscription> {
+  async createSubscription(
+    userId: string,
+    planId: Plan['id'],
+    billingPeriod: BillingPeriod = 'monthly',
+    isTrial: boolean = false
+  ): Promise<Subscription> {
     const plan = PLANS.find(p => p.id === planId);
-    if (!plan) throw new Error('Plan invalide');
-
-    const startDate = new Date();
-    const endDate = new Date();
-    
-    if (isTrial) {
-      endDate.setDate(endDate.getDate() + 7);
-    } else {
-      endDate.setMonth(endDate.getMonth() + (billingPeriod === 'monthly' ? 1 : 12));
+    if (!plan) {
+      throw new Error(`Plan invalide: ${planId}`);
     }
 
-    const price = isTrial ? 0 : (billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice);
+    const now = new Date();
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + (billingPeriod === 'monthly' ? 1 : 12));
 
     const subscription: Omit<Subscription, 'id'> = {
       userId,
       planId,
-      status: isTrial ? 'trial' : 'pending',
+      status: isTrial ? 'trial' : 'active',
+      startDate: now,
+      endDate: nextBillingDate,
       billingPeriod,
-      startDate,
-      endDate,
+      nextBillingDate,
       maxVehicles: plan.maxVehicles,
-      features: plan.features,
-      lastBillingDate: startDate,
-      nextBillingDate: endDate,
-      price,
-      renewalWarningShown: false
+      maxExpenses: plan.maxExpenses || 0,
+      features: plan.features || [],
+      price: billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice,
     };
 
-    const docRef = await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), {
-      ...subscription,
-      startDate: Timestamp.fromDate(startDate),
-      endDate: Timestamp.fromDate(endDate),
-      lastBillingDate: Timestamp.fromDate(startDate),
-      nextBillingDate: Timestamp.fromDate(endDate),
-      createdAt: serverTimestamp()
-    });
+    try {
+      // Convert dates to Firestore Timestamps before storing
+      const subscriptionData = {
+        ...subscription,
+        startDate: Timestamp.fromDate(subscription.startDate),
+        endDate: Timestamp.fromDate(subscription.endDate),
+        nextBillingDate: Timestamp.fromDate(subscription.nextBillingDate),
+      };
 
-    // Créer une notification pour l'administrateur
-    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-      userId,
-      type: 'new_subscription',
-      message: `Nouvelle demande d'abonnement - Plan ${plan.name}`,
-      status: 'unread',
-      createdAt: serverTimestamp()
-    });
-
-    return {
-      id: docRef.id,
-      ...subscription
-    };
+      const docRef = await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), subscriptionData);
+      
+      // Return the subscription with JavaScript Date objects
+      return {
+        id: docRef.id,
+        ...subscription
+      };
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'abonnement:', error);
+      throw new Error('Erreur lors de la création de l\'abonnement');
+    }
   },
 
-  // Vérifier et gérer les abonnements expirés
+  // Renouveler un abonnement
+  async renewSubscription(subscriptionId: string, billingPeriod: BillingPeriod): Promise<void> {
+    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      throw new Error('Abonnement non trouvé');
+    }
+
+    const subscription = subscriptionDoc.data() as Subscription;
+    const plan = PLANS.find(p => p.id === subscription.planId);
+    
+    if (!plan) {
+      throw new Error('Plan non trouvé');
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    const duration = billingPeriod === 'monthly' ? plan.duration : plan.duration * 12;
+    endDate.setDate(endDate.getDate() + duration);
+
+    const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+
+    await updateDoc(subscriptionRef, {
+      status: 'active',
+      startDate: Timestamp.fromDate(startDate),
+      endDate: Timestamp.fromDate(endDate),
+      nextBillingDate: Timestamp.fromDate(endDate),
+      billingPeriod,
+      price
+    });
+  },
+
+  // Mettre à niveau un abonnement
+  async upgradePlan(subscriptionId: string, newPlanId: Exclude<Plan['id'], 'trial'>): Promise<void> {
+    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      throw new Error('Abonnement non trouvé');
+    }
+
+    const subscription = subscriptionDoc.data() as Subscription;
+    const newPlan = PLANS.find(p => p.id === newPlanId);
+    
+    if (!newPlan) {
+      throw new Error('Nouveau plan non trouvé');
+    }
+
+    const price = subscription.billingPeriod === 'monthly' ? newPlan.monthlyPrice : newPlan.annualPrice;
+
+    await updateDoc(subscriptionRef, {
+      planId: newPlanId,
+      price,
+      maxVehicles: newPlan.maxVehicles,
+      features: newPlan.features,
+      status: 'active'
+    });
+  },
+
+  // Vérifier le statut de l'abonnement
   async checkSubscriptionStatus(userId: string): Promise<{
     isValid: boolean;
     daysRemaining: number;
@@ -95,62 +156,27 @@ export const subscriptionService = {
 
       const now = new Date();
       const endDate = subscription.endDate;
-      
       const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Si l'abonnement expire dans moins de 7 jours et que l'avertissement n'a pas été montré
-      if (daysRemaining <= 7 && daysRemaining > 0 && !subscription.renewalWarningShown) {
-        try {
-          // Créer une notification pour l'utilisateur
-          await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-            userId,
-            type: 'subscription_expiring',
-            message: `Votre abonnement expire dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}`,
-            status: 'unread',
-            createdAt: serverTimestamp()
-          });
-
-          // Marquer l'avertissement comme montré
-          if (subscription.id) {
-            const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscription.id);
-            await updateDoc(subscriptionRef, {
-              renewalWarningShown: true
-            });
-          }
-        } catch (error) {
-          console.error('Error updating subscription warning:', error);
-        }
-      }
-
-      // Si l'abonnement est expiré
       if (daysRemaining <= 0) {
-        try {
-          // Mettre à jour le statut de l'abonnement
-          if (subscription.id) {
-            const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscription.id);
-            await updateDoc(subscriptionRef, {
-              status: 'expired',
-              expiredAt: serverTimestamp()
-            });
-          }
-
-          // Créer une notification pour l'utilisateur
-          await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-            userId,
-            type: 'subscription_expired',
-            message: 'Votre abonnement a expiré. Veuillez le renouveler pour continuer à utiliser nos services.',
-            status: 'unread',
-            createdAt: serverTimestamp()
-          });
-        } catch (error) {
-          console.error('Error updating expired subscription:', error);
-        }
-
+        // Mettre à jour le statut comme expiré
+        await updateSubscriptionStatus(subscription.id!, 'expired');
+        
         return {
           isValid: false,
           daysRemaining: 0,
           status: 'expired',
-          message: 'Abonnement expiré'
+          message: 'Votre abonnement a expiré'
+        };
+      }
+
+      // Avertissement pour l'essai gratuit
+      if (subscription.status === 'trial' && daysRemaining <= 2) {
+        return {
+          isValid: true,
+          daysRemaining,
+          status: 'trial_ending',
+          message: `Votre période d'essai se termine dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}`
         };
       }
 
@@ -158,152 +184,65 @@ export const subscriptionService = {
         isValid: true,
         daysRemaining,
         status: subscription.status,
-        message: daysRemaining <= 7 ? `Expire dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}` : undefined
+        message: subscription.status === 'pending' ? 'En attente d\'approbation' : undefined
       };
     } catch (error) {
       console.error('Error checking subscription status:', error);
-      return {
-        isValid: false,
-        daysRemaining: 0,
-        status: 'error',
-        message: 'Erreur lors de la vérification du statut'
-      };
+      throw error;
     }
   },
 
-  // Renouveler un abonnement
-  async renewSubscription(subscriptionId: string, billingPeriod: 'monthly' | 'annual'): Promise<void> {
-    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
-    const subscriptionDoc = await getDoc(subscriptionRef);
-    
-    if (!subscriptionDoc.exists()) {
-      throw new Error('Abonnement non trouvé');
-    }
-
-    const subscription = subscriptionDoc.data();
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + (billingPeriod === 'monthly' ? 1 : 12));
-
-    await updateDoc(subscriptionRef, {
-      status: 'pending',
-      billingPeriod,
-      startDate: Timestamp.fromDate(startDate),
-      endDate: Timestamp.fromDate(endDate),
-      lastBillingDate: Timestamp.fromDate(startDate),
-      nextBillingDate: Timestamp.fromDate(endDate),
-      renewalWarningShown: false
-    });
-
-    // Créer une notification pour l'administrateur
-    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-      userId: subscription.userId,
-      type: 'renewal_request',
-      message: 'Demande de renouvellement d\'abonnement',
-      status: 'unread',
-      createdAt: serverTimestamp()
-    });
-  },
-
-  // Obtenir l'abonnement actif d'un utilisateur
+  // Obtenir l'abonnement actif
   async getCurrentSubscription(userId: string): Promise<Subscription | null> {
     try {
       const q = query(
         collection(db, SUBSCRIPTIONS_COLLECTION),
         where('userId', '==', userId),
-        where('status', 'in', ['active', 'trial']),
-        orderBy('createdAt', 'desc'),
-        limit(1)
+        where('status', 'in', ['trial', 'active', 'pending'])
       );
 
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return null;
 
-      const doc = snapshot.docs[0];
+      const doc = querySnapshot.docs[0];
       const data = doc.data();
-      
-      // Vérifier que toutes les dates sont bien des Timestamps
-      const startDate = data.startDate?.toDate?.() || new Date();
-      const endDate = data.endDate?.toDate?.() || new Date();
-      const lastBillingDate = data.lastBillingDate?.toDate?.() || new Date();
-      const nextBillingDate = data.nextBillingDate?.toDate?.() || new Date();
 
       return {
         id: doc.id,
-        userId: data.userId,
-        planId: data.planId,
-        status: data.status,
-        billingPeriod: data.billingPeriod,
-        startDate,
-        endDate,
-        maxVehicles: data.maxVehicles || 0,
-        features: Array.isArray(data.features) ? data.features : [],
-        lastBillingDate,
-        nextBillingDate,
-        price: data.price || 0,
-        renewalWarningShown: data.renewalWarningShown || false
+        ...data,
+        startDate: data.startDate.toDate(),
+        endDate: data.endDate.toDate(),
+        nextBillingDate: data.nextBillingDate.toDate()
       } as Subscription;
     } catch (error) {
       console.error('Error getting current subscription:', error);
-      return null;
+      throw error;
     }
   },
 
-  // Vérifier si un utilisateur peut ajouter plus de véhicules
+  // Vérifier si l'utilisateur peut ajouter plus de véhicules
   async canAddVehicle(userId: string, currentVehicleCount: number): Promise<boolean> {
-    const subscription = await this.getCurrentSubscription(userId);
-    if (!subscription) return false;
-    
-    // -1 signifie illimité
-    if (subscription.maxVehicles === -1) return true;
-    
-    return currentVehicleCount < subscription.maxVehicles;
-  },
-
-  // Annuler un abonnement
-  async cancelSubscription(subscriptionId: string): Promise<void> {
-    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
-    await updateDoc(subscriptionRef, {
-      status: 'canceled',
-      updatedAt: serverTimestamp()
-    });
-  },
-
-  // Mettre à jour un abonnement (changement de plan)
-  async upgradePlan(subscriptionId: string, newPlanId: Plan['id']): Promise<void> {
-    const plan = PLANS.find(p => p.id === newPlanId);
-    if (!plan) throw new Error('Plan invalide');
-
-    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
-    const subscriptionDoc = await getDoc(subscriptionRef);
-    const subscription = subscriptionDoc.data() as Subscription;
-
-    const price = subscription.billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
-
-    await updateDoc(subscriptionRef, {
-      planId: newPlanId,
-      maxVehicles: plan.maxVehicles,
-      features: plan.features,
-      price,
-      updatedAt: serverTimestamp()
-    });
+    try {
+      const subscription = await this.getCurrentSubscription(userId);
+      if (!subscription) return false;
+      
+      // Si c'est un plan enterprise (-1), pas de limite
+      if (subscription.maxVehicles === -1) return true;
+      
+      return currentVehicleCount < subscription.maxVehicles;
+    } catch (error) {
+      console.error('Error checking vehicle limit:', error);
+      throw error;
+    }
   },
 
   // Approuver un abonnement
   async approveSubscription(subscriptionId: string): Promise<void> {
-    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
-    await updateDoc(subscriptionRef, {
-      status: 'active',
-      updatedAt: serverTimestamp()
-    });
+    await updateSubscriptionStatus(subscriptionId, 'active');
   },
 
   // Rejeter un abonnement
   async rejectSubscription(subscriptionId: string): Promise<void> {
-    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
-    await updateDoc(subscriptionRef, {
-      status: 'rejected',
-      updatedAt: serverTimestamp()
-    });
+    await updateSubscriptionStatus(subscriptionId, 'expired');
   }
 };

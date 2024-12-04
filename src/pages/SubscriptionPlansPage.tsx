@@ -1,184 +1,155 @@
 import React from 'react';
 import {
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardHeader,
   Container,
   Grid,
-  Card,
-  CardContent,
   Typography,
-  Button,
-  Box,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
+  useTheme,
 } from '@mui/material';
-import { CheckCircle as CheckIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { Check as CheckIcon } from '@mui/icons-material';
+import { PLANS } from '../models/subscription';
 import { useAuth } from '../contexts/AuthContext';
+import { subscriptionService } from '../services/subscriptionService';
+import { useNavigate } from 'react-router-dom';
 
-interface PlanFeature {
-  text: string;
-  included: boolean;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  features: PlanFeature[];
-  description: string;
-}
-
-const plans: Plan[] = [
-  {
-    id: 'basic',
-    name: 'Basique',
-    price: 29.99,
-    description: 'Parfait pour démarrer',
-    features: [
-      { text: 'Jusqu\'à 10 véhicules', included: true },
-      { text: 'Gestion des locations', included: true },
-      { text: 'Support par email', included: true },
-      { text: 'Rapports basiques', included: true },
-      { text: 'Fonctionnalités avancées', included: false },
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Professionnel',
-    price: 59.99,
-    description: 'Pour les entreprises en croissance',
-    features: [
-      { text: 'Véhicules illimités', included: true },
-      { text: 'Gestion des locations avancée', included: true },
-      { text: 'Support prioritaire', included: true },
-      { text: 'Rapports détaillés', included: true },
-      { text: 'API d\'intégration', included: true },
-    ],
-  },
-  {
-    id: 'enterprise',
-    name: 'Entreprise',
-    price: 99.99,
-    description: 'Solution complète pour grandes flottes',
-    features: [
-      { text: 'Toutes les fonctionnalités Pro', included: true },
-      { text: 'Support dédié 24/7', included: true },
-      { text: 'Personnalisation avancée', included: true },
-      { text: 'Formation personnalisée', included: true },
-      { text: 'SLA garanti', included: true },
-    ],
-  },
-];
-
-const SubscriptionPlansPage = () => {
-  const navigate = useNavigate();
+const SubscriptionPlansPage: React.FC = () => {
+  const theme = useTheme();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSelectPlan = async (plan: Plan) => {
+  const handleSelectPlan = async (planId: 'trial' | 'basic' | 'pro' | 'enterprise') => {
     if (!currentUser) {
-      navigate('/login');
+      navigate('/login', { state: { selectedPlan: planId } });
       return;
     }
 
     try {
-      // Update user document with subscription request
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, {
-        subscriptionRequest: {
-          planId: plan.id,
-          planName: plan.name,
-          price: plan.price,
-          status: 'pending',
-          requestDate: new Date().toISOString(),
-        },
-      });
-
-      // Show success message and redirect
-      navigate('/subscription-pending');
+      await subscriptionService.createSubscription(currentUser.uid, planId);
+      if (planId === 'trial') {
+        navigate('/dashboard');
+      } else {
+        navigate('/subscription-pending');
+      }
     } catch (error) {
-      console.error('Error requesting subscription:', error);
+      console.error('Error selecting plan:', error);
+      alert('Une erreur est survenue lors de la sélection du plan');
     }
   };
 
   return (
     <Container maxWidth="lg" sx={{ py: 8 }}>
-      <Typography variant="h3" align="center" gutterBottom>
-        Choisissez votre abonnement
-      </Typography>
-      <Typography variant="h6" align="center" color="text.secondary" paragraph>
-        Sélectionnez le plan qui correspond le mieux à vos besoins
-      </Typography>
-      <Grid container spacing={4} justifyContent="center" sx={{ mt: 4 }}>
-        {plans.map((plan) => (
-          <Grid item key={plan.id} xs={12} sm={6} md={4}>
+      <Box textAlign="center" mb={8}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          Choisissez votre plan
+        </Typography>
+        <Typography variant="h6" color="text.secondary">
+          Des solutions adaptées à vos besoins
+        </Typography>
+      </Box>
+
+      <Grid container spacing={4} justifyContent="center">
+        {PLANS.map((plan) => (
+          <Grid item key={plan.id} xs={12} sm={6} md={3}>
             <Card
               sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                transition: '0.3s',
+                position: 'relative',
+                transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': {
-                  transform: 'translateY(-5px)',
+                  transform: 'translateY(-4px)',
                   boxShadow: 6,
                 },
+                ...(plan.id === 'pro' && {
+                  border: `2px solid ${theme.palette.primary.main}`,
+                }),
               }}
             >
+              {plan.id === 'pro' && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    backgroundColor: theme.palette.primary.main,
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderBottomLeftRadius: 8,
+                  }}
+                >
+                  Populaire
+                </Box>
+              )}
+
+              <CardHeader
+                title={plan.name}
+                titleTypographyProps={{ align: 'center', variant: 'h5' }}
+                sx={{
+                  backgroundColor: theme.palette.mode === 'light' ? theme.palette.grey[200] : theme.palette.grey[700],
+                }}
+              />
+
               <CardContent sx={{ flexGrow: 1 }}>
-                <Typography gutterBottom variant="h4" component="h2" align="center">
-                  {plan.name}
-                </Typography>
-                <Typography
-                  variant="h3"
-                  align="center"
-                  color="primary"
-                  sx={{ my: 2 }}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'baseline',
+                    mb: 2,
+                  }}
                 >
-                  {plan.price} DZD
-                  <Typography component="span" variant="subtitle1">
-                    /mois
-                  </Typography>
-                </Typography>
-                <Typography
-                  variant="subtitle1"
-                  align="center"
-                  color="text.secondary"
-                  paragraph
-                >
-                  {plan.description}
-                </Typography>
-                <List>
-                  {plan.features.map((feature, index) => (
-                    <ListItem key={index}>
+                  {plan.monthlyPrice === -1 ? (
+                    <Typography variant="h4" color="text.primary">
+                      Sur devis
+                    </Typography>
+                  ) : plan.monthlyPrice === 0 ? (
+                    <Typography variant="h4" color="text.primary">
+                      Gratuit
+                    </Typography>
+                  ) : (
+                    <>
+                      <Typography variant="h4" color="text.primary">
+                        {plan.monthlyPrice.toLocaleString()}
+                      </Typography>
+                      <Typography variant="subtitle1" color="text.secondary">
+                        &nbsp;DZD/mois
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+
+                <List dense>
+                  {plan.features.map((feature) => (
+                    <ListItem key={feature}>
                       <ListItemIcon>
-                        <CheckIcon
-                          color={feature.included ? 'primary' : 'disabled'}
-                        />
+                        <CheckIcon color="primary" />
                       </ListItemIcon>
-                      <ListItemText
-                        primary={feature.text}
-                        sx={{
-                          color: feature.included
-                            ? 'text.primary'
-                            : 'text.disabled',
-                        }}
-                      />
+                      <ListItemText primary={feature} />
                     </ListItem>
                   ))}
                 </List>
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={() => handleSelectPlan(plan)}
-                    sx={{ minWidth: 200 }}
-                  >
-                    Choisir ce plan
-                  </Button>
-                </Box>
               </CardContent>
+
+              <CardActions sx={{ justifyContent: 'center', p: 2 }}>
+                <Button
+                  fullWidth
+                  variant={plan.id === 'pro' ? 'contained' : 'outlined'}
+                  onClick={() => handleSelectPlan(plan.id)}
+                >
+                  {plan.id === 'trial' ? 'Commencer l\'essai gratuit' : 'Choisir ce plan'}
+                </Button>
+              </CardActions>
             </Card>
           </Grid>
         ))}

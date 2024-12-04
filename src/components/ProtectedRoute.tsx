@@ -12,7 +12,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = f
   const location = useLocation();
 
   if (!currentUser) {
-    // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
+    // Si l'utilisateur essaie d'accéder à la page d'inscription, le laisser passer
+    if (location.pathname === '/signup') {
+      return <>{children}</>;
+    }
+    // Sinon, rediriger vers la page de connexion
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

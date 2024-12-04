@@ -32,6 +32,7 @@ import { getAllRentals } from '../../services/rentalService';
 import { db } from '../../config/firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
+import { subscriptionService } from '../../services/subscriptionService'; // Import the subscriptionService
 
 const VehicleList: React.FC = () => {
   const { currentUser } = useAuth();
@@ -137,7 +138,16 @@ const VehicleList: React.FC = () => {
     }
   };
 
-  const handleOpen = (vehicle?: Vehicle) => {
+  const handleOpen = async (vehicle?: Vehicle) => {
+    if (!vehicle) {
+      // Vérifier si l'utilisateur peut ajouter un nouveau véhicule
+      const canAdd = await subscriptionService.canAddVehicle(currentUser?.uid || '', vehicles.length);
+      if (!canAdd) {
+        alert('Vous avez atteint la limite de véhicules pour votre plan d\'abonnement. Veuillez mettre à niveau votre plan pour ajouter plus de véhicules.');
+        return;
+      }
+    }
+
     if (vehicle) {
       setEditingVehicle(vehicle);
       setFormData({
@@ -165,7 +175,7 @@ const VehicleList: React.FC = () => {
         mileage: 0,
         kilometers: 0,
         fuelType: '',
-        userId: '',
+        userId: currentUser?.uid || '',
         licensePlate: ''
       });
     }

@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Typography,
   Paper,
   Table,
@@ -10,371 +9,328 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   Button,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Alert,
+  MenuItem,
   IconButton,
-  Tooltip,
+  Alert,
+  Toolbar,
+  InputAdornment,
   Grid,
 } from '@mui/material';
 import {
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  Visibility as VisibilityIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
+  Edit as EditIcon,
+  Info as InfoIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
+import {
+  collection,
+  query,
+  getDocs,
+  doc,
+  getDoc,
+  deleteDoc,
+  addDoc,
+  updateDoc,
+  setDoc,
+  Timestamp,
+  DocumentData,
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { PLANS, PlanType } from '../models/subscription';
+import { subscriptionService } from '../services/subscriptionService';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { collection, query, where, getDocs, orderBy, Timestamp, onSnapshot, doc as firestoreDoc, updateDoc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { Subscription } from '../models/subscription';
-
-interface UserSubscriptionRequest {
-  id: string;
-  email: string;
-  fullName: string;
-  companyName: string;
-  phoneNumber: string;
-  subscriptionRequest: {
-    planId: string;
-    planName: string;
-    price: number;
-    status: 'pending' | 'approved' | 'rejected';
-    requestDate: string;
-  };
-  createdAt: Timestamp;
-}
 
 interface UserData {
-  email: string;
-  companyName: string;
-}
-
-interface SubscriptionWithUserDetails extends Subscription {
-  userEmail?: string;
+  email?: string;
+  displayName?: string;
   companyName?: string;
-  createdAt?: Date;
+  phoneNumber?: string;
+  fullName?: string;
 }
 
-interface FirestoreSubscriptionData {
+interface FirestoreSubscription {
   userId: string;
-  planId: 'starter' | 'pro' | 'enterprise';
-  status: 'trial' | 'pending' | 'active' | 'canceled' | 'expired';
-  billingPeriod: 'monthly' | 'annual';
-  startDate: any;
-  endDate: any;
-  lastBillingDate: any;
-  nextBillingDate: any;
+  planId: PlanType;
+  status: 'trial' | 'pending' | 'active' | 'expired' | 'suspended';
+  startDate: Timestamp;
+  endDate: Timestamp;
+  nextBillingDate: Timestamp;
   maxVehicles: number;
+  maxExpenses: number;
   features: string[];
   price: number;
-  createdAt: any;
+  billingPeriod: 'monthly' | 'annual';
 }
 
-const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
+interface Subscription {
+  id?: string;
+  userId: string;
+  planId: PlanType;
+  status: 'trial' | 'pending' | 'active' | 'expired' | 'suspended';
+  startDate: Date;
+  endDate: Date;
+  nextBillingDate: Date;
+  maxVehicles: number;
+  maxExpenses: number;
+  features: string[];
+  price: number;
+  billingPeriod: 'monthly' | 'annual';
+}
 
-const safeDate = (dateField: any): Date => {
-  if (!dateField) return new Date();
-  if (dateField instanceof Date) return dateField;
-  if (dateField.toDate && typeof dateField.toDate === 'function') return dateField.toDate();
-  if (typeof dateField === 'string' || typeof dateField === 'number') return new Date(dateField);
-  return new Date();
-};
+interface NewSubscription extends Subscription {
+  userName?: string;
+  companyName?: string;
+  phoneNumber?: string;
+  email?: string;
+}
+
+interface SubscriptionWithUser extends Subscription {
+  userName: string;
+  userData?: UserData;
+}
 
 const AdminSubscriptionPage: React.FC = () => {
-  const [subscriptionRequests, setSubscriptionRequests] = useState<UserSubscriptionRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<UserSubscriptionRequest | null>(null);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionWithUserDetails[]>([]);
-  const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionWithUserDetails | null>(null);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionWithUser[]>([]);
+  const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionWithUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [openNewDialog, setOpenNewDialog] = useState(false);
+  const [newSubscription, setNewSubscription] = useState<NewSubscription>({
+    userId: '',
+    planId: 'basic',
+    status: 'pending',
+    billingPeriod: 'monthly',
+    startDate: new Date(),
+    endDate: new Date(),
+    nextBillingDate: new Date(),
+    maxVehicles: 0,
+    maxExpenses: 0,
+    features: [],
+    price: 0,
+  });
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const fetchSubscriptionRequests = async () => {
-      try {
-        const q = query(
-          collection(db, 'users'),
-          where('subscriptionRequest.status', '==', 'pending'),
-          orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const requests: UserSubscriptionRequest[] = [];
-          snapshot.forEach((doc) => {
-            requests.push({ id: doc.id, ...doc.data() } as UserSubscriptionRequest);
-          });
-          setSubscriptionRequests(requests);
-          setLoading(false);
-        });
-
-        return () => unsubscribe();
-      } catch (error) {
-        console.error('Error fetching subscription requests:', error);
-        setError('Erreur lors du chargement des demandes d\'abonnement');
-        setLoading(false);
-      }
-    };
-
-    fetchSubscriptionRequests();
-
-    loadSubscriptions();
-    // Écouter les nouvelles notifications
-    const unsubscribe = onSnapshot(
-      query(collection(db, 'notifications'), where('status', '==', 'unread')),
-      (snapshot) => {
-        const newNotifications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setNotifications(newNotifications);
-      }
-    );
-
-    return () => unsubscribe();
+    fetchSubscriptions();
   }, []);
 
-  const loadSubscriptions = async () => {
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value.toLowerCase());
+  };
+
+  const filteredSubscriptions = subscriptions.filter(sub => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const userName = (sub.userName || '').toLowerCase();
+    const userId = (sub.userId || '').toLowerCase();
+    const planId = (sub.planId || '').toLowerCase();
+    const status = (sub.status || '').toLowerCase();
+
+    return userName.includes(searchTermLower) ||
+           userId.includes(searchTermLower) ||
+           planId.includes(searchTermLower) ||
+           status.includes(searchTermLower);
+  });
+
+  const handleDeleteSubscription = async (subscriptionId: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet abonnement ?')) {
+      try {
+        await deleteDoc(doc(db, 'subscriptions', subscriptionId));
+        setSubscriptions(prev => prev.filter(sub => sub.id !== subscriptionId));
+      } catch (err) {
+        console.error('Erreur lors de la suppression:', err);
+        setError('Erreur lors de la suppression de l\'abonnement');
+      }
+    }
+  };
+
+  const handleAddSubscription = async () => {
+    try {
+      const userRef = doc(db, 'users', newSubscription.userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          email: newSubscription.email,
+          displayName: newSubscription.userName,
+          companyName: newSubscription.companyName,
+          phoneNumber: newSubscription.phoneNumber,
+        } as UserData);
+      }
+
+      const firestoreData: FirestoreSubscription = {
+        userId: newSubscription.userId,
+        planId: newSubscription.planId,
+        status: newSubscription.status,
+        billingPeriod: newSubscription.billingPeriod,
+        startDate: Timestamp.fromDate(newSubscription.startDate),
+        endDate: Timestamp.fromDate(newSubscription.endDate),
+        nextBillingDate: Timestamp.fromDate(newSubscription.nextBillingDate),
+        maxVehicles: newSubscription.maxVehicles,
+        maxExpenses: newSubscription.maxExpenses,
+        features: newSubscription.features,
+        price: newSubscription.price,
+      };
+
+      if (isEditing && selectedSubscription?.id) {
+        await updateDoc(doc(db, 'subscriptions', selectedSubscription.id), firestoreData as { [key: string]: any });
+      } else {
+        await addDoc(collection(db, 'subscriptions'), firestoreData);
+      }
+
+      setOpenNewDialog(false);
+      setIsEditing(false);
+      fetchSubscriptions();
+    } catch (err) {
+      console.error('Erreur lors de l\'opération:', err);
+      setError('Erreur lors de l\'opération sur l\'abonnement');
+    }
+  };
+
+  const handleEditSubscription = (subscription: SubscriptionWithUser) => {
+    setIsEditing(true);
+    setNewSubscription({
+      ...subscription,
+      userName: subscription.userName,
+      email: subscription.userData?.email,
+      companyName: subscription.userData?.companyName,
+      phoneNumber: subscription.userData?.phoneNumber,
+      maxExpenses: subscription.maxExpenses || 0,
+    });
+    setOpenNewDialog(true);
+  };
+
+  const fetchSubscriptions = async () => {
     try {
       setLoading(true);
-      setError(null); // Reset any previous errors
+      setError(null);
+      const querySnapshot = await getDocs(collection(db, 'subscriptions'));
+      const subscriptionsData: SubscriptionWithUser[] = [];
 
-      const subscriptionsRef = collection(db, SUBSCRIPTIONS_COLLECTION);
-      const q = query(
-        subscriptionsRef,
-        orderBy('createdAt', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const subscriptionsData = await Promise.all(
-        querySnapshot.docs.map(async (doc) => {
-          const data = doc.data() as FirestoreSubscriptionData;
+      for (const docSnapshot of querySnapshot.docs) {
+        try {
+          const data = docSnapshot.data();
           
-          // Create base subscription object with type safety
-          const subscription: SubscriptionWithUserDetails = {
-            id: doc.id,
-            userId: data.userId,
-            planId: data.planId,
-            status: data.status,
-            billingPeriod: data.billingPeriod,
-            startDate: safeDate(data.startDate),
-            endDate: safeDate(data.endDate),
-            lastBillingDate: safeDate(data.lastBillingDate),
-            nextBillingDate: safeDate(data.nextBillingDate),
-            maxVehicles: data.maxVehicles ?? 10,
-            features: Array.isArray(data.features) ? data.features : [],
-            price: typeof data.price === 'number' ? data.price : 0,
-            createdAt: safeDate(data.createdAt)
-          };
-
-          try {
-            if (!data.userId) {
-              console.warn('Subscription document missing userId:', doc.id);
-              return subscription;
-            }
-
-            // Fetch user details
-            const userDocRef = firestoreDoc(db, 'users', data.userId);
-            const userDocSnap = await getDoc(userDocRef);
-            
-            if (userDocSnap.exists()) {
-              const userData = userDocSnap.data() as UserData;
-              if (userData && userData.email && userData.companyName) {
-                subscription.userEmail = userData.email;
-                subscription.companyName = userData.companyName;
-              } else {
-                console.warn(`User document missing required fields for userId: ${data.userId}`);
-              }
-            } else {
-              console.warn(`User document not found for userId: ${data.userId}`);
-            }
-          } catch (error) {
-            console.error(`Error fetching user details for subscription ${doc.id}:`, error);
+          // Vérifier si l'userId existe
+          if (!data.userId) {
+            console.warn('Document sans userId trouvé:', docSnapshot.id);
+            continue;
           }
 
-          return subscription;
-        })
-      );
+          const userRef = doc(db, 'users', data.userId);
+          const userDoc = await getDoc(userRef);
+          const userData = userDoc.data() as UserData | undefined;
+          
+          // Conversion sécurisée des dates
+          const now = new Date();
+          const startDate = data.startDate?.toDate?.() || now;
+          const endDate = data.endDate?.toDate?.() || now;
+          const nextBillingDate = data.nextBillingDate?.toDate?.() || now;
+          
+          // S'assurer que toutes les propriétés requises sont définies
+          const subscription: SubscriptionWithUser = {
+            id: docSnapshot.id,
+            userId: data.userId,
+            planId: data.planId || 'basic',
+            status: data.status || 'pending',
+            startDate,
+            endDate,
+            nextBillingDate,
+            maxVehicles: typeof data.maxVehicles === 'number' ? data.maxVehicles : 0,
+            maxExpenses: typeof data.maxExpenses === 'number' ? data.maxExpenses : 0,
+            features: Array.isArray(data.features) ? data.features : [],
+            price: typeof data.price === 'number' ? data.price : 0,
+            billingPeriod: data.billingPeriod || 'monthly',
+            userName: userData?.displayName || 'Utilisateur ' + data.userId.substring(0, 4),
+            userData: {
+              email: userData?.email,
+              displayName: userData?.displayName,
+              companyName: userData?.companyName,
+              phoneNumber: userData?.phoneNumber,
+            }
+          };
+
+          subscriptionsData.push(subscription);
+        } catch (docError) {
+          console.error('Erreur lors du traitement d\'un abonnement:', docError, 'Document ID:', docSnapshot.id);
+          // Continue avec le prochain document au lieu d'arrêter complètement
+          continue;
+        }
+      }
 
       setSubscriptions(subscriptionsData);
-    } catch (err) {
-      console.error('Error loading subscriptions:', err);
-      setError(err instanceof Error ? err.message : 'Error loading subscription data');
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      setError('Erreur lors de la récupération des abonnements');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (request: UserSubscriptionRequest) => {
+  const handleViewDetails = async (subscription: SubscriptionWithUser) => {
     try {
-      const userRef = firestoreDoc(db, 'users', request.id);
-      const subscriptionRef = firestoreDoc(collection(db, SUBSCRIPTIONS_COLLECTION));
+      const userRef = doc(db, 'users', subscription.userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data() as UserData;
       
-      const now = serverTimestamp();
-      
-      // Create subscription document
-      await setDoc(subscriptionRef, {
-        userId: request.id,
-        planId: request.subscriptionRequest.planId,
-        planName: request.subscriptionRequest.planName,
-        price: request.subscriptionRequest.price,
-        startDate: now,
-        endDate: now, // Sera mis à jour par une fonction Cloud
-        lastBillingDate: now,
-        nextBillingDate: now, // Sera mis à jour par une fonction Cloud
-        status: 'active',
-        billingPeriod: 'monthly',
-        maxVehicles: 10,
-        features: [],
-        createdAt: now
-      });
-
-      // Update user document
-      await updateDoc(userRef, {
-        'subscriptionRequest.status': 'approved',
-        'subscription': {
-          planId: request.subscriptionRequest.planId,
-          planName: request.subscriptionRequest.planName,
-          price: request.subscriptionRequest.price,
-          startDate: now,
-          status: 'active',
-          billingPeriod: 'monthly',
-          maxVehicles: 10,
-          features: []
+      setSelectedSubscription({
+        ...subscription,
+        userData: userData || {
+          email: undefined,
+          displayName: undefined,
+          companyName: undefined,
+          phoneNumber: undefined,
         },
-        'isActive': true
       });
-
-      // Reload subscriptions
-      await loadSubscriptions();
-    } catch (error) {
-      console.error('Error approving subscription:', error);
-      setError('Erreur lors de l\'approbation de l\'abonnement');
-    }
-  };
-
-  const handleReject = async () => {
-    if (!selectedRequest) return;
-
-    try {
-      const userRef = firestoreDoc(db, 'users', selectedRequest.id);
-      await updateDoc(userRef, {
-        'subscriptionRequest.status': 'rejected',
-        'subscriptionRequest.rejectionReason': rejectionReason,
-      });
-      setIsDialogOpen(false);
-      setRejectionReason('');
-      setSelectedRequest(null);
-      // You might want to send an email notification here
-    } catch (error) {
-      console.error('Error rejecting subscription:', error);
-      setError('Erreur lors du rejet de l\'abonnement');
-    }
-  };
-
-  const handleViewDetails = async (subscription: SubscriptionWithUserDetails) => {
-    setSelectedSubscription(subscription);
-    try {
-      const userInvoices = await getDocs(
-        query(collection(db, 'invoices'), where('userId', '==', subscription.userId))
-      );
-      const invoicesData = userInvoices.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setInvoices(invoicesData);
       setOpenDialog(true);
-    } catch (err) {
-      console.error('Erreur lors du chargement des factures:', err);
-    }
-  };
-
-  const handleValidatePayment = async (invoiceId: string) => {
-    try {
-      const invoiceRef = firestoreDoc(db, 'invoices', invoiceId);
-      await updateDoc(invoiceRef, {
-        status: 'paid'
-      });
-      // Recharger les factures
-      if (selectedSubscription) {
-        const updatedInvoices = await getDocs(
-          query(collection(db, 'invoices'), where('userId', '==', selectedSubscription.userId))
-        );
-        const invoicesData = updatedInvoices.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setInvoices(invoicesData);
-      }
-    } catch (err) {
-      console.error('Erreur lors de la validation du paiement:', err);
-    }
-  };
-
-  const handleApproveSubscription = async (subscriptionId: string) => {
-    try {
-      const subscriptionRef = firestoreDoc(db, 'subscriptions', subscriptionId);
-      await updateDoc(subscriptionRef, {
-        status: 'active'
-      });
-      // Mettre à jour le statut de la notification
-      const notif = notifications.find(n => n.subscriptionId === subscriptionId);
-      if (notif) {
-        await updateDoc(firestoreDoc(db, 'notifications', notif.id), {
-          status: 'read'
-        });
-      }
-      loadSubscriptions();
     } catch (error) {
-      console.error('Erreur lors de l\'approbation:', error);
-      setError('Erreur lors de l\'approbation de l\'abonnement');
+      console.error('Error fetching user details:', error);
+      setError('Erreur lors de la récupération des détails utilisateur');
     }
   };
-
-  const handleRejectSubscription = async (subscriptionId: string) => {
-    try {
-      const subscriptionRef = firestoreDoc(db, 'subscriptions', subscriptionId);
-      await updateDoc(subscriptionRef, {
-        status: 'canceled'
-      });
-      // Mettre à jour le statut de la notification
-      const notif = notifications.find(n => n.subscriptionId === subscriptionId);
-      if (notif) {
-        await updateDoc(firestoreDoc(db, 'notifications', notif.id), {
-          status: 'read'
-        });
-      }
-      loadSubscriptions();
-    } catch (error) {
-      console.error('Erreur lors du rejet:', error);
-      setError('Erreur lors du rejet de l\'abonnement');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'canceled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  if (loading) return <Typography>Chargement...</Typography>;
-  if (error) return <Alert severity="error">{error}</Alert>;
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Demandes d'abonnement
+        Gestion des Abonnements
       </Typography>
-      
+
+      <Toolbar sx={{ pl: { sm: 2 }, pr: { xs: 1, sm: 1 } }}>
+        <TextField
+          variant="outlined"
+          placeholder="Rechercher..."
+          size="small"
+          sx={{ mr: 2, minWidth: 300 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          onChange={handleSearchChange}
+        />
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenNewDialog(true)}
+        >
+          Nouvel Abonnement
+        </Button>
+      </Toolbar>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -385,273 +341,330 @@ const AdminSubscriptionPage: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Entreprise</TableCell>
-              <TableCell>Contact</TableCell>
-              <TableCell>Plan</TableCell>
-              <TableCell>Prix</TableCell>
-              <TableCell>Date de demande</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>UTILISATEUR</TableCell>
+              <TableCell>PLAN</TableCell>
+              <TableCell>STATUT</TableCell>
+              <TableCell>DATE DE DÉBUT</TableCell>
+              <TableCell>JOURS RESTANTS</TableCell>
+              <TableCell>PRIX</TableCell>
+              <TableCell>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {subscriptionRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell>{request.companyName}</TableCell>
-                <TableCell>
-                  <Typography variant="body2">{request.fullName}</Typography>
-                  <Typography variant="body2" color="textSecondary">{request.email}</Typography>
-                  <Typography variant="body2" color="textSecondary">{request.phoneNumber}</Typography>
-                </TableCell>
-                <TableCell>{request.subscriptionRequest.planName}</TableCell>
-                <TableCell>{request.subscriptionRequest.price} DZD/mois</TableCell>
-                <TableCell>
-                  {format(new Date(request.subscriptionRequest.requestDate), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                </TableCell>
-                <TableCell>
-                  <Tooltip title="Approuver">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleApprove(request)}
-                    >
-                      <CheckCircleIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Rejeter">
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setSelectedRequest(request);
-                        setIsDialogOpen(true);
-                      }}
-                    >
-                      <CancelIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-            {subscriptionRequests.length === 0 && !loading && (
+            {loading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">
-                  Aucune demande d'abonnement en attente
+                <TableCell colSpan={7} align="center">
+                  Chargement...
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Abonnements
-        </Typography>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
+            ) : filteredSubscriptions.length === 0 ? (
               <TableRow>
-                <TableCell>Entreprise</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Plan</TableCell>
-                <TableCell>Période</TableCell>
-                <TableCell>Statut</TableCell>
-                <TableCell>Date de création</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell colSpan={7} align="center">
+                  Aucun abonnement trouvé
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {subscriptions.map((subscription) => (
+            ) : (
+              filteredSubscriptions.map((subscription) => (
                 <TableRow key={subscription.id}>
-                  <TableCell>{subscription.companyName}</TableCell>
-                  <TableCell>{subscription.userEmail}</TableCell>
+                  <TableCell>{subscription.userName}</TableCell>
                   <TableCell>{subscription.planId}</TableCell>
-                  <TableCell>
-                    {subscription.billingPeriod === 'monthly' ? 'Mensuel' : 'Annuel'}
-                  </TableCell>
                   <TableCell>
                     <Chip
                       label={subscription.status}
                       color={
                         subscription.status === 'active' ? 'success' :
-                        subscription.status === 'pending' ? 'warning' :
                         subscription.status === 'trial' ? 'info' :
+                        subscription.status === 'pending' ? 'warning' :
                         'error'
                       }
+                      size="small"
                     />
                   </TableCell>
                   <TableCell>
-                    {subscription.createdAt && format(subscription.createdAt, 'dd/MM/yyyy')}
+                    {format(subscription.startDate, 'dd MMM yyyy', { locale: fr })}
                   </TableCell>
                   <TableCell>
-                    {subscription.status === 'pending' && (
-                      <>
-                        <Tooltip title="Approuver">
-                          <IconButton
-                            color="success"
-                            onClick={() => handleApproveSubscription(subscription.id!)}
-                          >
-                            <CheckCircleIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Rejeter">
-                          <IconButton
-                            color="error"
-                            onClick={() => handleRejectSubscription(subscription.id!)}
-                          >
-                            <CancelIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </>
-                    )}
-                    {subscription.status === 'active' && (
-                      <Tooltip title="Voir les détails">
-                        <IconButton
-                          color="primary"
-                          onClick={() => handleViewDetails(subscription)}
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    {Math.ceil((subscription.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} jours
+                  </TableCell>
+                  <TableCell>{subscription.price} DZD</TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleViewDetails(subscription)}
+                      title="Voir les détails"
+                    >
+                      <InfoIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEditSubscription(subscription)}
+                      title="Modifier"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteSubscription(subscription.id!)}
+                      title="Supprimer"
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
-        <DialogTitle>Rejeter la demande d'abonnement</DialogTitle>
+      {/* Dialog des détails */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Détails de l'Abonnement</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Motif du rejet"
-            fullWidth
-            multiline
-            rows={4}
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsDialogOpen(false)}>Annuler</Button>
-          <Button onClick={handleReject} color="error">
-            Confirmer le rejet
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={openDialog}
-        onClose={() => setOpenDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Détails de l'abonnement
-          {selectedSubscription?.companyName && (
-            <Typography variant="subtitle1" color="textSecondary">
-              {selectedSubscription.companyName}
-            </Typography>
+          {selectedSubscription && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Nom complet:</strong> {selectedSubscription.userData?.fullName || selectedSubscription.userData?.displayName || 'Non spécifié'}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Email:</strong> {selectedSubscription.userData?.email || 'Non spécifié'}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Entreprise:</strong> {selectedSubscription.userData?.companyName || 'Non spécifié'}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Téléphone:</strong> {selectedSubscription.userData?.phoneNumber || 'Non spécifié'}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Plan:</strong> {selectedSubscription.planId}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Statut:</strong> {selectedSubscription.status}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Prix:</strong> {selectedSubscription.price} DZD
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Période de facturation:</strong> {selectedSubscription.billingPeriod === 'monthly' ? 'Mensuelle' : 'Annuelle'}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Date de début:</strong> {format(selectedSubscription.startDate, 'dd MMMM yyyy', { locale: fr })}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Date de fin:</strong> {format(selectedSubscription.endDate, 'dd MMMM yyyy', { locale: fr })}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Prochaine facturation:</strong> {format(selectedSubscription.nextBillingDate, 'dd MMMM yyyy', { locale: fr })}
+              </Typography>
+            </Box>
           )}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Informations de l'abonnement
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Email:
-                </Typography>
-                <Typography variant="body1">
-                  {selectedSubscription?.userEmail}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Plan:
-                </Typography>
-                <Typography variant="body1">
-                  {selectedSubscription?.planId}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Statut:
-                </Typography>
-                <Chip
-                  label={selectedSubscription?.status}
-                  size="small"
-                  color={getStatusColor(selectedSubscription?.status || '')}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Période de facturation:
-                </Typography>
-                <Typography variant="body1">
-                  {selectedSubscription?.billingPeriod === 'monthly' ? 'Mensuel' : 'Annuel'}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Box>
-
-          <Typography variant="h6" gutterBottom>
-            Factures
-          </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Numéro</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Montant</TableCell>
-                  <TableCell>Statut</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>{invoice.number}</TableCell>
-                    <TableCell>
-                      {format(new Date(invoice.issueDate), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell>{invoice.amount} DZD</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={invoice.status}
-                        size="small"
-                        color={invoice.status === 'paid' ? 'success' : 'warning'}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {invoice.status === 'pending' && (
-                        <Tooltip title="Valider le paiement">
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => invoice.id && handleValidatePayment(invoice.id)}
-                          >
-                            <CheckCircleIcon />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Fermer</Button>
         </DialogActions>
       </Dialog>
-    </Container>
+
+      {/* Dialog d'ajout/modification d'abonnement */}
+      <Dialog open={openNewDialog} onClose={() => {
+        setOpenNewDialog(false);
+        setIsEditing(false);
+      }} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {isEditing ? 'Modifier l\'abonnement' : 'Nouvel Abonnement'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Informations Utilisateur
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="ID Utilisateur"
+                  value={newSubscription.userId}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, userId: e.target.value }))}
+                  margin="normal"
+                  disabled={isEditing}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nom complet"
+                  value={newSubscription.userName || ''}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, userName: e.target.value }))}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  value={newSubscription.email || ''}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, email: e.target.value }))}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Téléphone"
+                  value={newSubscription.phoneNumber || ''}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nom de l'entreprise"
+                  value={newSubscription.companyName || ''}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, companyName: e.target.value }))}
+                  margin="normal"
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+              Détails de l'Abonnement
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Plan"
+                  value={newSubscription.planId}
+                  onChange={(e) => {
+                    const selectedPlan = PLANS.find(p => p.id === e.target.value);
+                    setNewSubscription(prev => ({
+                      ...prev,
+                      planId: e.target.value as PlanType,
+                      maxVehicles: selectedPlan?.maxVehicles || 0,
+                      features: selectedPlan?.features || [],
+                      price: selectedPlan?.monthlyPrice || 0,
+                    }));
+                  }}
+                  margin="normal"
+                >
+                  {PLANS.map((plan) => (
+                    <MenuItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Statut"
+                  value={newSubscription.status}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, status: e.target.value as 'trial' | 'pending' | 'active' | 'expired' | 'suspended' }))}
+                  margin="normal"
+                >
+                  <MenuItem value="trial">Essai</MenuItem>
+                  <MenuItem value="pending">En attente</MenuItem>
+                  <MenuItem value="active">Actif</MenuItem>
+                  <MenuItem value="expired">Expiré</MenuItem>
+                  <MenuItem value="suspended">Suspendu</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Période de facturation"
+                  value={newSubscription.billingPeriod}
+                  onChange={(e) => {
+                    const period = e.target.value as 'monthly' | 'annual';
+                    const selectedPlan = PLANS.find(p => p.id === newSubscription.planId);
+                    setNewSubscription(prev => ({
+                      ...prev,
+                      billingPeriod: period,
+                      price: period === 'monthly' ? selectedPlan?.monthlyPrice || 0 : selectedPlan?.annualPrice || 0,
+                    }));
+                  }}
+                  margin="normal"
+                >
+                  <MenuItem value="monthly">Mensuelle</MenuItem>
+                  <MenuItem value="annual">Annuelle</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Prix"
+                  value={newSubscription.price}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, price: Number(e.target.value) }))}
+                  margin="normal"
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">DZD</InputAdornment>,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Nombre max de véhicules"
+                  value={newSubscription.maxVehicles}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, maxVehicles: Number(e.target.value) }))}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Nombre max de dépenses"
+                  value={newSubscription.maxExpenses}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, maxExpenses: Number(e.target.value) }))}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Date de début"
+                  value={format(newSubscription.startDate, 'yyyy-MM-dd')}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                  margin="normal"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Date de fin"
+                  value={format(newSubscription.endDate, 'yyyy-MM-dd')}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                  margin="normal"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setOpenNewDialog(false);
+            setIsEditing(false);
+          }}>
+            Annuler
+          </Button>
+          <Button onClick={handleAddSubscription} variant="contained" color="primary">
+            {isEditing ? 'Modifier' : 'Ajouter'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+    </Box>
   );
 };
 

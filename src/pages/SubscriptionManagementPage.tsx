@@ -26,7 +26,7 @@ import { invoiceService } from '../services/invoiceService';
 import { Subscription } from '../models/subscription';
 import { Invoice } from '../models/invoice';
 import { auth } from '../config/firebase';
-import { PLANS } from '../models/subscription';
+import { PLANS, BillingPeriod, PlanType } from '../models/subscription';
 
 const SubscriptionManagementPage: React.FC = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -62,7 +62,7 @@ const SubscriptionManagementPage: React.FC = () => {
     }
   };
 
-  const handleUpgrade = async (newPlanId: 'starter' | 'pro' | 'enterprise') => {
+  const handleUpgrade = async (newPlanId: Exclude<PlanType, 'trial'>) => {
     try {
       if (!subscription?.id) return;
       await subscriptionService.upgradePlan(subscription.id, newPlanId);
@@ -74,7 +74,7 @@ const SubscriptionManagementPage: React.FC = () => {
     }
   };
 
-  const handleSelectPlan = async (planId: 'starter' | 'pro' | 'enterprise', billingPeriod: 'monthly' | 'annual') => {
+  const handleSelectPlan = async (planId: Exclude<PlanType, 'trial'>, billingPeriod: BillingPeriod) => {
     try {
       const user = auth.currentUser;
       if (!user) {
@@ -174,7 +174,7 @@ const SubscriptionManagementPage: React.FC = () => {
             Sélectionnez le plan qui correspond le mieux à vos besoins
           </Typography>
           <Grid container spacing={3} justifyContent="center">
-            {PLANS.map((plan) => (
+            {PLANS.filter(plan => plan.id !== 'trial').map((plan) => (
               <Grid item xs={12} sm={6} md={4} key={plan.id}>
                 <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="h5" component="h2" gutterBottom>
@@ -198,7 +198,7 @@ const SubscriptionManagementPage: React.FC = () => {
                       fullWidth
                       variant="contained"
                       color="primary"
-                      onClick={() => handleSelectPlan(plan.id, 'monthly')}
+                      onClick={() => handleSelectPlan(plan.id as Exclude<PlanType, 'trial'>, 'monthly')}
                       sx={{ mb: 1 }}
                     >
                       Choisir ce plan (Mensuel)
@@ -207,7 +207,7 @@ const SubscriptionManagementPage: React.FC = () => {
                       fullWidth
                       variant="outlined"
                       color="primary"
-                      onClick={() => handleSelectPlan(plan.id, 'annual')}
+                      onClick={() => handleSelectPlan(plan.id as Exclude<PlanType, 'trial'>, 'annual')}
                     >
                       Choisir ce plan (Annuel)
                     </Button>
@@ -272,7 +272,7 @@ const SubscriptionManagementPage: React.FC = () => {
         <DialogTitle>Changer de plan</DialogTitle>
         <DialogContent>
           <Grid container spacing={3} sx={{ mt: 1 }}>
-            {PLANS.map((plan) => (
+            {PLANS.filter(plan => plan.id !== 'trial').map((plan) => (
               <Grid item xs={12} md={4} key={plan.id}>
                 <Paper
                   sx={{
@@ -305,7 +305,7 @@ const SubscriptionManagementPage: React.FC = () => {
                   <Button
                     variant={subscription?.planId === plan.id ? 'outlined' : 'contained'}
                     color="primary"
-                    onClick={() => handleUpgrade(plan.id)}
+                    onClick={() => handleUpgrade(plan.id as Exclude<PlanType, 'trial'>)}
                     disabled={subscription?.planId === plan.id}
                     sx={{ mt: 2 }}
                   >

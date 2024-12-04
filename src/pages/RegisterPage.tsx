@@ -72,11 +72,11 @@ const RegisterPage: React.FC = () => {
         isAdmin: false
       });
 
-      // Créer un abonnement d'essai par défaut si aucun plan n'est sélectionné
-      const planToUse = selectedPlan || 'starter';
+      // Créer l'abonnement avec le plan choisi
+      const planToUse = selectedPlan || 'trial';
       await subscriptionService.createSubscription(
         user.uid,
-        planToUse,
+        planToUse as 'trial' | 'basic' | 'pro' | 'enterprise',
         billingPeriod || 'monthly',
         isTrial !== undefined ? isTrial : true // Par défaut en mode essai si non spécifié
       );
