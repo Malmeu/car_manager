@@ -276,3 +276,45 @@ tr:hover {
 .ml-2 { margin-left: calc(var(--spacing-unit) * 2); }
 .mr-2 { margin-right: calc(var(--spacing-unit) * 2); }
 .p-2 { padding: calc(var(--spacing-unit) * 2); }
+
+/* Print Styles */
+@media print {
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+  
+  /* Cache tout par défaut */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Affiche uniquement le contenu à imprimer */
+  .print-content,
+  .print-content * {
+    visibility: visible !important;
+  }
+
+  /* Positionne le contenu à imprimer */
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+  }
+
+  /* Cache tous les boutons */
+  button, 
+  .MuiButton-root,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Assure que les couleurs s'impriment correctement */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

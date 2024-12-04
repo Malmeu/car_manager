@@ -20,6 +20,7 @@ import {
   Tooltip,
   Button,
   Collapse,
+  Link,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -39,6 +40,7 @@ import {
   ChevronRight as ChevronRightIcon,
   Euro as EuroIcon,
   AccountBalance as AccountBalanceIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -262,6 +264,11 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       text: 'Véhicules',
       icon: <CarIcon />,
       path: '/vehicles'
+    },
+    {
+      text: 'Contrats',
+      icon: <DescriptionIcon />,
+      path: '/contracts'
     },
     {
       text: 'Clients',

@@ -17,6 +17,9 @@ import AdminSubscriptionPage from './pages/AdminSubscriptionPage';
 import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
 import SubscriptionPendingPage from './pages/SubscriptionPendingPage';
 import ExpenseManager from './components/ExpenseManager';
+import ContractForm from './components/contracts/ContractForm';
+import ContractList from './components/contracts/ContractList';
+import ContractPreview from './components/contracts/ContractPreview';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -69,6 +72,9 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/expenses" element={<ExpenseManager />} />
               <Route path="/cash-journal" element={<CashJournal />} />
+              <Route path="/contracts" element={<ContractList />} />
+              <Route path="/contracts/new" element={<ContractForm />} />
+              <Route path="/contracts/:id" element={<ContractPreview />} />
             </Route>
 
             {/* Redirection par défaut */}
