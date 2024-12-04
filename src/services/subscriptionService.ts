@@ -42,37 +42,34 @@ export const subscriptionService = {
     const subscription: Omit<Subscription, 'id'> = {
       userId,
       planId,
-      status: isTrial ? 'trial' : 'active',
+      status: isTrial ? 'trial' : 'pending',
       startDate: now,
       endDate: nextBillingDate,
       billingPeriod,
       nextBillingDate,
       maxVehicles: plan.maxVehicles,
       maxExpenses: plan.maxExpenses || 0,
-      features: plan.features || [],
-      price: billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice,
+      features: plan.features,
+      price: billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice
     };
 
-    try {
-      // Convert dates to Firestore Timestamps before storing
-      const subscriptionData = {
-        ...subscription,
-        startDate: Timestamp.fromDate(subscription.startDate),
-        endDate: Timestamp.fromDate(subscription.endDate),
-        nextBillingDate: Timestamp.fromDate(subscription.nextBillingDate),
-      };
+    // Créer l'abonnement dans Firestore
+    const subscriptionRef = await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), subscription);
+    
+    // Créer une notification pour l'administrateur
+    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+      type: 'subscription_request',
+      userId,
+      subscriptionId: subscriptionRef.id,
+      status: 'unread',
+      createdAt: serverTimestamp(),
+      message: `Nouvelle demande d'abonnement ${plan.name} (${billingPeriod})`
+    });
 
-      const docRef = await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), subscriptionData);
-      
-      // Return the subscription with JavaScript Date objects
-      return {
-        id: docRef.id,
-        ...subscription
-      };
-    } catch (error) {
-      console.error('Erreur lors de la création de l\'abonnement:', error);
-      throw new Error('Erreur lors de la création de l\'abonnement');
-    }
+    return {
+      ...subscription,
+      id: subscriptionRef.id
+    };
   },
 
   // Renouveler un abonnement
@@ -238,11 +235,59 @@ export const subscriptionService = {
 
   // Approuver un abonnement
   async approveSubscription(subscriptionId: string): Promise<void> {
-    await updateSubscriptionStatus(subscriptionId, 'active');
+    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      throw new Error('Abonnement non trouvé');
+    }
+
+    const subscription = subscriptionDoc.data() as Subscription;
+    const now = new Date();
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + (subscription.billingPeriod === 'monthly' ? 1 : 12));
+
+    await updateDoc(subscriptionRef, {
+      status: 'active',
+      startDate: now,
+      endDate: nextBillingDate,
+      nextBillingDate
+    });
+
+    // Créer une notification pour l'utilisateur
+    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+      type: 'subscription_approved',
+      userId: subscription.userId,
+      subscriptionId,
+      status: 'unread',
+      createdAt: serverTimestamp(),
+      message: 'Votre abonnement a été approuvé et est maintenant actif'
+    });
   },
 
   // Rejeter un abonnement
   async rejectSubscription(subscriptionId: string): Promise<void> {
-    await updateSubscriptionStatus(subscriptionId, 'expired');
+    const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, subscriptionId);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      throw new Error('Abonnement non trouvé');
+    }
+
+    const subscription = subscriptionDoc.data() as Subscription;
+
+    await updateDoc(subscriptionRef, {
+      status: 'expired'
+    });
+
+    // Créer une notification pour l'utilisateur
+    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+      type: 'subscription_rejected',
+      userId: subscription.userId,
+      subscriptionId,
+      status: 'unread',
+      createdAt: serverTimestamp(),
+      message: 'Votre demande d\'abonnement a été rejetée'
+    });
   }
 };

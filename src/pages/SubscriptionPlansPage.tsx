@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -16,7 +16,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Check as CheckIcon } from '@mui/icons-material';
-import { PLANS } from '../models/subscription';
+import { Plan, BillingPeriod, PLANS } from '../models/subscription';
 import { useAuth } from '../contexts/AuthContext';
 import { subscriptionService } from '../services/subscriptionService';
 import { useNavigate } from 'react-router-dom';
@@ -25,23 +25,34 @@ const SubscriptionPlansPage: React.FC = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
+  const [error, setError] = useState('');
 
-  const handleSelectPlan = async (planId: 'trial' | 'basic' | 'pro' | 'enterprise') => {
-    if (!currentUser) {
-      navigate('/login', { state: { selectedPlan: planId } });
-      return;
-    }
-
+  const handleSubscribe = async (planId: Plan['id']) => {
     try {
-      await subscriptionService.createSubscription(currentUser.uid, planId);
-      if (planId === 'trial') {
-        navigate('/dashboard');
-      } else {
-        navigate('/subscription-pending');
+      if (!currentUser) {
+        navigate('/signup', { 
+          state: { 
+            selectedPlan: planId,
+            billingPeriod 
+          } 
+        });
+        return;
       }
+
+      // Créer l'abonnement
+      await subscriptionService.createSubscription(
+        currentUser.uid,
+        planId,
+        billingPeriod,
+        planId === 'trial'
+      );
+
+      // Rediriger vers la page d'attente
+      navigate('/subscription-pending');
     } catch (error) {
-      console.error('Error selecting plan:', error);
-      alert('Une erreur est survenue lors de la sélection du plan');
+      console.error('Erreur lors de la souscription:', error);
+      setError("Une erreur est survenue lors de la souscription. Veuillez réessayer.");
     }
   };
 
@@ -145,7 +156,7 @@ const SubscriptionPlansPage: React.FC = () => {
                 <Button
                   fullWidth
                   variant={plan.id === 'pro' ? 'contained' : 'outlined'}
-                  onClick={() => handleSelectPlan(plan.id)}
+                  onClick={() => handleSubscribe(plan.id)}
                 >
                   {plan.id === 'trial' ? 'Commencer l\'essai gratuit' : 'Choisir ce plan'}
                 </Button>

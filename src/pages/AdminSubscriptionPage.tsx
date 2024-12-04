@@ -253,10 +253,10 @@ const AdminSubscriptionPage: React.FC = () => {
             features: Array.isArray(data.features) ? data.features : [],
             price: typeof data.price === 'number' ? data.price : 0,
             billingPeriod: data.billingPeriod || 'monthly',
-            userName: userData?.displayName || 'Utilisateur ' + data.userId.substring(0, 4),
+            userName: userData?.fullName || 'Utilisateur ' + data.userId.substring(0, 4),
             userData: {
               email: userData?.email,
-              displayName: userData?.displayName,
+              fullName: userData?.fullName,
               companyName: userData?.companyName,
               phoneNumber: userData?.phoneNumber,
             }
@@ -289,7 +289,7 @@ const AdminSubscriptionPage: React.FC = () => {
         ...subscription,
         userData: userData || {
           email: undefined,
-          displayName: undefined,
+          fullName: undefined,
           companyName: undefined,
           phoneNumber: undefined,
         },
@@ -341,7 +341,7 @@ const AdminSubscriptionPage: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>UTILISATEUR</TableCell>
+              <TableCell>NOM COMPLET</TableCell>
               <TableCell>PLAN</TableCell>
               <TableCell>STATUT</TableCell>
               <TableCell>DATE DE DÉBUT</TableCell>
