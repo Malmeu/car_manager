@@ -244,12 +244,12 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
         icon: <AdminIcon />,
         items: [
           {
-            text: 'Gestion Utilisateurs',
+            text: 'Utilisateurs',
             icon: <PeopleIcon />,
             path: '/admin/users'
           },
           {
-            text: 'Gestion Abonnements',
+            text: 'Abonnements',
             icon: <CreditCardIcon />,
             path: '/admin/subscriptions'
           }
