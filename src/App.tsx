@@ -21,6 +21,7 @@ import ContractForm from './components/contracts/ContractForm';
 import ContractList from './components/contracts/ContractList';
 import ContractPreview from './components/contracts/ContractPreview';
 import UserSubscriptionPage from './pages/UserSubscriptionPage';
+import UtilitiesPage from './pages/UtilitiesPage';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -77,6 +78,7 @@ function App() {
               <Route path="/contracts/new" element={<ContractForm />} />
               <Route path="/contracts/:id" element={<ContractPreview />} />
               <Route path="/subscription" element={<UserSubscriptionPage />} />
+              <Route path="/utilities" element={<UtilitiesPage />} />
             </Route>
 
             {/* Redirection par défaut */}

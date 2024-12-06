@@ -9,12 +9,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableFooter,
+  CircularProgress,
+  Alert,
   Box,
   Card,
   CardContent,
   Grid,
 } from '@mui/material';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { startOfMonth, endOfMonth, format, isSameDay } from 'date-fns';
@@ -36,6 +39,10 @@ interface CashMovement {
   revenue: number;
   expense: number;
   type: 'vehicle_revenue' | 'vehicle_expense' | 'business_expense';
+  isPending?: boolean;
+  totalAmount: number;  
+  paidAmount: number;   
+  remainingAmount: number; 
 }
 
 const CashJournal: React.FC = () => {
@@ -44,12 +51,40 @@ const CashJournal: React.FC = () => {
   const [totalCash, setTotalCash] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
+  const [totalPending, setTotalPending] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handlePayRemaining = async (movementId: string, remainingAmount: number) => {
+    try {
+      setIsLoading(true);
+      const rentalRef = doc(db, 'rentals', movementId);
+      const rentalDoc = await getDoc(rentalRef);
+      
+      if (rentalDoc.exists()) {
+        const rentalData = rentalDoc.data();
+        
+        // Mettre à jour le statut de paiement et le montant payé
+        await updateDoc(rentalRef, {
+          paymentStatus: 'paid',
+          paidAmount: rentalData.totalCost
+        });
+
+        // Rafraîchir les données
+        setRefreshKey(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Erreur lors du solde du paiement:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
       fetchAllMovements();
     }
-  }, [currentUser]);
+  }, [currentUser, refreshKey]);
 
   const fetchAllMovements = async () => {
     if (!currentUser) return;
@@ -74,20 +109,39 @@ const CashJournal: React.FC = () => {
       const rentalsSnapshot = await getDocs(rentalsQuery);
 
       // Traiter les locations
-      rentalsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const vehicle = vehiclesMap.get(data.vehicleId);
-        if (vehicle && data.totalCost > 0) {
-          movements.push({
+      const rentalsMovements = rentalsSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          const rentalDays = Math.ceil(
+            (data.endDate.toDate().getTime() - data.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+          );
+          const baseRevenue = data.totalCost;
+          const driverRevenue = data.withDriver ? (data.driverCost * rentalDays) : 0;
+          const totalRevenue = baseRevenue + driverRevenue;
+
+          // Créer un seul mouvement par location
+          const paidAmount = data.paymentStatus === 'paid' ? totalRevenue : (data.paidAmount || 0);
+          const remainingAmount = totalRevenue - paidAmount;
+          
+          return {
             id: doc.id,
             date: data.startDate.toDate(),
-            designation: `Location - ${vehicle.brand} ${vehicle.model}`,
-            revenue: data.totalCost,
+            designation: `Location de véhicule${data.withDriver ? ' avec chauffeur' : ''}${
+              data.paymentStatus === 'pending' ? ' (En attente)' : 
+              data.paymentStatus === 'partial' ? ' (Paiement partiel)' : ''
+            }`,
+            revenue: paidAmount,
             expense: 0,
-            type: 'vehicle_revenue'
-          });
-        }
-      });
+            type: 'vehicle_revenue' as const,
+            totalAmount: totalRevenue,
+            paidAmount: paidAmount,
+            remainingAmount: remainingAmount,
+            isPending: data.paymentStatus === 'pending'
+          } as CashMovement;
+        });
+
+      // Ajouter les mouvements de location valides
+      movements.push(...rentalsMovements);
 
       // 3. Récupérer les dépenses véhicules
       const vehicleExpensesRef = collection(db, 'expenses');
@@ -108,7 +162,10 @@ const CashJournal: React.FC = () => {
           designation: `${data.name}${vehicle ? ` - ${vehicle.brand} ${vehicle.model}` : ''}`,
           revenue: 0,
           expense: data.amount,
-          type: 'vehicle_expense'
+          type: 'vehicle_expense' as const,
+          totalAmount: 0,
+          paidAmount: 0,
+          remainingAmount: 0,
         });
       });
 
@@ -130,7 +187,10 @@ const CashJournal: React.FC = () => {
           designation: `Frais entreprise - ${data.designation}`,
           revenue: 0,
           expense: data.amount,
-          type: 'business_expense'
+          type: 'business_expense' as const,
+          totalAmount: 0,
+          paidAmount: 0,
+          remainingAmount: 0,
         });
       });
 
@@ -141,14 +201,16 @@ const CashJournal: React.FC = () => {
       // Calculer les totaux
       const totals = movements.reduce(
         (acc, mov) => ({
-          revenue: acc.revenue + mov.revenue,
-          expense: acc.expense + mov.expense
+          revenue: acc.revenue + (mov.paidAmount || mov.revenue),
+          expense: acc.expense + mov.expense,
+          pending: acc.pending + (mov.remainingAmount || 0)
         }),
-        { revenue: 0, expense: 0 }
+        { revenue: 0, expense: 0, pending: 0 }
       );
 
       setTotalRevenue(totals.revenue);
       setTotalExpense(totals.expense);
+      setTotalPending(totals.pending);
       setTotalCash(totals.revenue - totals.expense);
     } catch (error) {
       console.error('Error fetching movements:', error);
@@ -212,33 +274,45 @@ const CashJournal: React.FC = () => {
             <TableRow>
               <TableCell>Date</TableCell>
               <TableCell>Désignation</TableCell>
-              <TableCell align="right">Revenus</TableCell>
-              <TableCell align="right">Sorties</TableCell>
+              <TableCell align="right">Montant Total</TableCell>
+              <TableCell align="right">Montant Payé</TableCell>
+              <TableCell align="right">Reste à Payer</TableCell>
+              <TableCell align="right">Dépense</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {cashMovements.map((movement) => (
-              <TableRow key={movement.id}>
-                <TableCell>
-                  {format(movement.date, 'dd/MM/yyyy')}
-                </TableCell>
+            {cashMovements.map((movement, index) => (
+              <TableRow
+                key={movement.id}
+                sx={{
+                  backgroundColor: movement.isPending ? 'rgba(255, 244, 229, 0.9)' : 
+                                   movement.remainingAmount && movement.remainingAmount > 0 ? 'rgba(254, 243, 199, 0.9)' : 
+                                   'inherit'
+                }}
+              >
+                <TableCell>{movement.date.toLocaleDateString()}</TableCell>
                 <TableCell>{movement.designation}</TableCell>
-                <TableCell 
-                  align="right" 
-                  sx={{ 
-                    color: 'success.main',
-                    fontWeight: movement.revenue > 0 ? 'bold' : 'normal'
-                  }}
-                >
-                  {movement.revenue > 0 ? `${movement.revenue.toLocaleString('fr-FR')} DA` : '-'}
+                <TableCell align="right">
+                  {movement.totalAmount.toLocaleString('fr-FR')} DA
                 </TableCell>
-                <TableCell 
-                  align="right"
-                  sx={{ 
-                    color: 'error.main',
-                    fontWeight: movement.expense > 0 ? 'bold' : 'normal'
-                  }}
-                >
+                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                  {movement.paidAmount.toLocaleString('fr-FR')} DA
+                </TableCell>
+                <TableCell align="right" sx={{ color: 'error.main', fontWeight: 'bold' }}>
+                  {movement.remainingAmount > 0 ? (
+                    <div className="flex items-center justify-end gap-2">
+                      <span>{movement.remainingAmount.toLocaleString('fr-FR')} DA</span>
+                      <button
+                        onClick={() => handlePayRemaining(movement.id, movement.remainingAmount)}
+                        disabled={isLoading}
+                        className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                      >
+                        {isLoading ? 'Chargement...' : 'Solder'}
+                      </button>
+                    </div>
+                  ) : '-'}
+                </TableCell>
+                <TableCell align="right">
                   {movement.expense > 0 ? `${movement.expense.toLocaleString('fr-FR')} DA` : '-'}
                 </TableCell>
               </TableRow>
@@ -246,7 +320,7 @@ const CashJournal: React.FC = () => {
             
             {/* Totals Row */}
             <TableRow sx={{ backgroundColor: 'grey.100' }}>
-              <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+              <TableCell colSpan={3} sx={{ fontWeight: 'bold' }}>
                 Totaux
               </TableCell>
               <TableCell 
@@ -257,6 +331,15 @@ const CashJournal: React.FC = () => {
                 }}
               >
                 {totalRevenue.toLocaleString('fr-FR')} DA
+              </TableCell>
+              <TableCell 
+                align="right"
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: 'error.main'
+                }}
+              >
+                {totalPending.toLocaleString('fr-FR')} DA
               </TableCell>
               <TableCell 
                 align="right"

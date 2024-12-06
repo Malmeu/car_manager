@@ -43,6 +43,9 @@ export interface Rental {
     wilaya: string;
     contractId: string;
     paymentMethod: 'cash' | 'bank_transfer' | 'other';
+    userId: string;
+    withDriver: boolean;
+    driverCost: number;
 }
 
 export interface Expense {

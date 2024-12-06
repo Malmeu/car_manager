@@ -43,6 +43,7 @@ import {
   updateDoc,
   setDoc,
   Timestamp,
+  where,
   DocumentData,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -185,17 +186,58 @@ const AdminSubscriptionPage: React.FC = () => {
       };
 
       if (isEditing && selectedSubscription?.id) {
-        await updateDoc(doc(db, 'subscriptions', selectedSubscription.id), firestoreData as { [key: string]: any });
+        // Mise à jour de l'abonnement existant
+        const subscriptionRef = doc(db, 'subscriptions', selectedSubscription.id);
+        const updateData = {
+          userId: firestoreData.userId,
+          planId: firestoreData.planId,
+          status: firestoreData.status,
+          billingPeriod: firestoreData.billingPeriod,
+          startDate: firestoreData.startDate,
+          endDate: firestoreData.endDate,
+          nextBillingDate: firestoreData.nextBillingDate,
+          maxVehicles: firestoreData.maxVehicles,
+          maxExpenses: firestoreData.maxExpenses,
+          features: firestoreData.features,
+          price: firestoreData.price,
+        };
+        await updateDoc(subscriptionRef, updateData);
       } else {
+        // Vérifier si l'utilisateur a déjà un abonnement actif
+        const existingSubscriptionsQuery = query(
+          collection(db, 'subscriptions'),
+          where('userId', '==', newSubscription.userId),
+          where('status', 'in', ['active', 'trial', 'pending'])
+        );
+        const existingSubscriptions = await getDocs(existingSubscriptionsQuery);
+
+        if (!existingSubscriptions.empty) {
+          throw new Error('Cet utilisateur a déjà un abonnement actif');
+        }
+
+        // Création d'un nouvel abonnement
         await addDoc(collection(db, 'subscriptions'), firestoreData);
       }
 
       setOpenNewDialog(false);
       setIsEditing(false);
-      fetchSubscriptions();
+      setNewSubscription({
+        userId: '',
+        planId: 'basic',
+        status: 'pending',
+        billingPeriod: 'monthly',
+        startDate: new Date(),
+        endDate: new Date(),
+        nextBillingDate: new Date(),
+        maxVehicles: 0,
+        maxExpenses: 0,
+        features: [],
+        price: 0,
+      });
+      await fetchSubscriptions();
     } catch (err) {
       console.error('Erreur lors de l\'opération:', err);
-      setError('Erreur lors de l\'opération sur l\'abonnement');
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'opération sur l\'abonnement');
     }
   };
 

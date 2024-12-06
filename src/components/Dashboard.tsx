@@ -11,7 +11,7 @@ import {
 import Calendar from './Calendar';
 import StatCard from './StatCard';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { differenceInDays } from 'date-fns';
 
@@ -21,6 +21,15 @@ interface CalendarEvent {
   start: Date;
   end: Date;
   type: 'rental' | 'maintenance';
+}
+
+interface Rental {
+  id: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  totalCost: number;
+  withDriver: boolean;
+  driverCost: number;
 }
 
 const Dashboard = () => {
@@ -56,32 +65,30 @@ const Dashboard = () => {
         setTotalClients(customersSnapshot.size);
 
         // Fetch active rentals and calculate revenue
-        const rentalsQuery = query(
-          collection(db, 'rentals'),
-          where('userId', '==', currentUser.uid)
+        const rentalsSnapshot = await getDocs(
+          query(collection(db, 'rentals'),
+            where('userId', '==', currentUser.uid),
+            where('status', '==', 'active')
+          )
         );
-        const rentalsSnapshot = await getDocs(rentalsQuery);
-        let active = 0;
+        
         let revenue = 0;
-
-        rentalsSnapshot.forEach((doc) => {
-          const rental = doc.data();
-          
-          // Vérifier la structure des dates
-          const endDate = rental.endDate?.toDate?.();
-          const now = new Date();
-          
-          if (endDate && endDate >= now) {
-            active++;
-          }
-          
-          // Utiliser directement totalCost pour le revenu
-          if (typeof rental.totalCost === 'number') {
-            revenue += rental.totalCost;
-          }
-        });
-
-        setActiveRentals(active);
+        const activeRentalsData = rentalsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Rental));
+        setActiveRentals(activeRentalsData.length);
+        
+        // Calculate total revenue including driver cost
+        for (const rental of activeRentalsData) {
+          const rentalDays = Math.ceil(
+            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+          );
+          const baseRevenue = rental.totalCost;
+          const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
+          revenue += baseRevenue + driverRevenue;
+        }
+        
         setTotalRevenue(revenue);
       } catch (error) {
         console.error('Error fetching stats:', error);

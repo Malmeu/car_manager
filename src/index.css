@@ -277,6 +277,19 @@ tr:hover {
 .mr-2 { margin-right: calc(var(--spacing-unit) * 2); }
 .p-2 { padding: calc(var(--spacing-unit) * 2); }
 
+/* Styles pour l'effet parallax */
+.react-parallax {
+  height: 100%;
+}
+
+.react-parallax-background-children {
+  height: 100%;
+}
+
+.react-parallax img {
+  object-fit: cover;
+}
+
 /* Print Styles */
 @media print {
   @page {

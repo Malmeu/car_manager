@@ -38,6 +38,7 @@ import { Vehicle, Rental } from '../../types';
 import { getAllRentals } from '../../services/rentalService';
 import { getAllVehicles } from '../../services/vehicleService';
 import { useAuth } from '../../contexts/AuthContext';
+import { format } from 'date-fns';
 
 interface RentalStats {
   monthlyRevenue: Array<{ month: string; amount: number }>;
@@ -101,38 +102,51 @@ const Reports: React.FC = () => {
       const completedRentals = rentalsData.filter(rental => rental.status === 'completed');
 
       // Calculate total revenue
-      const totalRevenue = completedRentals.reduce((sum, rental) => sum + rental.totalCost, 0);
+      const totalRevenue = completedRentals.reduce((sum, rental) => {
+        const rentalDays = Math.ceil(
+          (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+        );
+        const baseRevenue = rental.totalCost;
+        const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
+        return sum + baseRevenue + driverRevenue;
+      }, 0);
 
       // Calculate vehicle utilization
       const vehicleUtilization = vehiclesData.map(vehicle => {
-        const vehicleRentals = rentalsData.filter(rental => rental.vehicleId === vehicle.id);
+        const vehicleRentals = completedRentals.filter(rental => rental.vehicleId === vehicle.id);
         const totalDays = vehicleRentals.reduce((sum, rental) => {
-          const startDate = rental.startDate.toDate();
-          const endDate = rental.endDate.toDate();
-          const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          return sum + days;
+          return sum + Math.ceil(
+            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+          );
+        }, 0);
+
+        const revenue = vehicleRentals.reduce((sum, rental) => {
+          const rentalDays = Math.ceil(
+            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+          );
+          const baseRevenue = rental.totalCost;
+          const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
+          return sum + baseRevenue + driverRevenue;
         }, 0);
 
         return {
           vehicle: `${vehicle.brand} ${vehicle.model}`,
           totalDays,
-          revenue: vehicleRentals.reduce((sum, rental) => sum + rental.totalCost, 0),
+          revenue
         };
       });
 
       const revenueByMonth = new Map<string, number>();
-      let totalDuration = 0;
-
-      rentalsData.forEach((rental) => {
-        const startDate = rental.startDate.toDate();
-        const endDate = rental.endDate.toDate();
-        const month = startDate.toLocaleString('fr-FR', { month: 'short' });
-        const revenue = rental.totalCost;
+      completedRentals.forEach(rental => {
+        const month = format(rental.startDate.toDate(), 'MMMM yyyy');
+        const rentalDays = Math.ceil(
+          (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+        );
+        const baseRevenue = rental.totalCost;
+        const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
+        const totalRevenue = baseRevenue + driverRevenue;
         
-        revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + revenue);
-
-        const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        totalDuration += duration;
+        revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + totalRevenue);
       });
 
       const rentalsByVehicle = new Map<string, number>();
@@ -154,8 +168,8 @@ const Reports: React.FC = () => {
       const monthlyRevenue = Array.from(revenueByMonth.entries())
         .map(([month, amount]) => ({ month, amount }))
         .sort((a, b) => {
-          const months = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'aoû', 'sep', 'oct', 'nov', 'déc'];
-          return months.indexOf(a.month.toLowerCase()) - months.indexOf(b.month.toLowerCase());
+          const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          return months.indexOf(a.month.split(' ')[0]) - months.indexOf(b.month.split(' ')[0]);
         });
 
       setStats({
@@ -163,7 +177,9 @@ const Reports: React.FC = () => {
         topVehicles,
         statistics: {
           totalRevenue: `${totalRevenue.toLocaleString('fr-FR')} DZD`,
-          averageRentalDuration: `${(totalDuration / rentalsData.length || 0).toFixed(1)} jours`,
+          averageRentalDuration: `${(completedRentals.reduce((sum, rental) => sum + Math.ceil(
+            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+          ), 0) / completedRentals.length || 0).toFixed(1)} jours`,
           totalRentals: rentalsData.length.toString(),
         },
         activeRentals: activeRentals.length,

@@ -41,6 +41,7 @@ import {
   Euro as EuroIcon,
   AccountBalance as AccountBalanceIcon,
   Description as DescriptionIcon,
+  Build as BuildIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -294,6 +295,11 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       text: 'Rapports',
       icon: <ReportIcon />,
       path: '/reports'
+    },
+    {
+      text: 'Utilitaires',
+      icon: <BuildIcon />,
+      path: '/utilities'
     },
     {
       text: 'Mon Abonnement',
