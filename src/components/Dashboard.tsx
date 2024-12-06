@@ -134,7 +134,7 @@ const Dashboard = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Revenus Totaux"
+            title="Revenus En cours"
             value={`${totalRevenue.toLocaleString()} DZD`}
             color={theme.palette.info.main}
           />
