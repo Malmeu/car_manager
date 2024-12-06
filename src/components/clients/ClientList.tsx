@@ -1,57 +1,108 @@
-import React, { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { Link } from 'react-router-dom';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-}
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Typography,
+  IconButton
+} from '@mui/material';
+import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { getAllCustomers, deleteCustomer } from '../../services/customerService';
+import type { Customer } from '../../services/customerService';
 
 const ClientList: React.FC = () => {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Customer[]>([]);
+  const navigate = useNavigate();
+
+  const fetchClients = async () => {
+    try {
+      const clientsData = await getAllCustomers();
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchClients = async () => {
-      const querySnapshot = await getDocs(collection(db, 'clients'));
-      const clientList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Client));
-      setClients(clientList);
-    };
-
     fetchClients();
   }, []);
 
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+      try {
+        const success = await deleteCustomer(id);
+        if (success) {
+          console.log('Client deleted successfully');
+          fetchClients(); // Refresh the list
+        } else {
+          console.error('Failed to delete client');
+        }
+      } catch (error) {
+        console.error('Error deleting client:', error);
+      }
+    }
+  };
+
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Clients</h1>
-        <Link
-          to="/clients/new"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4, px: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h5">Liste des Clients</Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => navigate('/clients/new')}
         >
-          Add New Client
-        </Link>
-      </div>
-      <div className="grid gap-4">
-        {clients.map((client) => (
-          <div
-            key={client.id}
-            className="border p-4 rounded shadow hover:shadow-md transition-shadow"
-          >
-            <Link to={`/clients/${client.id}`}>
-              <h2 className="text-xl font-semibold">{client.name}</h2>
-              <p className="text-gray-600">{client.email}</p>
-              <p className="text-gray-600">{client.phone}</p>
-            </Link>
-          </div>
-        ))}
-      </div>
-    </div>
+          Ajouter un Client
+        </Button>
+      </Box>
+      
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Nom</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Téléphone</TableCell>
+              <TableCell>Adresse</TableCell>
+              <TableCell>Permis de Conduire</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {clients.map((client) => (
+              <TableRow key={client.id}>
+                <TableCell>{`${client.firstName} ${client.lastName}`}</TableCell>
+                <TableCell>{client.email}</TableCell>
+                <TableCell>{client.phone}</TableCell>
+                <TableCell>{client.address}</TableCell>
+                <TableCell>{client.drivingLicense}</TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    onClick={() => client.id && navigate(`/clients/edit/${client.id}`)}
+                    color="primary"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => client.id && handleDelete(client.id)}
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 };
 

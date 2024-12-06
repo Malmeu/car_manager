@@ -3,30 +3,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc, addDoc, collection, getDocs, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAllCustomers, Customer } from '../../services/customerService';
 
 interface Vehicle {
   id: string;
   make: string;
   model: string;
   year: number;
-}
-
-interface Client {
-  id: string;
-  name: string;
+  registration: string;
+  status: string;
 }
 
 interface RentalFormData {
   vehicleId: string;
   clientId: string;
-  startDate: string;
-  endDate: string;
-  dailyRate: number;
-  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  startDate: Date;
+  endDate: Date;
+  totalCost: number;
+  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  paymentStatus: 'paid' | 'partial' | 'unpaid';
+  paidAmount: number;
   withDriver: boolean;
   driverCost: number;
-  paymentStatus: 'pending' | 'partial' | 'paid';
-  paidAmount: number;
 }
 
 const RentalForm: React.FC = () => {
@@ -34,67 +32,76 @@ const RentalForm: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Customer[]>([]);
   const [formData, setFormData] = useState<RentalFormData>({
     vehicleId: '',
     clientId: '',
-    startDate: '',
-    endDate: '',
-    dailyRate: 0,
-    status: 'pending',
+    startDate: new Date(),
+    endDate: new Date(),
+    totalCost: 0,
+    status: 'active',
+    paymentStatus: 'unpaid',
+    paidAmount: 0,
     withDriver: false,
-    driverCost: 0,
-    paymentStatus: 'pending',
-    paidAmount: 0
+    driverCost: 0
   });
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch vehicles
-      const vehiclesSnapshot = await getDocs(collection(db, 'vehicles'));
-      const vehiclesList = vehiclesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Vehicle));
-      setVehicles(vehiclesList);
+      try {
+        // Fetch vehicles
+        const vehiclesSnapshot = await getDocs(collection(db, 'vehicles'));
+        const vehiclesData = vehiclesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Vehicle[];
+        setVehicles(vehiclesData);
 
-      // Fetch clients
-      const clientsSnapshot = await getDocs(collection(db, 'clients'));
-      const clientsList = clientsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Client));
-      setClients(clientsList);
+        // Fetch customers using the new service
+        const customersData = await getAllCustomers(currentUser?.uid);
+        setClients(customersData);
 
-      // Fetch rental if editing
-      if (id) {
-        const rentalDoc = await getDoc(doc(db, 'rentals', id));
-        if (rentalDoc.exists()) {
-          setFormData(rentalDoc.data() as RentalFormData);
+        // Fetch rental if editing
+        if (id) {
+          const rentalDoc = await getDoc(doc(db, 'rentals', id));
+          if (rentalDoc.exists()) {
+            const data = rentalDoc.data() as RentalFormData;
+            setFormData({
+              ...data,
+              startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : new Date(data.startDate),
+              endDate: data.endDate instanceof Timestamp ? data.endDate.toDate() : new Date(data.endDate)
+            });
+          }
         }
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, currentUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      const startTimestamp = Timestamp.fromDate(new Date(formData.startDate));
-      const endTimestamp = Timestamp.fromDate(new Date(formData.endDate));
+      console.log('Form data:', formData);
+      const startTimestamp = Timestamp.fromDate(formData.startDate);
+      const endTimestamp = Timestamp.fromDate(formData.endDate);
       
       // Calculer le nombre de jours
       const days = Math.ceil((endTimestamp.toDate().getTime() - startTimestamp.toDate().getTime()) / (1000 * 3600 * 24));
+      console.log('Rental days:', days);
       
       // Calculer le coût total (location + chauffeur si applicable)
-      const rentalCost = days * formData.dailyRate;
+      const rentalCost = days * formData.totalCost;
       const driverTotalCost = formData.withDriver ? days * formData.driverCost : 0;
       const totalCost = rentalCost + driverTotalCost;
+      console.log('Total cost:', totalCost);
 
       const rentalData = {
         vehicleId: formData.vehicleId,
+        clientId: formData.clientId,
         customerId: formData.clientId,
         startDate: startTimestamp,
         endDate: endTimestamp,
@@ -113,15 +120,22 @@ const RentalForm: React.FC = () => {
         driverCost: formData.driverCost
       };
 
-      if (id) {
-        await updateDoc(doc(db, 'rentals', id), rentalData);
-      } else {
-        await addDoc(collection(db, 'rentals'), rentalData);
-      }
+      console.log('Saving rental data:', rentalData);
 
-      navigate('/rentals');
+      try {
+        if (id) {
+          await updateDoc(doc(db, 'rentals', id), rentalData);
+          console.log('Updated existing rental:', id);
+        } else {
+          const docRef = await addDoc(collection(db, 'rentals'), rentalData);
+          console.log('Created new rental:', docRef.id);
+        }
+        navigate('/rentals');
+      } catch (error) {
+        console.error('Error saving to Firestore:', error);
+      }
     } catch (error) {
-      console.error('Error saving rental:', error);
+      console.error('Error in form submission:', error);
     }
   };
 
@@ -131,7 +145,7 @@ const RentalForm: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'dailyRate' || name === 'driverCost' || name === 'paidAmount' ? parseFloat(value) : value
+      [name]: name === 'totalCost' || name === 'driverCost' || name === 'paidAmount' ? parseFloat(value) : value
     }));
   };
 
@@ -174,7 +188,7 @@ const RentalForm: React.FC = () => {
             <option value="">Select a client</option>
             {clients.map(client => (
               <option key={client.id} value={client.id}>
-                {client.name}
+                {`${client.firstName} ${client.lastName}`}
               </option>
             ))}
           </select>
@@ -186,7 +200,7 @@ const RentalForm: React.FC = () => {
           <input
             type="date"
             name="startDate"
-            value={formData.startDate}
+            value={formData.startDate.toISOString().split('T')[0]}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
@@ -199,7 +213,7 @@ const RentalForm: React.FC = () => {
           <input
             type="date"
             name="endDate"
-            value={formData.endDate}
+            value={formData.endDate.toISOString().split('T')[0]}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
@@ -207,12 +221,12 @@ const RentalForm: React.FC = () => {
         </div>
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Daily Rate
+            Total Cost
           </label>
           <input
             type="number"
-            name="dailyRate"
-            value={formData.dailyRate}
+            name="totalCost"
+            value={formData.totalCost}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
@@ -277,7 +291,7 @@ const RentalForm: React.FC = () => {
             className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
           >
-            <option value="pending">Pending</option>
+            <option value="unpaid">Unpaid</option>
             <option value="partial">Partial</option>
             <option value="paid">Paid</option>
           </select>

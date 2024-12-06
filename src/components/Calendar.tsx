@@ -4,9 +4,36 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { getCustomerById } from '../services/customerService';
+
+interface Vehicle {
+  brand: string;
+  model: string;
+  year: number;
+  registration: string;
+  status: string;
+  make?: string;  // Some vehicles might use make instead of brand
+}
+
+interface Client {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+}
+
+interface Rental {
+  vehicleId: string;
+  clientId?: string;
+  customerId?: string;
+  startDate: { toDate: () => Date };
+  endDate: { toDate: () => Date };
+  totalCost: number;
+  status: string;
+}
 
 interface CalendarEvent {
   id: string;
@@ -29,51 +56,98 @@ const Calendar: React.FC = () => {
 
   useEffect(() => {
     const fetchEvents = async () => {
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.log('No current user found');
+        return;
+      }
 
       try {
-        // Fetch rentals
+        console.log('Fetching rentals for user:', currentUser.uid);
+        // Fetch rentals for the current user and active status
         const rentalsQuery = query(
           collection(db, 'rentals'),
-          where('userId', '==', currentUser.uid)
+          where('status', '==', 'active')
         );
         const rentalsSnapshot = await getDocs(rentalsQuery);
+        console.log('Total active rentals in database:', rentalsSnapshot.size);
         
         const rentalEvents: CalendarEvent[] = [];
         
-        for (const doc of rentalsSnapshot.docs) {
-          const rental = doc.data();
-          
-          // Fetch associated vehicle
-          const vehicleDoc = await getDocs(
-            query(collection(db, 'vehicles'), 
-            where('id', '==', rental.vehicleId))
-          );
-          const vehicle = vehicleDoc.docs[0]?.data();
-
-          // Fetch associated client
-          const clientDoc = await getDocs(
-            query(collection(db, 'clients'), 
-            where('id', '==', rental.clientId))
-          );
-          const client = clientDoc.docs[0]?.data();
-
-          rentalEvents.push({
-            id: doc.id,
-            title: `🚗 ${vehicle?.brand} ${vehicle?.model}\n👤 ${client?.name}`,
-            start: rental.startDate.toDate().toISOString(),
-            end: rental.endDate.toDate().toISOString(),
-            backgroundColor: '#4CAF50',
-            borderColor: '#4CAF50',
-            extendedProps: {
-              type: 'rental',
-              vehicleInfo: `${vehicle?.brand} ${vehicle?.model}`,
-              customerInfo: client?.name,
-              price: rental.totalAmount
-            }
+        for (const docSnapshot of rentalsSnapshot.docs) {
+          const rental = docSnapshot.data() as Rental;
+          console.log('Processing rental:', {
+            id: docSnapshot.id,
+            vehicleId: rental.vehicleId,
+            clientId: rental.clientId,
+            customerId: rental.customerId,
+            startDate: rental.startDate?.toDate?.(),
+            endDate: rental.endDate?.toDate?.(),
+            status: rental.status
           });
+          
+          try {
+            // Fetch associated vehicle
+            const vehicleDocRef = doc(db, 'vehicles', rental.vehicleId);
+            const vehicleDoc = await getDoc(vehicleDocRef);
+            const vehicleData = vehicleDoc.exists() ? vehicleDoc.data() : null;
+            console.log('Vehicle data:', vehicleData);
+
+            if (!vehicleDoc.exists() || !vehicleData) {
+              console.warn('Vehicle not found:', rental.vehicleId);
+              continue;
+            }
+
+            const vehicle = {
+              brand: vehicleData?.brand || vehicleData?.make || 'Unknown Brand',
+              model: vehicleData?.model || 'Unknown Model',
+              year: vehicleData?.year || 0,
+              registration: vehicleData?.registration || 'Unknown',
+              status: vehicleData?.status || 'unknown'
+            };
+
+            // Fetch associated client using customerService
+            const clientId = rental.clientId || rental.customerId;
+            if (!clientId) {
+              console.warn('No client ID found in rental:', docSnapshot.id);
+              continue;
+            }
+
+            const client = await getCustomerById(clientId);
+            if (!client) {
+              console.warn('Client not found:', clientId);
+              continue;
+            }
+
+            console.log('Client data found:', client);
+
+            // Ensure we have valid dates
+            if (!rental.startDate?.toDate || !rental.endDate?.toDate) {
+              console.warn('Invalid dates in rental:', docSnapshot.id);
+              continue;
+            }
+
+            const event = {
+              id: docSnapshot.id,
+              title: `🚗 ${vehicle.brand} ${vehicle.model}\n👤 ${client.firstName} ${client.lastName}`,
+              start: rental.startDate.toDate().toISOString(),
+              end: rental.endDate.toDate().toISOString(),
+              backgroundColor: rental.status === 'active' ? '#4CAF50' : '#9E9E9E',
+              borderColor: rental.status === 'active' ? '#4CAF50' : '#9E9E9E',
+              extendedProps: {
+                type: 'rental' as const,
+                vehicleInfo: `${vehicle.brand} ${vehicle.model}`,
+                customerInfo: `${client.firstName} ${client.lastName}`,
+                price: rental.totalCost
+              }
+            };
+            console.log('Created calendar event:', event);
+            rentalEvents.push(event);
+          } catch (error) {
+            console.error('Error processing rental:', docSnapshot.id, error);
+          }
         }
 
+        console.log('Setting final events:', rentalEvents);
         setEvents(rentalEvents);
       } catch (error) {
         console.error('Error fetching calendar events:', error);
