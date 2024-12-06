@@ -8,7 +8,7 @@ export interface Vehicle {
     year: number;
     registration: string;
     licensePlate: string;
-    status: 'available' | 'rented' | 'unavailable';
+    status: 'available' | 'rented' | 'unavailable' | 'maintenance';
     dailyRate: number;
     mileage: number;
     kilometers: number;

@@ -56,15 +56,17 @@ export const subscriptionService = {
     // Créer l'abonnement dans Firestore
     const subscriptionRef = await addDoc(collection(db, SUBSCRIPTIONS_COLLECTION), subscription);
     
+    console.log('Creating notification for subscription:', subscriptionRef.id);
     // Créer une notification pour l'administrateur
-    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-      type: 'subscription_request',
+    const notificationRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+      type: 'pending_subscription',
       userId,
       subscriptionId: subscriptionRef.id,
       status: 'unread',
       createdAt: serverTimestamp(),
       message: `Nouvelle demande d'abonnement ${plan.name} (${billingPeriod})`
     });
+    console.log('Notification created with ID:', notificationRef.id);
 
     return {
       ...subscription,
@@ -255,7 +257,8 @@ export const subscriptionService = {
     });
 
     // Créer une notification pour l'utilisateur
-    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+    console.log('Creating notification for subscription approval:', subscriptionId);
+    const notificationRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
       type: 'subscription_approved',
       userId: subscription.userId,
       subscriptionId,
@@ -263,6 +266,7 @@ export const subscriptionService = {
       createdAt: serverTimestamp(),
       message: 'Votre abonnement a été approuvé et est maintenant actif'
     });
+    console.log('Notification created with ID:', notificationRef.id);
   },
 
   // Rejeter un abonnement
@@ -281,7 +285,8 @@ export const subscriptionService = {
     });
 
     // Créer une notification pour l'utilisateur
-    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+    console.log('Creating notification for subscription rejection:', subscriptionId);
+    const notificationRef = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
       type: 'subscription_rejected',
       userId: subscription.userId,
       subscriptionId,
@@ -289,5 +294,6 @@ export const subscriptionService = {
       createdAt: serverTimestamp(),
       message: 'Votre demande d\'abonnement a été rejetée'
     });
+    console.log('Notification created with ID:', notificationRef.id);
   }
 };

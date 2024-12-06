@@ -12,7 +12,7 @@ import {
   Alert,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { collection, query, where, onSnapshot, updateDoc, doc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, doc, orderBy, limit, Query, QuerySnapshot, DocumentData, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -21,10 +21,12 @@ const NOTIFICATIONS_COLLECTION = 'notifications';
 
 interface Notification {
   id: string;
-  type: 'subscription_expiring' | 'subscription_expired' | 'new_subscription' | 'renewal_request';
+  type: 'subscription_expiring' | 'subscription_expired' | 'new_subscription' | 'renewal_request' | 'pending_subscription' | 'subscription_request';
   message: string;
   status: 'read' | 'unread';
   createdAt: any;
+  userId?: string;
+  subscriptionId?: string;
 }
 
 const NotificationCenter: React.FC = () => {
@@ -41,7 +43,8 @@ const NotificationCenter: React.FC = () => {
       if (!currentUser) return;
 
       try {
-        const q = query(
+        // Query pour les notifications de l'utilisateur
+        const userQuery = query(
           collection(db, NOTIFICATIONS_COLLECTION),
           where('userId', '==', currentUser.uid),
           where('status', '==', 'unread'),
@@ -49,33 +52,85 @@ const NotificationCenter: React.FC = () => {
           limit(10)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const newNotifications = snapshot.docs.map(doc => {
+        // Si l'utilisateur est admin, ajouter une query pour les notifications d'administration
+        let adminQuery: Query<DocumentData> | null = null;
+        if (isAdmin) {
+          console.log('Setting up admin notifications query');
+          adminQuery = query(
+            collection(db, NOTIFICATIONS_COLLECTION),
+            where('type', '==', 'subscription_request'),
+            where('status', '==', 'unread'),
+            orderBy('createdAt', 'desc')
+          );
+          
+          // Debug: Vérifier toutes les notifications
+          const allNotificationsQuery = query(
+            collection(db, NOTIFICATIONS_COLLECTION),
+            orderBy('createdAt', 'desc'),
+            limit(10)
+          );
+          
+          const allNotificationsSnapshot = await getDocs(allNotificationsQuery);
+          console.log('All notifications in collection (detailed):', allNotificationsSnapshot.docs.map(doc => {
             const data = doc.data();
             return {
               id: doc.id,
-              type: data.type || 'subscription_expired', // Provide a default value
-              message: data.message || 'No message available',
-              status: data.status || 'unread',
-              createdAt: data.createdAt || new Date()
+              type: data.type,
+              status: data.status,
+              createdAt: data.createdAt,
+              message: data.message
+            };
+          }));
+        }
+
+        // Écouter les notifications de l'utilisateur
+        const userUnsubscribe = onSnapshot(userQuery, (snapshot: QuerySnapshot<DocumentData>) => {
+          const userNotifs = snapshot.docs.map(doc => {
+            console.log('User notification doc:', doc.id, doc.data());
+            return {
+              id: doc.id,
+              ...doc.data()
             } as Notification;
           });
-          setNotifications(newNotifications);
-          setLoading(false);
-        }, (error) => {
-          console.error('Error fetching notifications:', error);
-          setLoading(false);
+
+          if (isAdmin && adminQuery) {
+            // Si admin, combiner avec les notifications d'administration
+            const adminUnsubscribe = onSnapshot(adminQuery, (adminSnapshot: QuerySnapshot<DocumentData>) => {
+              console.log('Admin query snapshot size:', adminSnapshot.size);
+              const adminNotifs = adminSnapshot.docs.map(doc => {
+                console.log('Admin notification doc:', doc.id, doc.data());
+                return {
+                  id: doc.id,
+                  ...doc.data()
+                } as Notification;
+              });
+              
+              const allNotifications = [...userNotifs, ...adminNotifs];
+              console.log('All notifications:', allNotifications);
+              setNotifications(allNotifications.sort((a, b) => b.createdAt - a.createdAt));
+            });
+
+            return () => {
+              userUnsubscribe();
+              adminUnsubscribe();
+            };
+          } else {
+            console.log('User notifications:', userNotifs);
+            setNotifications(userNotifs);
+          }
         });
 
-        return () => unsubscribe();
+        return () => {
+          userUnsubscribe();
+        };
       } catch (error) {
-        console.error('Error setting up notifications listener:', error);
-        setLoading(false);
+        console.error('Error fetching notifications:', error);
       }
     };
 
+    console.log('NotificationCenter effect running, isAdmin:', isAdmin);
     fetchNotifications();
-  }, [currentUser]);
+  }, [currentUser, isAdmin]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -86,26 +141,33 @@ const NotificationCenter: React.FC = () => {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read
-    await updateDoc(doc(db, NOTIFICATIONS_COLLECTION, notification.id), {
-      status: 'read'
-    });
+    try {
+      // Marquer la notification comme lue
+      await updateDoc(doc(db, NOTIFICATIONS_COLLECTION, notification.id), {
+        status: 'read'
+      });
 
-    // Navigate based on notification type
-    switch (notification.type) {
-      case 'subscription_expiring':
-      case 'subscription_expired':
-        navigate('/subscription-plans');
-        break;
-      case 'new_subscription':
-      case 'renewal_request':
-        if (isAdmin) {
+      // Rediriger en fonction du type de notification
+      switch (notification.type) {
+        case 'pending_subscription':
           navigate('/admin/subscriptions');
-        }
-        break;
-    }
+          break;
+        case 'subscription_expiring':
+        case 'subscription_expired':
+        case 'renewal_request':
+          navigate('/subscription');
+          break;
+        case 'subscription_request':
+          navigate('/admin/subscriptions');
+          break;
+        default:
+          break;
+      }
 
-    handleClose();
+      setAnchorEl(null);
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
   };
 
   const unreadCount = notifications.filter(n => n.status === 'unread').length;

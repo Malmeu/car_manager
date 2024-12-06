@@ -33,6 +33,7 @@ import { db } from '../../config/firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscriptionService } from '../../services/subscriptionService'; // Import the subscriptionService
+import VehicleDetailDialog from './VehicleDetailDialog'; // Import VehicleDetailDialog
 
 const VehicleList: React.FC = () => {
   const { currentUser } = useAuth();
@@ -41,18 +42,20 @@ const VehicleList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
     brand: '',
     model: '',
     year: new Date().getFullYear(),
     registration: '',
+    licensePlate: '',
     status: 'available',
     dailyRate: 0,
     mileage: 0,
     kilometers: 0,
     fuelType: 'essence',
-    userId: currentUser?.uid || '',
-    licensePlate: ''
+    userId: currentUser?.uid || ''
   });
   const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
@@ -155,13 +158,13 @@ const VehicleList: React.FC = () => {
         model: vehicle.model,
         year: vehicle.year,
         registration: vehicle.registration,
+        licensePlate: vehicle.licensePlate,
         status: vehicle.status,
         dailyRate: vehicle.dailyRate,
         mileage: vehicle.mileage,
         kilometers: vehicle.kilometers,
         fuelType: vehicle.fuelType,
         userId: vehicle.userId,
-        licensePlate: vehicle.licensePlate
       });
     } else {
       setEditingVehicle(null);
@@ -170,13 +173,13 @@ const VehicleList: React.FC = () => {
         model: '',
         year: new Date().getFullYear(),
         registration: '',
+        licensePlate: '',
         status: 'available',
         dailyRate: 0,
         mileage: 0,
         kilometers: 0,
         fuelType: '',
         userId: currentUser?.uid || '',
-        licensePlate: ''
       });
     }
     setOpen(true);
@@ -185,6 +188,11 @@ const VehicleList: React.FC = () => {
   const handleClose = () => {
     setOpen(false);
     setEditingVehicle(null);
+  };
+
+  const handleCardClick = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setDetailDialogOpen(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,6 +241,24 @@ const VehicleList: React.FC = () => {
     }
   };
 
+  const handleStatusToggle = (e: React.MouseEvent, vehicle: Vehicle) => {
+    e.stopPropagation(); // Empêcher la propagation du clic
+    const newStatus = vehicle.status === 'available' ? 'maintenance' : 'available';
+    updateVehicle(vehicle.id!, { ...vehicle, status: newStatus });
+  };
+
+  const handleEditClick = (e: React.MouseEvent, vehicle: Vehicle) => {
+    e.stopPropagation(); // Empêcher la propagation du clic
+    handleOpen(vehicle);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, vehicle: Vehicle) => {
+    e.stopPropagation(); // Empêcher la propagation du clic
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce véhicule ?')) {
+      deleteVehicle(vehicle.id!);
+    }
+  };
+
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -267,17 +293,20 @@ const VehicleList: React.FC = () => {
           <Grid item xs={12} sm={6} md={4} lg={3} key={vehicle.id}>
             <Card 
               sx={{ 
-                height: '100%', 
-                display: 'flex', 
+                height: '100%',
+                display: 'flex',
                 flexDirection: 'column',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 6,
-                },
+                position: 'relative',
                 borderRadius: 2,
                 overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  boxShadow: 6,
+                  transform: 'translateY(-2px)'
+                }
               }}
+              onClick={() => handleCardClick(vehicle)}
             >
               <Box
                 sx={{
@@ -296,11 +325,7 @@ const VehicleList: React.FC = () => {
                            vehicle.status === 'available' ? 'Disponible' : 'Indisponible'}
                     color={activeRentals.includes(vehicle.id!) ? 'warning' :
                            vehicle.status === 'available' ? 'success' : 'error'}
-                    onClick={activeRentals.includes(vehicle.id!) ? undefined : () => {
-                      updateVehicle(vehicle.id!, {
-                        status: vehicle.status === 'available' ? 'unavailable' : 'available'
-                      });
-                    }}
+                    onClick={(e) => handleStatusToggle(e, vehicle)}
                     sx={{ 
                       cursor: activeRentals.includes(vehicle.id!) ? 'default' : 'pointer',
                       backgroundColor: activeRentals.includes(vehicle.id!) ? '#ed6c02' :
@@ -360,14 +385,14 @@ const VehicleList: React.FC = () => {
               }}>
                 <IconButton
                   size="small"
-                  onClick={() => handleOpen(vehicle)}
+                  onClick={(e) => handleEditClick(e, vehicle)}
                   color="primary"
                 >
                   <EditIcon />
                 </IconButton>
                 <IconButton
                   size="small"
-                  onClick={() => handleDelete(vehicle.id!)}
+                  onClick={(e) => handleDeleteClick(e, vehicle)}
                   color="error"
                 >
                   <DeleteIcon />
@@ -425,6 +450,16 @@ const VehicleList: React.FC = () => {
             />
             <TextField
               margin="dense"
+              name="licensePlate"
+              label="Plaque d'immatriculation"
+              type="text"
+              fullWidth
+              value={formData.licensePlate}
+              onChange={handleInputChange}
+              required
+            />
+            <TextField
+              margin="dense"
               name="status"
               label="État"
               select
@@ -467,16 +502,6 @@ const VehicleList: React.FC = () => {
               onChange={handleInputChange}
               required
             />
-            <TextField
-              margin="dense"
-              name="licensePlate"
-              label="Plaque d'immatriculation"
-              type="text"
-              fullWidth
-              value={formData.licensePlate}
-              onChange={handleInputChange}
-              required
-            />
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
@@ -486,6 +511,13 @@ const VehicleList: React.FC = () => {
           </DialogActions>
         </form>
       </Dialog>
+      {selectedVehicle && (
+        <VehicleDetailDialog
+          open={detailDialogOpen}
+          onClose={() => setDetailDialogOpen(false)}
+          vehicle={selectedVehicle}
+        />
+      )}
     </Box>
   );
 };

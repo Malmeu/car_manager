@@ -55,7 +55,8 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
 
     if (!formData.brand) newErrors.brand = 'La marque est requise';
     if (!formData.model) newErrors.model = 'Le modèle est requis';
-    if (!formData.registration) newErrors.registration = "L'immatriculation est requise";
+    if (!formData.registration) newErrors.registration = "Le numéro de série est requis";
+    if (!formData.licensePlate) newErrors.licensePlate = "L'immatriculation est requise";
     if (formData.dailyRate <= 0) newErrors.dailyRate = 'Le prix journalier doit être supérieur à 0';
     if (formData.mileage < 0) newErrors.mileage = 'Le kilométrage ne peut pas être négatif';
     if (formData.kilometers < 0) newErrors.kilometers = 'Le kilométrage ne peut pas être négatif';
@@ -136,12 +137,23 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Immatriculation"
+              label="Numéro de série"
               name="registration"
               value={formData.registration}
               onChange={handleChange}
               error={!!errors.registration}
               helperText={errors.registration}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Plaque d'immatriculation"
+              name="licensePlate"
+              value={formData.licensePlate}
+              onChange={handleChange}
+              error={!!errors.licensePlate}
+              helperText={errors.licensePlate}
             />
           </Grid>
           <Grid item xs={12} sm={6}>

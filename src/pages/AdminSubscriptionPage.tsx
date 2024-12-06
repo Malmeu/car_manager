@@ -44,6 +44,7 @@ import {
   setDoc,
   Timestamp,
   where,
+  orderBy,
   DocumentData,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -58,20 +59,6 @@ interface UserData {
   companyName?: string;
   phoneNumber?: string;
   fullName?: string;
-}
-
-interface FirestoreSubscription {
-  userId: string;
-  planId: PlanType;
-  status: 'trial' | 'pending' | 'active' | 'expired' | 'suspended';
-  startDate: Timestamp;
-  endDate: Timestamp;
-  nextBillingDate: Timestamp;
-  maxVehicles: number;
-  maxExpenses: number;
-  features: string[];
-  price: number;
-  billingPeriod: 'monthly' | 'annual';
 }
 
 interface Subscription {
@@ -125,6 +112,77 @@ const AdminSubscriptionPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
+    const fetchSubscriptions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const q = query(
+          collection(db, 'subscriptions'),
+          orderBy('startDate', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const subscriptionsData: SubscriptionWithUser[] = [];
+
+        for (const docSnapshot of querySnapshot.docs) {
+          try {
+            const data = docSnapshot.data();
+            
+            // Vérifier si l'userId existe
+            if (!data.userId) {
+              console.warn('Document sans userId trouvé:', docSnapshot.id);
+              continue;
+            }
+
+            const userRef = doc(db, 'users', data.userId);
+            const userDoc = await getDoc(userRef);
+            const userData = userDoc.data() as UserData | undefined;
+            
+            // Conversion sécurisée des dates
+            const now = new Date();
+            const startDate = data.startDate?.toDate?.() || now;
+            const endDate = data.endDate?.toDate?.() || now;
+            const nextBillingDate = data.nextBillingDate?.toDate?.() || now;
+            
+            // S'assurer que toutes les propriétés requises sont définies
+            const subscription: SubscriptionWithUser = {
+              id: docSnapshot.id,
+              userId: data.userId,
+              planId: data.planId || 'basic',
+              status: data.status || 'pending',
+              startDate,
+              endDate,
+              nextBillingDate,
+              maxVehicles: typeof data.maxVehicles === 'number' ? data.maxVehicles : 0,
+              maxExpenses: typeof data.maxExpenses === 'number' ? data.maxExpenses : 0,
+              features: Array.isArray(data.features) ? data.features : [],
+              price: typeof data.price === 'number' ? data.price : 0,
+              billingPeriod: data.billingPeriod || 'monthly',
+              userName: userData?.fullName || 'Utilisateur ' + data.userId.substring(0, 4),
+              userData: {
+                email: userData?.email,
+                fullName: userData?.fullName,
+                companyName: userData?.companyName,
+                phoneNumber: userData?.phoneNumber,
+              }
+            };
+
+            subscriptionsData.push(subscription);
+          } catch (docError) {
+            console.error('Erreur lors du traitement d\'un abonnement:', docError, 'Document ID:', docSnapshot.id);
+            // Continue avec le prochain document au lieu d'arrêter complètement
+            continue;
+          }
+        }
+
+        setSubscriptions(subscriptionsData);
+      } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+        setError('Erreur lors de la récupération des abonnements');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchSubscriptions();
   }, []);
 
@@ -168,10 +226,10 @@ const AdminSubscriptionPage: React.FC = () => {
           displayName: newSubscription.userName,
           companyName: newSubscription.companyName,
           phoneNumber: newSubscription.phoneNumber,
-        } as UserData);
+        });
       }
 
-      const firestoreData: FirestoreSubscription = {
+      const firestoreData = {
         userId: newSubscription.userId,
         planId: newSubscription.planId,
         status: newSubscription.status,
@@ -186,24 +244,11 @@ const AdminSubscriptionPage: React.FC = () => {
       };
 
       if (isEditing && selectedSubscription?.id) {
-        // Mise à jour de l'abonnement existant
+        // Mise à jour d'un abonnement existant
         const subscriptionRef = doc(db, 'subscriptions', selectedSubscription.id);
-        const updateData = {
-          userId: firestoreData.userId,
-          planId: firestoreData.planId,
-          status: firestoreData.status,
-          billingPeriod: firestoreData.billingPeriod,
-          startDate: firestoreData.startDate,
-          endDate: firestoreData.endDate,
-          nextBillingDate: firestoreData.nextBillingDate,
-          maxVehicles: firestoreData.maxVehicles,
-          maxExpenses: firestoreData.maxExpenses,
-          features: firestoreData.features,
-          price: firestoreData.price,
-        };
-        await updateDoc(subscriptionRef, updateData);
+        await updateDoc(subscriptionRef, firestoreData);
       } else {
-        // Vérifier si l'utilisateur a déjà un abonnement actif
+        // Nouvelle demande d'abonnement
         const existingSubscriptionsQuery = query(
           collection(db, 'subscriptions'),
           where('userId', '==', newSubscription.userId),
@@ -212,37 +257,53 @@ const AdminSubscriptionPage: React.FC = () => {
         const existingSubscriptions = await getDocs(existingSubscriptionsQuery);
 
         if (!existingSubscriptions.empty) {
-          // Au lieu de lancer une erreur, mettre à jour l'ancien abonnement
+          // Mettre à jour l'ancien abonnement
           const oldSubscription = existingSubscriptions.docs[0];
           await updateDoc(doc(db, 'subscriptions', oldSubscription.id), {
-            status: 'expired',
-            endDate: Timestamp.fromDate(new Date())
+            status: 'expired'
           });
         }
 
-        // Création d'un nouvel abonnement
-        await addDoc(collection(db, 'subscriptions'), firestoreData);
+        // Créer le nouvel abonnement
+        const subscriptionRef = await addDoc(collection(db, 'subscriptions'), firestoreData);
+
+        // Créer une notification pour les administrateurs
+        if (newSubscription.status === 'pending') {
+          await addDoc(collection(db, 'notifications'), {
+            type: 'pending_subscription',
+            message: `Nouvelle demande d'abonnement de ${newSubscription.userName || newSubscription.email}`,
+            status: 'unread',
+            createdAt: Timestamp.now(),
+            subscriptionId: subscriptionRef.id,
+            userId: newSubscription.userId
+          });
+        }
       }
 
-      setOpenNewDialog(false);
-      setIsEditing(false);
       setNewSubscription({
         userId: '',
+        email: '',
+        userName: '',
+        companyName: '',
+        phoneNumber: '',
         planId: 'basic',
         status: 'pending',
-        billingPeriod: 'monthly',
         startDate: new Date(),
         endDate: new Date(),
         nextBillingDate: new Date(),
-        maxVehicles: 0,
-        maxExpenses: 0,
+        maxVehicles: 5,
+        maxExpenses: 100,
         features: [],
         price: 0,
+        billingPeriod: 'monthly'
       });
+
+      setIsEditing(false);
+      setSelectedSubscription(null);
       await fetchSubscriptions();
-    } catch (err) {
-      console.error('Erreur lors de l\'opération:', err);
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'opération sur l\'abonnement');
+      
+    } catch (error) {
+      console.error('Error adding subscription:', error);
     }
   };
 
@@ -263,7 +324,11 @@ const AdminSubscriptionPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const querySnapshot = await getDocs(collection(db, 'subscriptions'));
+      const q = query(
+        collection(db, 'subscriptions'),
+        orderBy('startDate', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
       const subscriptionsData: SubscriptionWithUser[] = [];
 
       for (const docSnapshot of querySnapshot.docs) {
