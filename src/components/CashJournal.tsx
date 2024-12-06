@@ -285,17 +285,48 @@ const CashJournal: React.FC = () => {
               <TableRow
                 key={movement.id}
                 sx={{
-                  backgroundColor: movement.isPending ? 'rgba(255, 244, 229, 0.9)' : 
-                                   movement.remainingAmount && movement.remainingAmount > 0 ? 'rgba(254, 243, 199, 0.9)' : 
-                                   'inherit'
+                  backgroundColor: 
+                    movement.type === 'vehicle_expense' || movement.type === 'business_expense' 
+                      ? 'rgba(254, 226, 226, 0.5)'  // Rouge très clair pour les dépenses
+                      : movement.isPending 
+                        ? 'rgba(255, 244, 229, 0.9)'  // Orange clair pour les paiements en attente
+                        : movement.remainingAmount > 0 
+                          ? 'rgba(254, 243, 199, 0.9)'  // Jaune clair pour les paiements partiels
+                          : movement.type === 'vehicle_revenue'
+                            ? 'rgba(220, 252, 231, 0.5)'  // Vert très clair pour les locations payées
+                            : 'inherit',
+                  '&:hover': {
+                    backgroundColor: 
+                      movement.type === 'vehicle_expense' || movement.type === 'business_expense'
+                        ? 'rgba(254, 226, 226, 0.7)'
+                        : movement.isPending
+                          ? 'rgba(255, 244, 229, 1)'
+                          : movement.remainingAmount > 0
+                            ? 'rgba(254, 243, 199, 1)'
+                            : movement.type === 'vehicle_revenue'
+                              ? 'rgba(220, 252, 231, 0.7)'
+                              : 'rgba(0, 0, 0, 0.04)'
+                  }
                 }}
               >
                 <TableCell>{movement.date.toLocaleDateString()}</TableCell>
-                <TableCell>{movement.designation}</TableCell>
+                <TableCell>
+                  <div className="flex items-center">
+                    {movement.type === 'vehicle_expense' || movement.type === 'business_expense' ? (
+                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-red-500 rounded-full"/>
+                    ) : (
+                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-green-500 rounded-full"/>
+                    )}
+                    {movement.designation}
+                  </div>
+                </TableCell>
                 <TableCell align="right">
                   {movement.totalAmount.toLocaleString('fr-FR')} DA
                 </TableCell>
-                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                <TableCell align="right" sx={{ 
+                  color: movement.type === 'vehicle_revenue' ? 'success.main' : 'error.main',
+                  fontWeight: 'bold' 
+                }}>
                   {movement.paidAmount.toLocaleString('fr-FR')} DA
                 </TableCell>
                 <TableCell align="right" sx={{ color: 'error.main', fontWeight: 'bold' }}>
@@ -312,7 +343,7 @@ const CashJournal: React.FC = () => {
                     </div>
                   ) : '-'}
                 </TableCell>
-                <TableCell align="right">
+                <TableCell align="right" sx={{ color: movement.expense > 0 ? 'error.main' : 'inherit' }}>
                   {movement.expense > 0 ? `${movement.expense.toLocaleString('fr-FR')} DA` : '-'}
                 </TableCell>
               </TableRow>
