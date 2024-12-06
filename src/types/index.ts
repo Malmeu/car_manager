@@ -88,3 +88,18 @@ export interface Contract {
   wilaya: string;
   createdAt: Timestamp;
 }
+
+export interface Subscription {
+  id?: string;
+  userId: string;
+  planId: string; // PlanType is not defined in the provided code, assuming it's a string
+  status: 'trial' | 'pending' | 'active' | 'expired' | 'suspended';
+  startDate: Date;
+  endDate: Date;
+  nextBillingDate: Date;
+  maxVehicles: number;
+  maxExpenses: number;
+  features: string[];
+  price: number;
+  billingPeriod: 'monthly' | 'annual';
+}

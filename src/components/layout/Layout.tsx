@@ -21,6 +21,7 @@ import {
   Button,
   Collapse,
   Link,
+  CircularProgress,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -49,6 +50,7 @@ import { auth } from '../../config/firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { subscriptionService } from '../../services/subscriptionService';
 import NotificationCenter from '../notifications/NotificationCenter';
 import SubscriptionStatus from '../subscription/SubscriptionStatus';
 
@@ -210,22 +212,53 @@ type MenuItem = {
 const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [open, setOpen] = React.useState(true);
   const [expandedItems, setExpandedItems] = React.useState<{ [key: string]: boolean }>({});
-  const { currentUser, isAdmin, loading } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [hasValidSubscription, setHasValidSubscription] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !currentUser) {
-      navigate('/login');
-    }
-  }, [currentUser, loading, navigate]);
+    const checkSubscription = async () => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(currentUser.uid);
+        const isValid = subscriptionStatus.status === 'active' || subscriptionStatus.status === 'trial';
+        setHasValidSubscription(isValid);
+
+        // Liste des routes autorisées même sans abonnement actif
+        const allowedRoutes = [
+          '/subscription-plans',
+          '/subscription-pending',
+          '/profile',
+          '/login',
+          '/signup'
+        ];
+
+        // Si l'utilisateur n'a pas d'abonnement valide et n'est pas sur une route autorisée
+        if (!isValid && !allowedRoutes.some(route => location.pathname.startsWith(route))) {
+          navigate('/subscription-pending');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification de l\'abonnement:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSubscription();
+  }, [currentUser, location.pathname]);
 
   if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!currentUser) {
-    return null;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   const handleLogout = async () => {
@@ -238,24 +271,22 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   const menuItems: MenuItem[] = [
-    ...(isAdmin ? [
-      {
-        text: 'Administration',
-        icon: <AdminIcon />,
-        items: [
-          {
-            text: 'Utilisateurs',
-            icon: <PeopleIcon />,
-            path: '/admin/users'
-          },
-          {
-            text: 'Abonnements',
-            icon: <CreditCardIcon />,
-            path: '/admin/subscriptions'
-          }
-        ]
-      }
-    ] : []),
+    ...(isAdmin ? [{
+      text: 'Administration',
+      icon: <AdminIcon />,
+      items: [
+        {
+          text: 'Gestion des utilisateurs',
+          icon: <PeopleIcon />,
+          path: '/admin/users'
+        },
+        {
+          text: 'Gestion des abonnements',
+          icon: <CreditCardIcon />,
+          path: '/admin/subscriptions'
+        }
+      ]
+    }] : []),
     {
       text: 'Dashboard',
       icon: <DashboardIcon />,

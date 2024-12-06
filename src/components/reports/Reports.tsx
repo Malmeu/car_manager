@@ -11,6 +11,8 @@ import {
   CircularProgress,
   useTheme,
   LinearProgress,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   BarChart,
@@ -70,6 +72,7 @@ const Reports: React.FC = () => {
     completedRentals: 0,
     vehicleUtilization: [],
   });
+  const [isAnnualReport, setIsAnnualReport] = useState(false);
   const theme = useTheme();
 
   useEffect(() => {
@@ -138,7 +141,8 @@ const Reports: React.FC = () => {
 
       const revenueByMonth = new Map<string, number>();
       completedRentals.forEach(rental => {
-        const month = format(rental.startDate.toDate(), 'MMMM yyyy');
+        const dateFormat = isAnnualReport ? 'yyyy' : 'MMMM yyyy';
+        const period = format(rental.startDate.toDate(), dateFormat);
         const rentalDays = Math.ceil(
           (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
         );
@@ -146,7 +150,7 @@ const Reports: React.FC = () => {
         const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
         const totalRevenue = baseRevenue + driverRevenue;
         
-        revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + totalRevenue);
+        revenueByMonth.set(period, (revenueByMonth.get(period) || 0) + totalRevenue);
       });
 
       const rentalsByVehicle = new Map<string, number>();
@@ -193,8 +197,26 @@ const Reports: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, backgroundColor: theme.palette.background.default }}>
-      <Typography variant="h4" sx={{ mb: 4, color: theme.palette.primary.main }}>
-        Tableau de bord des rapports
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" sx={{ color: theme.palette.primary.main }}>
+          Tableau de bord des rapports
+        </Typography>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={isAnnualReport}
+              onChange={(e) => {
+                setIsAnnualReport(e.target.checked);
+                calculateStats(rentals, vehicles);
+              }}
+              color="primary"
+            />
+          }
+          label={isAnnualReport ? "Rapport Annuel" : "Rapport Mensuel"}
+        />
+      </Box>
+      <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
+        Revenus {isAnnualReport ? "Annuel" : "Mensuel"}
       </Typography>
       {loading ? (
         <CircularProgress />
@@ -345,7 +367,7 @@ const Reports: React.FC = () => {
               border: `1px solid ${theme.palette.primary.light}`,
             }}>
               <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
-                Revenus Mensuels
+                Revenus {isAnnualReport ? "Annuel" : "Mensuel"}
               </Typography>
               <Box height={400}>
                 <ResponsiveContainer width="100%" height="100%">

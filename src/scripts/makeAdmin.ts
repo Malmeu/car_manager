@@ -1,7 +1,7 @@
 import { auth, db } from '../config/firebase';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
-const makeUserAdmin = async (email: string) => {
+export const makeUserAdmin = async (email: string) => {
   try {
     // Trouver l'utilisateur dans Firebase Auth
     const usersRef = collection(db, 'users');

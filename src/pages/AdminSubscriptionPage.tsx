@@ -212,7 +212,12 @@ const AdminSubscriptionPage: React.FC = () => {
         const existingSubscriptions = await getDocs(existingSubscriptionsQuery);
 
         if (!existingSubscriptions.empty) {
-          throw new Error('Cet utilisateur a déjà un abonnement actif');
+          // Au lieu de lancer une erreur, mettre à jour l'ancien abonnement
+          const oldSubscription = existingSubscriptions.docs[0];
+          await updateDoc(doc(db, 'subscriptions', oldSubscription.id), {
+            status: 'expired',
+            endDate: Timestamp.fromDate(new Date())
+          });
         }
 
         // Création d'un nouvel abonnement
