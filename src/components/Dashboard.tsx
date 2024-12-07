@@ -39,6 +39,7 @@ const Dashboard = () => {
   const [totalClients, setTotalClients] = useState(0);
   const [activeRentals, setActiveRentals] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const companyName = localStorage.getItem('companyName') || 'Votre Entreprise';
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -103,24 +104,21 @@ const Dashboard = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Tableau de bord
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          {new Date().toLocaleDateString('fr-FR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
-        </Typography>
-      </Box>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Typography variant="h4" gutterBottom>
-            Bienvenue, {currentUser?.email}
-          </Typography>
+          <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+            <Typography>
+              {new Date().toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </Typography>
+            <Typography variant="h5" gutterBottom>
+              Bienvenue, {companyName}
+            </Typography>
+          </Paper>
         </Grid>
 
         {/* Statistiques */}
