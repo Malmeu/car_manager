@@ -13,6 +13,22 @@ import {
   LinearProgress,
   Switch,
   FormControlLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Button,
+  Checkbox,
+  ListItemIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Chip,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   BarChart,
@@ -34,6 +50,9 @@ import {
   DirectionsCar as CarIcon,
   AttachMoney as MoneyIcon,
   Timeline as TimelineIcon,
+  Print as PrintIcon,
+  GetApp as GetAppIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { Timestamp } from 'firebase/firestore';
 import { Vehicle, Rental } from '../../types';
@@ -41,6 +60,8 @@ import { getAllRentals } from '../../services/rentalService';
 import { getAllVehicles } from '../../services/vehicleService';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 interface RentalStats {
   monthlyRevenue: Array<{ month: string; amount: number }>;
@@ -53,6 +74,28 @@ interface RentalStats {
   activeRentals: number;
   completedRentals: number;
   vehicleUtilization: Array<{ vehicle: string; totalDays: number; revenue: number }>;
+}
+
+interface DetailedReport {
+  vehicleId: string;
+  vehicleName: string;
+  revenue: number;
+  expenses: number;
+  totalRentals: number;
+  transactions: Array<{
+    date: Date;
+    type: 'revenue' | 'expense';
+    amount: number;
+    description: string;
+  }>;
+}
+
+interface VehicleExpense {
+  id: string;
+  description: string;
+  amount: number;
+  date: Date;
+  vehicleId: string;
 }
 
 const Reports: React.FC = () => {
@@ -73,6 +116,14 @@ const Reports: React.FC = () => {
     vehicleUtilization: [],
   });
   const [isAnnualReport, setIsAnnualReport] = useState(false);
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState({
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    end: new Date(),
+  });
+  const [reportType, setReportType] = useState<('revenue' | 'expense')[]>(['revenue', 'expense']);
+  const [detailedReport, setDetailedReport] = useState<DetailedReport[]>([]);
+  const [showDetailedReport, setShowDetailedReport] = useState(false);
   const theme = useTheme();
 
   useEffect(() => {
@@ -193,6 +244,204 @@ const Reports: React.FC = () => {
     } catch (error) {
       console.error('Error calculating stats:', error);
     }
+  };
+
+  const generateDetailedReport = async () => {
+    setShowDetailedReport(true);
+    const reports: DetailedReport[] = [];
+    
+    const selectedVehiclesList = vehicles.filter(v => 
+      v.id && (selectedVehicles.length === 0 || selectedVehicles.includes(v.id))
+    );
+
+    for (const vehicle of selectedVehiclesList) {
+      // Récupérer les locations
+      const vehicleRentals = rentals.filter(r => 
+        r.vehicleId === vehicle.id &&
+        r.startDate.toDate() >= dateRange.start &&
+        r.startDate.toDate() <= dateRange.end
+      );
+
+      console.log('Processing vehicle:', vehicle.brand, vehicle.model);
+
+      // Récupérer les frais véhicule
+      const expensesQuery = query(
+        collection(db, 'expenses'),
+        where('carId', '==', vehicle.id),
+        where('userId', '==', currentUser?.uid)
+      );
+
+      try {
+        const expensesSnapshot = await getDocs(expensesQuery);
+        console.log('Expenses found:', expensesSnapshot.size);
+        
+        const vehicleExpenses = expensesSnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Expense data:', data);
+          return {
+            id: doc.id,
+            description: data.name || 'Frais véhicule',
+            amount: Number(data.amount),
+            date: data.date.toDate(),
+            vehicleId: data.carId
+          } as VehicleExpense;
+        });
+
+        const filteredExpenses = vehicleExpenses.filter(expense => {
+          const isInRange = expense.date >= dateRange.start && expense.date <= dateRange.end;
+          console.log('Expense in range:', isInRange, expense);
+          return isInRange;
+        });
+
+        console.log('Filtered expenses:', filteredExpenses);
+
+        const revenue = vehicleRentals.reduce((sum, rental) => sum + rental.totalCost, 0);
+        const expenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+        console.log('Total revenue:', revenue);
+        console.log('Total expenses:', expenses);
+
+        const transactions = [
+          ...vehicleRentals.map(rental => ({
+            date: rental.startDate.toDate(),
+            type: 'revenue' as const,
+            amount: rental.totalCost,
+            description: `Location du ${format(rental.startDate.toDate(), 'dd/MM/yyyy')} au ${format(rental.endDate.toDate(), 'dd/MM/yyyy')}`,
+          })),
+          ...filteredExpenses.map(expense => ({
+            date: expense.date,
+            type: 'expense' as const,
+            amount: expense.amount,
+            description: expense.description,
+          })),
+        ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        reports.push({
+          vehicleId: vehicle.id ?? '',
+          vehicleName: vehicle.brand + ' ' + vehicle.model,
+          revenue,
+          expenses,
+          totalRentals: vehicleRentals.length,
+          transactions,
+        });
+      } catch (error) {
+        console.error('Error fetching expenses:', error);
+      }
+    }
+
+    setDetailedReport(reports);
+  };
+
+  const handlePrint = () => {
+    const printContent = document.createElement('div');
+    printContent.innerHTML = `
+      <style>
+        @media print {
+          table { 
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+          }
+          th, td { 
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+          .revenue { color: #2e7d32; }
+          .expense { color: #d32f2f; }
+          .total-row {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+        }
+      </style>
+      <h2>Rapport Détaillé - ${format(dateRange.start, 'dd/MM/yyyy')} au ${format(dateRange.end, 'dd/MM/yyyy')}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Véhicule</th>
+            ${reportType.includes('revenue') ? '<th>Revenus</th>' : ''}
+            ${reportType.includes('expense') ? '<th>Dépenses</th>' : ''}
+            <th>Total Locations</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detailedReport.map(report => `
+            <tr>
+              <td>${report.vehicleName}</td>
+              ${reportType.includes('revenue') ? 
+                `<td class="revenue">${report.revenue.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'DZD',
+                  maximumFractionDigits: 0 
+                })}</td>` : ''
+              }
+              ${reportType.includes('expense') ? 
+                `<td class="expense">${report.expenses.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'DZD',
+                  maximumFractionDigits: 0 
+                })}</td>` : ''
+              }
+              <td>${report.totalRentals}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td>Total</td>
+            ${reportType.includes('revenue') ? 
+              `<td class="revenue">${detailedReport
+                .reduce((sum, report) => sum + report.revenue, 0)
+                .toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'DZD',
+                  maximumFractionDigits: 0 
+                })}</td>` : ''
+            }
+            ${reportType.includes('expense') ? 
+              `<td class="expense">${detailedReport
+                .reduce((sum, report) => sum + report.expenses, 0)
+                .toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'DZD',
+                  maximumFractionDigits: 0 
+                })}</td>` : ''
+            }
+            <td>${detailedReport.reduce((sum, report) => sum + report.totalRentals, 0)}</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent.innerHTML);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  };
+
+  const handleExport = () => {
+    const csvContent = [
+      ['Véhicule', 'Revenus', 'Dépenses', 'Total Locations'],
+      ...detailedReport.map(report => [
+        report.vehicleName,
+        report.revenue.toString(),
+        report.expenses.toString(),
+        report.totalRentals.toString(),
+      ]),
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `rapport_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`;
+    link.click();
   };
 
   return (
@@ -499,6 +748,273 @@ const Reports: React.FC = () => {
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
+            </Paper>
+          </Grid>
+
+          {/* Section Rapport Détaillé */}
+          <Grid item xs={12}>
+            <Paper 
+              sx={{ 
+                p: 4,
+                mt: 3,
+                borderRadius: 2,
+                boxShadow: theme => theme.shadows[3]
+              }}
+            >
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: theme => theme.palette.primary.main }}>
+                  Rapport Détaillé
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Générez un rapport personnalisé en sélectionnant les véhicules et la période souhaitée
+                </Typography>
+              </Box>
+
+              <Grid container spacing={4}>
+                {/* Sélection des véhicules */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="vehicle-select-label">Sélectionner les véhicules</InputLabel>
+                    <Select
+                      labelId="vehicle-select-label"
+                      multiple
+                      value={selectedVehicles}
+                      onChange={(e) => setSelectedVehicles(e.target.value as string[])}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => (
+                            <Chip
+                              key={value}
+                              label={vehicles.find(v => v.id === value)?.brand + ' ' + 
+                                    vehicles.find(v => v.id === value)?.model}
+                              sx={{ 
+                                backgroundColor: theme => theme.palette.primary.main,
+                                color: 'white'
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                      sx={{ minWidth: 200 }}
+                    >
+                      {vehicles
+                        .filter(v => v.id && v.brand && v.model)
+                        .map((vehicle) => (
+                          <MenuItem key={vehicle.id} value={vehicle.id}>
+                            <Checkbox 
+                              checked={vehicle.id ? selectedVehicles.includes(vehicle.id) : false} 
+                            />
+                            <ListItemText 
+                              primary={vehicle.brand && vehicle.model ? 
+                                `${vehicle.brand} ${vehicle.model}` : 
+                                'Véhicule sans nom'
+                              } 
+                            />
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Sélection de la période */}
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <TextField
+                      label="Date de début"
+                      type="date"
+                      value={format(dateRange.start, 'yyyy-MM-dd')}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, start: new Date(e.target.value) }))}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      sx={{ bgcolor: 'background.paper' }}
+                    />
+                    <TextField
+                      label="Date de fin"
+                      type="date"
+                      value={format(dateRange.end, 'yyyy-MM-dd')}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, end: new Date(e.target.value) }))}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      sx={{ bgcolor: 'background.paper' }}
+                    />
+                  </Box>
+                </Grid>
+
+                {/* Type de données */}
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: 1,
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1
+                  }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      Type de données
+                    </Typography>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={reportType.includes('revenue')}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReportType(prev => [...prev, 'revenue']);
+                            } else {
+                              setReportType(prev => prev.filter(t => t !== 'revenue'));
+                            }
+                          }}
+                          color="primary"
+                        />
+                      }
+                      label="Revenus"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={reportType.includes('expense')}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReportType(prev => [...prev, 'expense']);
+                            } else {
+                              setReportType(prev => prev.filter(t => t !== 'expense'));
+                            }
+                          }}
+                          color="primary"
+                        />
+                      }
+                      label="Dépenses"
+                    />
+                  </Box>
+                </Grid>
+
+                {/* Boutons d'action */}
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                    <Button 
+                      variant="contained" 
+                      onClick={generateDetailedReport}
+                      startIcon={<AssessmentIcon />}
+                      sx={{ 
+                        px: 4,
+                        py: 1.5,
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Générer le rapport
+                    </Button>
+                    {showDetailedReport && (
+                      <>
+                        <IconButton 
+                          onClick={handlePrint}
+                          sx={{ 
+                            bgcolor: 'action.selected',
+                            '&:hover': { bgcolor: 'action.hover' }
+                          }}
+                        >
+                          <PrintIcon />
+                        </IconButton>
+                        <IconButton 
+                          onClick={handleExport}
+                          sx={{ 
+                            bgcolor: 'action.selected',
+                            '&:hover': { bgcolor: 'action.hover' }
+                          }}
+                        >
+                          <GetAppIcon />
+                        </IconButton>
+                      </>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Tableau de résultats */}
+              {showDetailedReport && (
+                <TableContainer 
+                  component={Paper} 
+                  sx={{ 
+                    mt: 4,
+                    borderRadius: 2,
+                    boxShadow: theme => theme.shadows[2]
+                  }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', color: '#1a1a1a' }}>Véhicule</TableCell>
+                        {reportType.includes('revenue') && (
+                          <TableCell align="right" sx={{ fontWeight: 'bold', color: '#1a1a1a' }}>Revenus</TableCell>
+                        )}
+                        {reportType.includes('expense') && (
+                          <TableCell align="right" sx={{ fontWeight: 'bold', color: '#1a1a1a' }}>Dépenses</TableCell>
+                        )}
+                        <TableCell align="right" sx={{ fontWeight: 'bold', color: '#1a1a1a' }}>Total Locations</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {detailedReport.map((report) => (
+                        <TableRow 
+                          key={report.vehicleId}
+                          sx={{ '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}
+                        >
+                          <TableCell>{report.vehicleName}</TableCell>
+                          {reportType.includes('revenue') && (
+                            <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+                              {report.revenue.toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'DZD',
+                                maximumFractionDigits: 0 
+                              })}
+                            </TableCell>
+                          )}
+                          {reportType.includes('expense') && (
+                            <TableCell align="right" sx={{ color: 'error.main', fontWeight: 'medium' }}>
+                              {report.expenses.toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'DZD',
+                                maximumFractionDigits: 0 
+                              })}
+                            </TableCell>
+                          )}
+                          <TableCell align="right">{report.totalRentals}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow sx={{ bgcolor: 'grey.100' }}>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                        {reportType.includes('revenue') && (
+                          <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                            {detailedReport
+                              .reduce((sum, report) => sum + report.revenue, 0)
+                              .toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'DZD',
+                                maximumFractionDigits: 0 
+                              })}
+                          </TableCell>
+                        )}
+                        {reportType.includes('expense') && (
+                          <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                            {detailedReport
+                              .reduce((sum, report) => sum + report.expenses, 0)
+                              .toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'DZD',
+                                maximumFractionDigits: 0 
+                              })}
+                          </TableCell>
+                        )}
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {detailedReport.reduce((sum, report) => sum + report.totalRentals, 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Paper>
           </Grid>
         </Grid>
