@@ -22,6 +22,7 @@ import ContractList from './components/contracts/ContractList';
 import ContractPreview from './components/contracts/ContractPreview';
 import UserSubscriptionPage from './pages/UserSubscriptionPage';
 import UtilitiesPage from './pages/UtilitiesPage';
+import ProfileCustomization from './components/profile/ProfileCustomization';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -52,11 +53,21 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
             <Route path="/subscription-pending" element={<SubscriptionPendingPage />} />
+            
+            {/* Landing Page with Auth Check */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/dashboard" replace />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Routes Admin */}
             <Route path="/admin" element={<AdminLayout />}>
@@ -67,6 +78,7 @@ function App() {
 
             {/* Routes Utilisateur */}
             <Route element={<UserLayout />}>
+              <Route path="/profile-customization" element={<ProfileCustomization />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/vehicles" element={<VehicleList />} />
               <Route path="/customers" element={<CustomerList />} />

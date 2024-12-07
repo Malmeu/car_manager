@@ -103,6 +103,19 @@ const Dashboard = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Tableau de bord
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          {new Date().toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </Typography>
+      </Box>
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Typography variant="h4" gutterBottom>
