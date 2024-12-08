@@ -59,15 +59,8 @@ function App() {
             <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
             <Route path="/subscription-pending" element={<SubscriptionPendingPage />} />
             
-            {/* Landing Page with Auth Check */}
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/dashboard" replace />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Landing Page */}
+            <Route path="/" element={<LandingPage />} />
             
             {/* Routes Admin */}
             <Route path="/admin" element={<AdminLayout />}>
