@@ -10,8 +10,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Switch,
   Divider,
   Box,
   Card,
@@ -36,14 +34,12 @@ export interface ContractFormData {
   clientName: string;
   clientAddress: string;
   clientPhone: string;
-  clientEmail: string;
-  driverLicense: string;
+  clientIdCard: string;
   vehicleId: string;
   startDate: Date | null;
   endDate: Date | null;
-  withDriver: boolean;
-  driverPrice: number;
-  discount: number;
+  rentalPrice: number;
+  discountAmount: number;
   deposit: number;
   additionalNotes: string;
 }
@@ -52,14 +48,12 @@ const initialFormData: ContractFormData = {
   clientName: '',
   clientAddress: '',
   clientPhone: '',
-  clientEmail: '',
-  driverLicense: '',
+  clientIdCard: '',
   vehicleId: '',
-  startDate: null,
-  endDate: null,
-  withDriver: false,
-  driverPrice: 0,
-  discount: 0,
+  startDate: new Date(),
+  endDate: new Date(),
+  rentalPrice: 0,
+  discountAmount: 0,
   deposit: 0,
   additionalNotes: ''
 };
@@ -108,9 +102,7 @@ const ContractForm: React.FC = () => {
       
       setFormData(prevData => ({
         ...prevData,
-        [prop]: prop === 'withDriver' 
-          ? (event.target as HTMLInputElement).checked 
-          : value
+        [prop]: value
       }));
 
       if (prop === 'vehicleId') {
@@ -202,18 +194,9 @@ const ContractForm: React.FC = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Email"
-                type="email"
-                value={formData.clientEmail}
-                onChange={handleInputChange('clientEmail')}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Numéro de permis"
-                value={formData.driverLicense}
-                onChange={handleInputChange('driverLicense')}
+                label="Carte d'identité"
+                value={formData.clientIdCard}
+                onChange={handleInputChange('clientIdCard')}
                 required
               />
             </Grid>
@@ -252,37 +235,6 @@ const ContractForm: React.FC = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.withDriver}
-                    onChange={(e) => {
-                      const newValue = e.target.checked;
-                      setFormData(prev => ({
-                        ...prev,
-                        withDriver: newValue,
-                        driverPrice: newValue ? prev.driverPrice : 0
-                      }));
-                    }}
-                  />
-                }
-                label="Avec chauffeur"
-              />
-            </Grid>
-            {formData.withDriver && (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Prix du chauffeur (DA/jour)"
-                  type="number"
-                  value={formData.driverPrice}
-                  onChange={handleInputChange('driverPrice')}
-                  InputProps={{ inputProps: { min: 0 } }}
-                  required
-                />
-              </Grid>
-            )}
-            <Grid item xs={12} md={6}>
               <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
                 <DateTimePicker
                   label="Date de début"
@@ -302,25 +254,36 @@ const ContractForm: React.FC = () => {
                 />
               </LocalizationProvider>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Remise (%)"
-                type="number"
-                value={formData.discount}
-                onChange={handleInputChange('discount')}
-                InputProps={{ inputProps: { min: 0, max: 100 } }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Caution (DA)"
-                type="number"
-                value={formData.deposit}
-                onChange={handleInputChange('deposit')}
-                InputProps={{ inputProps: { min: 0 } }}
-              />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Montant de la location (DA/jour)"
+                  type="number"
+                  value={formData.rentalPrice}
+                  onChange={handleInputChange('rentalPrice')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Remise (DA)"
+                  type="number"
+                  value={formData.discountAmount}
+                  onChange={handleInputChange('discountAmount')}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Caution (DA)"
+                  type="number"
+                  value={formData.deposit}
+                  onChange={handleInputChange('deposit')}
+                  required
+                />
+              </Grid>
             </Grid>
             <Grid item xs={12}>
               <TextField

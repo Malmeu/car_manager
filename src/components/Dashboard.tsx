@@ -8,7 +8,15 @@ import {
   useTheme,
   Tooltip,
   Container,
-  Paper
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  List,
+  ListItem,
+  ListItemText,
+  DialogActions,
+  Button
 } from '@mui/material';
 import Calendar from './Calendar';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
@@ -16,8 +24,9 @@ import { auth, db } from '../config/firebase';
 import { differenceInDays } from 'date-fns';
 import { getAllVehicles } from '../services/vehicleService';
 import { getAllRentals, Rental } from '../services/rentalService';
-import { Customer, COLLECTION_NAME as CUSTOMERS_COLLECTION } from '../services/customerService';
+import { Customer, Vehicle } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { getAllCustomers } from '../services/customerService';
 
 // Extend the Rental interface to include the new properties
 interface ExtendedRental extends Rental {
@@ -33,6 +42,19 @@ interface CalendarEvent {
   type: 'rental' | 'maintenance';
 }
 
+interface RemainingToCollect {
+  total: number;
+  details: Array<{
+    client: string;
+    amount: number;
+  }>;
+}
+
+interface AvailableCars {
+  total: number;
+  details: string[];
+}
+
 const Dashboard = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
@@ -40,84 +62,85 @@ const Dashboard = () => {
   const [totalClients, setTotalClients] = useState(0);
   const [activeRentals, setActiveRentals] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const [availableCars, setAvailableCars] = useState<{ total: number, details: string[] }>({ total: 0, details: [] });
-  const [remainingToCollect, setRemainingToCollect] = useState<{ total: number, details: { client: string, amount: number }[] }>({ 
+  const [availableCars, setAvailableCars] = useState<AvailableCars>({ total: 0, details: [] });
+  const [remainingToCollect, setRemainingToCollect] = useState<RemainingToCollect>({ 
     total: 0, 
     details: [] 
   });
+  const [showRemainingDetails, setShowRemainingDetails] = useState(false);
   const companyName = localStorage.getItem('companyName') || 'Votre Entreprise';
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentUser) return;
+
       try {
-        if (!currentUser) return;
+        const [rentalsData, vehiclesData, clientsData] = await Promise.all([
+          getAllRentals(currentUser.uid),
+          getAllVehicles(currentUser.uid),
+          getAllCustomers(currentUser.uid)
+        ]) as [Rental[], Vehicle[], Customer[]];
 
-        // Fetch vehicles first
-        const vehicles = await getAllVehicles(currentUser.uid);
-        setTotalVehicles(vehicles.length);
+        const now = new Date();
+        let activeRentalsCount = 0;
+        let currentRevenueTotal = 0;
+        let unpaidAmountTotal = 0;
+        let unpaidDetails: RemainingToCollect['details'] = [];
 
-        // Fetch clients
-        const clientsQuery = query(
-          collection(db, CUSTOMERS_COLLECTION),
-          where('userId', '==', currentUser.uid)
-        );
-        const clientsSnapshot = await getDocs(clientsQuery);
-        const clients = clientsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Customer[];
-        setTotalClients(clientsSnapshot.size);
-
-        // Fetch rentals
-        const rentalsSnapshot = await getDocs(
-          query(collection(db, 'rentals'),
-            where('userId', '==', currentUser.uid),
-            where('status', '==', 'active')
-          )
-        );
-        
-        let revenue = 0;
-        rentalsSnapshot.forEach((doc) => {
-          const rental = doc.data();
-          revenue += rental.totalCost || 0;
+        rentalsData.forEach(rental => {
+          const startDate = rental.startDate.toDate();
+          const endDate = rental.endDate.toDate();
+          const rentalTotal = rental.totalCost + (rental.additionalFees?.amount || 0);
+          
+          if (startDate <= now && endDate >= now) {
+            activeRentalsCount++;
+            currentRevenueTotal += rentalTotal;
+            const unpaid = rentalTotal - (rental.paidAmount || 0);
+            if (unpaid > 0) {
+              unpaidAmountTotal += unpaid;
+              const foundClient = clientsData.find(c => c.id === rental.customerId);
+              if (foundClient) {
+                unpaidDetails.push({
+                  client: `${foundClient.firstName} ${foundClient.lastName}`,
+                  amount: unpaid
+                });
+              }
+            }
+          }
         });
-        
-        setTotalRevenue(revenue);
 
-        // Calculate active rentals and other stats
-        const rentalsData = await getAllRentals(currentUser.uid);
-        const rentals = rentalsData as ExtendedRental[];
-        const active = rentals.filter(rental => 
-          rental.status === 'active'
-        );
-        setActiveRentals(active.length);
+        // Calculate available vehicles
+        const availableVehicles = vehiclesData.filter(vehicle => {
+          if (!vehicle.id) return false;
+          
+          // Check if vehicle is manually set as unavailable
+          if (vehicle.status === 'unavailable' || vehicle.status === 'maintenance') {
+            return false;
+          }
 
-        // Calculate available cars
-        const rentedCarIds = active.map(rental => rental.vehicleId || '');
-        const availableVehicles = vehicles.filter(vehicle => vehicle.id && !rentedCarIds.includes(vehicle.id));
+          // Check if vehicle has any active rentals
+          const hasActiveRental = rentalsData.some(rental => 
+            rental.vehicleId === vehicle.id && 
+            rental.status === 'active' &&
+            rental.startDate.toDate() <= now && 
+            rental.endDate.toDate() >= now
+          );
+
+          return !hasActiveRental;
+        });
+
+        setTotalVehicles(vehiclesData.length);
+        setTotalClients(clientsData.length);
+        setActiveRentals(activeRentalsCount);
+        setTotalRevenue(currentRevenueTotal);
+        setRemainingToCollect({
+          total: unpaidAmountTotal,
+          details: unpaidDetails
+        });
         setAvailableCars({
           total: availableVehicles.length,
           details: availableVehicles.map(v => `${v.brand} ${v.model}`)
         });
-
-        // Calculate remaining to collect
-        const unpaidRentals = rentals.filter(rental => 
-          rental.status === 'active' && rental.paymentStatus !== 'paid'
-        );
-        const remainingAmount = unpaidRentals.reduce((sum, rental) => 
-          sum + (rental.totalCost - (rental.paidAmount || 0)), 0
-        );
-        setRemainingToCollect({
-          total: remainingAmount,
-          details: await Promise.all(unpaidRentals.map(async rental => {
-            const client = clients.find((c) => c.id === rental.customerId);
-            return {
-              client: client ? `${client.firstName} ${client.lastName}` : 'Client inconnu',
-              amount: rental.totalCost - (rental.paidAmount || 0)
-            };
-          }))
-        });
-
       } catch (error) {
         console.error('Error fetching stats:', error);
         if (error instanceof Error) {
@@ -316,11 +339,16 @@ const Dashboard = () => {
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
                   Détails des paiements en attente :
                 </Typography>
-                {remainingToCollect.details.map((detail, index) => (
-                  <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                    • {detail.client}: {detail.amount} DA
-                  </Typography>
-                ))}
+                <List>
+                  {remainingToCollect.details.map((detail, index) => (
+                    <ListItem key={index}>
+                      <ListItemText
+                        primary={detail.client}
+                        secondary={`${detail.amount.toLocaleString('fr-FR')} DZD`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
               </Box>
             }
             arrow
@@ -360,6 +388,33 @@ const Dashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+      <Dialog
+        open={showRemainingDetails}
+        onClose={() => setShowRemainingDetails(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Détails des paiements en attente :
+        </DialogTitle>
+        <DialogContent>
+          <List>
+            {remainingToCollect.details.map((detail, index) => (
+              <ListItem key={index}>
+                <ListItemText
+                  primary={detail.client}
+                  secondary={`${detail.amount.toLocaleString('fr-FR')} DZD`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRemainingDetails(false)} color="primary">
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

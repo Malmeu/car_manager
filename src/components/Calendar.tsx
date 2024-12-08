@@ -33,6 +33,9 @@ interface Rental {
   endDate: { toDate: () => Date };
   totalCost: number;
   status: string;
+  additionalFees?: {
+    amount: number;
+  };
 }
 
 interface CalendarEvent {
@@ -47,6 +50,7 @@ interface CalendarEvent {
     vehicleInfo?: string;
     customerInfo?: string;
     price?: number;
+    additionalFees?: number;
   };
 }
 
@@ -126,6 +130,8 @@ const Calendar: React.FC = () => {
               continue;
             }
 
+            const totalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
+
             const event = {
               id: docSnapshot.id,
               title: `🚗 ${vehicle.brand} ${vehicle.model}\n👤 ${client.firstName} ${client.lastName}`,
@@ -137,7 +143,8 @@ const Calendar: React.FC = () => {
                 type: 'rental' as const,
                 vehicleInfo: `${vehicle.brand} ${vehicle.model}`,
                 customerInfo: `${client.firstName} ${client.lastName}`,
-                price: rental.totalCost
+                price: totalAmount,
+                additionalFees: rental.additionalFees?.amount
               }
             };
             console.log('Created calendar event:', event);
@@ -238,6 +245,15 @@ const Calendar: React.FC = () => {
                   color: 'rgba(255,255,255,0.9)'
                 }}>
                   {eventInfo.event.extendedProps.price.toLocaleString()} DA
+                </Typography>
+              )}
+              {eventInfo.event.extendedProps.additionalFees && (
+                <Typography sx={{ 
+                  mt: '2px',
+                  fontSize: '0.9em',
+                  color: 'rgba(255,255,255,0.9)'
+                }}>
+                  Frais supplémentaires: {eventInfo.event.extendedProps.additionalFees.toLocaleString()} DA
                 </Typography>
               )}
             </Box>

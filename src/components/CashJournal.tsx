@@ -116,8 +116,8 @@ const CashJournal: React.FC = () => {
             (data.endDate.toDate().getTime() - data.startDate.toDate().getTime()) / (1000 * 3600 * 24)
           );
           const baseRevenue = data.totalCost;
-          const driverRevenue = data.withDriver ? (data.driverCost * rentalDays) : 0;
-          const totalRevenue = baseRevenue + driverRevenue;
+          const additionalFees = data.additionalFees?.amount || 0;
+          const totalRevenue = baseRevenue + additionalFees;
 
           // Créer un seul mouvement par location
           const paidAmount = data.paymentStatus === 'paid' ? totalRevenue : (data.paidAmount || 0);
@@ -126,7 +126,9 @@ const CashJournal: React.FC = () => {
           return {
             id: doc.id,
             date: data.startDate.toDate(),
-            designation: `Location de véhicule${data.withDriver ? ' avec chauffeur' : ''}${
+            designation: `Location de véhicule - ${data.vehicleBrand} ${data.vehicleModel}${
+              data.additionalFees?.description ? ` (+ ${data.additionalFees.description})` : ''
+            }${
               data.paymentStatus === 'pending' ? ' (En attente)' : 
               data.paymentStatus === 'partial' ? ' (Paiement partiel)' : ''
             }`,

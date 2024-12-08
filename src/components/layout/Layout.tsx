@@ -307,12 +307,12 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
     },
     ...(isAdmin ? [
       {
-        text: 'Gestion des utilisateurs',
+        text: 'Utilisateurs',
         icon: <PeopleIcon />,
         path: '/admin/users'
       },
       {
-        text: 'Gestion des abonnements',
+        text: 'Abonnements',
         icon: <CreditCardIcon />,
         path: '/admin/subscriptions'
       }
@@ -375,16 +375,6 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={() => setOpen(!open)}
-            edge="start"
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             {companyLogo && (
               <Box

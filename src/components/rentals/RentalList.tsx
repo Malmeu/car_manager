@@ -48,8 +48,10 @@ interface FormData {
   contractId: string;
   paymentMethod: 'cash' | 'bank_transfer' | 'other';
   userId: string;
-  withDriver: boolean;
-  driverCost: number;
+  additionalFees: {
+    description: string;
+    amount: number;
+  };
 }
 
 interface RentalListProps {}
@@ -78,8 +80,10 @@ const RentalList: React.FC<RentalListProps> = () => {
     contractId: '',
     paymentMethod: 'cash',
     userId: '',
-    withDriver: false,
-    driverCost: 0
+    additionalFees: {
+      description: '',
+      amount: 0
+    }
   });
 
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -156,6 +160,8 @@ const RentalList: React.FC<RentalListProps> = () => {
       // Convert rental data to proper format
       const formattedRentals = rentalsData.map(rental => ({
         ...rental,
+        id: rental.id,
+        additionalFees: rental.additionalFees || { description: '', amount: 0 },
         startDate: rental.startDate instanceof Timestamp ? rental.startDate : Timestamp.fromDate(rental.startDate),
         endDate: rental.endDate instanceof Timestamp ? rental.endDate : Timestamp.fromDate(rental.endDate)
       }));
@@ -175,12 +181,22 @@ const RentalList: React.FC<RentalListProps> = () => {
       if (rental) {
         setEditingRental(rental);
         setFormData({
-          ...rental,
+          vehicleId: rental.vehicleId,
+          customerId: rental.customerId,
           startDate: rental.startDate,
           endDate: rental.endDate,
+          totalCost: rental.totalCost,
+          status: rental.status,
+          paymentStatus: rental.paymentStatus,
+          paidAmount: rental.paidAmount,
+          wilaya: rental.wilaya,
+          contractId: rental.contractId,
+          paymentMethod: rental.paymentMethod,
           userId: currentUser.uid,
-          withDriver: rental.withDriver || false,
-          driverCost: rental.driverCost || 0
+          additionalFees: rental.additionalFees || {
+            description: '',
+            amount: 0
+          }
         });
         const vehicle = vehicles.find(v => v.id === rental.vehicleId);
         setSelectedVehicle(vehicle || null);
@@ -206,8 +222,10 @@ const RentalList: React.FC<RentalListProps> = () => {
           contractId: '',
           paymentMethod: 'cash',
           userId: currentUser.uid,
-          withDriver: false,
-          driverCost: 0
+          additionalFees: {
+            description: '',
+            amount: 0
+          }
         });
         setSelectedVehicle(null);
         setSelectedCustomer(null);
@@ -225,12 +243,24 @@ const RentalList: React.FC<RentalListProps> = () => {
     setSelectedCustomer(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'totalCost' || name === 'paidAmount' || name === 'driverCost' ? Number(value) : value,
-    }));
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...((prev as any)[parent] || {}),
+          [child]: child === 'amount' ? Number(value) : value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'totalCost' || name === 'paidAmount' ? Number(value) : value,
+      }));
+    }
 
     if (name === 'vehicleId') {
       const vehicle = vehicles.find(v => v.id === value);
@@ -273,14 +303,19 @@ const RentalList: React.FC<RentalListProps> = () => {
       }
 
       const rentalData = {
-        ...formData,
-        userId: currentUser.uid,
+        vehicleId: formData.vehicleId,
+        customerId: formData.customerId,
+        startDate: formData.startDate instanceof Date ? Timestamp.fromDate(formData.startDate) : formData.startDate,
+        endDate: formData.endDate instanceof Date ? Timestamp.fromDate(formData.endDate) : formData.endDate,
+        totalCost: formData.totalCost,
         status: 'active' as const,
-        paymentStatus: (formData.paidAmount >= formData.totalCost 
-          ? 'paid' 
-          : formData.paidAmount > 0 
-            ? 'partial' 
-            : 'pending') as 'paid' | 'partial' | 'pending'
+        paymentStatus: formData.paymentStatus as 'pending' | 'paid' | 'partial',
+        paidAmount: formData.paidAmount,
+        wilaya: formData.wilaya,
+        contractId: formData.contractId,
+        paymentMethod: formData.paymentMethod as 'cash' | 'bank_transfer' | 'other',
+        userId: currentUser.uid,
+        additionalFees: formData.additionalFees
       };
 
       console.log('Données de location à soumettre:', rentalData);
@@ -519,13 +554,11 @@ const RentalList: React.FC<RentalListProps> = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Véhicule</TableCell>
+              <TableCell>Date de début</TableCell>
+              <TableCell>Date de fin</TableCell>
               <TableCell>Client</TableCell>
-              <TableCell>Date début</TableCell>
-              <TableCell>Date fin</TableCell>
+              <TableCell>Véhicule</TableCell>
               <TableCell>Coût total</TableCell>
-              <TableCell>Chauffeur</TableCell>
-              <TableCell>Coût du chauffeur</TableCell>
               <TableCell>Statut</TableCell>
               <TableCell>Paiement</TableCell>
               <TableCell>Actions</TableCell>
@@ -537,19 +570,11 @@ const RentalList: React.FC<RentalListProps> = () => {
               const customer = customers.find(c => c.id === rental.customerId);
               return (
                 <TableRow key={rental.id}>
-                  <TableCell>{vehicle ? `${vehicle.brand} ${vehicle.model}` : 'N/A'}</TableCell>
-                  <TableCell>{customer ? `${customer.firstName} ${customer.lastName}` : 'N/A'}</TableCell>
                   <TableCell>{formatDate(rental.startDate)}</TableCell>
                   <TableCell>{formatDate(rental.endDate)}</TableCell>
+                  <TableCell>{customer ? `${customer.firstName} ${customer.lastName}` : 'N/A'}</TableCell>
+                  <TableCell>{vehicle ? `${vehicle.brand} ${vehicle.model}` : 'N/A'}</TableCell>
                   <TableCell>{rental.totalCost} DA</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={rental.withDriver ? "Avec chauffeur" : "Sans chauffeur"}
-                      color={rental.withDriver ? "primary" : "default"}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{rental.withDriver ? `${rental.driverCost} DA/jour` : '-'}</TableCell>
                   <TableCell>
                     <Chip
                       label={rental.status === 'active' ? 'Active' : 'Terminée'}
@@ -829,38 +854,35 @@ const RentalList: React.FC<RentalListProps> = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Avec chauffeur"
-                  name="withDriver"
-                  value={formData.withDriver ? "true" : "false"}
-                  onChange={(e) => handleInputChange({
-                    target: {
-                      name: 'withDriver',
-                      value: e.target.value === "true"
-                    }
-                  } as any)}
-                  required
-                >
-                  <MenuItem value="true">Oui</MenuItem>
-                  <MenuItem value="false">Non</MenuItem>
-                </TextField>
-              </Grid>
-              {formData.withDriver && (
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Coût du chauffeur (DZD/jour)"
-                    name="driverCost"
-                    type="number"
-                    value={formData.driverCost}
-                    onChange={handleInputChange}
-                    required
-                  />
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Frais supplémentaires
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Description"
+                      name="additionalFees.description"
+                      value={formData.additionalFees.description}
+                      onChange={handleInputChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Montant (DA)"
+                      name="additionalFees.amount"
+                      type="number"
+                      value={formData.additionalFees.amount}
+                      onChange={handleInputChange}
+                      InputProps={{
+                        inputProps: { min: 0 }
+                      }}
+                    />
+                  </Grid>
                 </Grid>
-              )}
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>

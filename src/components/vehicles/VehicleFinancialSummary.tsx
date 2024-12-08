@@ -76,13 +76,9 @@ const VehicleFinancialSummary: React.FC<VehicleFinancialSummaryProps> = ({ vehic
         rentalSnapshot.forEach((doc) => {
           const rental = doc.data() as Rental;
           const rentalRevenue = rental.totalCost || 0;
-          const driverRevenue = rental.withDriver ? (rental.driverCost || 0) : 0;
           
-          totalRevenue += rentalRevenue + driverRevenue;
+          totalRevenue += rentalRevenue;
           revenueByCategory['Locations'] += rentalRevenue;
-          if (driverRevenue > 0) {
-            revenueByCategory['Services chauffeur'] += driverRevenue;
-          }
         });
 
         // Traiter les dépenses

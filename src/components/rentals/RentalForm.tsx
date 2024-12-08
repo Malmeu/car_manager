@@ -23,8 +23,6 @@ interface RentalFormData {
   status: 'active' | 'pending' | 'completed' | 'cancelled';
   paymentStatus: 'paid' | 'partial' | 'unpaid';
   paidAmount: number;
-  withDriver: boolean;
-  driverCost: number;
 }
 
 const RentalForm: React.FC = () => {
@@ -33,6 +31,7 @@ const RentalForm: React.FC = () => {
   const { currentUser } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Customer[]>([]);
+  const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
   const [formData, setFormData] = useState<RentalFormData>({
     vehicleId: '',
     clientId: '',
@@ -41,9 +40,7 @@ const RentalForm: React.FC = () => {
     totalCost: 0,
     status: 'active',
     paymentStatus: 'unpaid',
-    paidAmount: 0,
-    withDriver: false,
-    driverCost: 0
+    paidAmount: 0
   });
 
   useEffect(() => {
@@ -81,6 +78,15 @@ const RentalForm: React.FC = () => {
     fetchData();
   }, [id, currentUser]);
 
+  // Calculer le coût total chaque fois que les valeurs pertinentes changent
+  useEffect(() => {
+    const days = Math.ceil(
+      (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 3600 * 24)
+    );
+    const totalCost = days * formData.totalCost;
+    setCalculatedTotal(totalCost);
+  }, [formData.startDate, formData.endDate, formData.totalCost]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -89,15 +95,8 @@ const RentalForm: React.FC = () => {
       const startTimestamp = Timestamp.fromDate(formData.startDate);
       const endTimestamp = Timestamp.fromDate(formData.endDate);
       
-      // Calculer le nombre de jours
       const days = Math.ceil((endTimestamp.toDate().getTime() - startTimestamp.toDate().getTime()) / (1000 * 3600 * 24));
-      console.log('Rental days:', days);
-      
-      // Calculer le coût total (location + chauffeur si applicable)
-      const rentalCost = days * formData.totalCost;
-      const driverTotalCost = formData.withDriver ? days * formData.driverCost : 0;
-      const totalCost = rentalCost + driverTotalCost;
-      console.log('Total cost:', totalCost);
+      const totalCost = days * formData.totalCost;
 
       const rentalData = {
         vehicleId: formData.vehicleId,
@@ -105,7 +104,7 @@ const RentalForm: React.FC = () => {
         customerId: formData.clientId,
         startDate: startTimestamp,
         endDate: endTimestamp,
-        totalCost,
+        totalCost: totalCost,
         status: formData.status,
         paymentStatus: formData.paymentStatus,
         paidAmount: formData.paymentStatus === 'paid' ? totalCost : 
@@ -115,9 +114,7 @@ const RentalForm: React.FC = () => {
         wilaya: '',
         contractId: '',
         paymentMethod: 'cash',
-        userId: currentUser?.uid || '',
-        withDriver: formData.withDriver,
-        driverCost: formData.driverCost
+        userId: currentUser?.uid || ''
       };
 
       console.log('Saving rental data:', rentalData);
@@ -142,10 +139,13 @@ const RentalForm: React.FC = () => {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target as HTMLInputElement;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'totalCost' || name === 'driverCost' || name === 'paidAmount' ? parseFloat(value) : value
+      [name]: name === 'totalCost' || name === 'paidAmount' 
+        ? parseFloat(value) || 0 
+        : value
     }));
   };
 
@@ -236,33 +236,15 @@ const RentalForm: React.FC = () => {
         </div>
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            With Driver
+            Calculated Total
           </label>
           <input
-            type="checkbox"
-            name="withDriver"
-            checked={formData.withDriver}
-            onChange={handleChange}
-            className="mr-2"
+            type="number"
+            value={calculatedTotal}
+            readOnly
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
         </div>
-        {formData.withDriver && (
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Driver Cost
-            </label>
-            <input
-              type="number"
-              name="driverCost"
-              value={formData.driverCost}
-              onChange={handleChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-              min="0"
-              step="0.01"
-            />
-          </div>
-        )}
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2">
             Status

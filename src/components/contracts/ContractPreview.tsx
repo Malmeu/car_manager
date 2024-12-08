@@ -152,6 +152,24 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
     navigate('/contracts');
   };
 
+  const calculateTotal = () => {
+    if (!formData?.startDate || !formData?.endDate) return 0;
+    
+    const days = Math.ceil(
+      (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const basePrice = formData.rentalPrice * days;
+    return basePrice - formData.discountAmount;
+  };
+
+  const calculateDays = () => {
+    if (!formData?.startDate || !formData?.endDate) return 0;
+    
+    return Math.ceil(
+      (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -169,23 +187,6 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
       </Box>
     );
   }
-
-  const calculateTotalDays = () => {
-    if (!formData.startDate || !formData.endDate) return 0;
-    const start = formData.startDate instanceof Date ? formData.startDate : new Date(formData.startDate);
-    const end = formData.endDate instanceof Date ? formData.endDate : new Date(formData.endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  const calculateTotal = () => {
-    if (!vehicle) return 0;
-    const days = calculateTotalDays();
-    const basePrice = vehicle.dailyRate * days;
-    const discountAmount = (basePrice * formData.discount) / 100;
-    const driverPrice = formData.withDriver ? formData.driverPrice * days : 0;
-    return basePrice - discountAmount + driverPrice;
-  };
 
   return (
     <Box>
@@ -216,14 +217,11 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
               1. INFORMATIONS CLIENT
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              <Grid item xs={12}>
                 <Typography variant="body1"><strong>Nom complet:</strong> {formData.clientName}</Typography>
                 <Typography variant="body1"><strong>Adresse:</strong> {formData.clientAddress}</Typography>
                 <Typography variant="body1"><strong>Téléphone:</strong> {formData.clientPhone}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1"><strong>Email:</strong> {formData.clientEmail}</Typography>
-                <Typography variant="body1"><strong>N° Permis:</strong> {formData.driverLicense}</Typography>
+                <Typography variant="body1"><strong>Carte d'identité:</strong> {formData.clientIdCard}</Typography>
               </Grid>
             </Grid>
           </Box>
@@ -241,12 +239,6 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
               <Grid item xs={6}>
                 <Typography variant="body1"><strong>Année:</strong> {vehicle.year}</Typography>
                 <Typography variant="body1"><strong>Kilométrage:</strong> {vehicle.mileage} km</Typography>
-                <Typography variant="body1" gutterBottom>
-                  <strong>Avec chauffeur:</strong> {formData.withDriver ? 'Oui' : 'Non'}
-                  {formData.withDriver && (
-                    <span> - {formData.driverPrice.toLocaleString()} DA/jour</span>
-                  )}
-                </Typography>
               </Grid>
             </Grid>
           </Box>
@@ -258,21 +250,21 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <Typography variant="body1">
-                  <strong>Date de début:</strong> {formatDate(formData.startDate)}
+                  <strong>Date de début:</strong> {formData.startDate ? formatDate(formData.startDate) : 'Non définie'}
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Date de fin:</strong> {formatDate(formData.endDate)}
+                  <strong>Date de fin:</strong> {formData.endDate ? formatDate(formData.endDate) : 'Non définie'}
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Durée:</strong> {calculateTotalDays()} jours
+                  <strong>Durée:</strong> {calculateDays()} jours
                 </Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body1">
-                  <strong>Tarif journalier:</strong> {vehicle?.dailyRate?.toLocaleString('fr-FR')} DA
+                  <strong>Tarif journalier:</strong> {formData.rentalPrice.toLocaleString('fr-FR')} DA
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Remise:</strong> {formData.discount}%
+                  <strong>Remise:</strong> {formData.discountAmount} DA
                 </Typography>
                 <Typography variant="body1">
                   <strong>Caution:</strong> {(formData.deposit || 0).toLocaleString('fr-FR')} DA

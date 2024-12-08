@@ -44,8 +44,10 @@ export interface Rental {
     contractId: string;
     paymentMethod: 'cash' | 'bank_transfer' | 'other';
     userId: string;
-    withDriver: boolean;
-    driverCost: number;
+    additionalFees: {
+        description: string;
+        amount: number;
+    };
 }
 
 export interface Expense {
@@ -102,4 +104,13 @@ export interface Subscription {
   features: string[];
   price: number;
   billingPeriod: 'monthly' | 'annual';
+}
+
+export interface DashboardStats {
+  totalVehicles: number;
+  totalClients: number;
+  activeRentals: number;
+  availableVehicles: number;
+  currentRevenue: number;
+  unpaidAmount: number;
 }

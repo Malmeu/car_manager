@@ -28,8 +28,10 @@ export interface Rental {
   contractId: string;
   paymentMethod: 'cash' | 'bank_transfer' | 'other';
   userId: string;
-  withDriver: boolean;
-  driverCost: number;
+  additionalFees: {
+    description: string;
+    amount: number;
+  };
 }
 
 // Get all rentals for a specific user

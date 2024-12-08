@@ -2,13 +2,12 @@ export interface ContractFormData {
   clientName: string;
   clientAddress: string;
   clientPhone: string;
-  clientEmail: string;
-  driverLicense: string;
+  clientIdCard: string;
   vehicleId: string;
-  startDate: Date | null;
-  endDate: Date | null;
-  withDriver: boolean;
-  discount: number;
+  startDate: Date;
+  endDate: Date;
+  rentalPrice: number;
+  discountAmount: number;
   deposit: number;
   additionalNotes: string;
 }

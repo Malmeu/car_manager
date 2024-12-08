@@ -53,6 +53,8 @@ import {
   Print as PrintIcon,
   GetApp as GetAppIcon,
   Assessment as AssessmentIcon,
+  MonetizationOn as MonetizationOnIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
 } from '@mui/icons-material';
 import { Timestamp } from 'firebase/firestore';
 import { Vehicle, Rental } from '../../types';
@@ -64,8 +66,8 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 interface RentalStats {
-  monthlyRevenue: Array<{ month: string; amount: number }>;
-  topVehicles: Array<{ name: string; rentals: number }>;
+  monthlyRevenue: { month: string; amount: number }[];
+  topVehicles: { name: string; rentals: number }[];
   statistics: {
     totalRevenue: string;
     averageRentalDuration: string;
@@ -73,7 +75,19 @@ interface RentalStats {
   };
   activeRentals: number;
   completedRentals: number;
-  vehicleUtilization: Array<{ vehicle: string; totalDays: number; revenue: number }>;
+  vehicleUtilization: {
+    vehicleId: string;
+    brand: string;
+    model: string;
+    utilization: number;
+  }[];
+  currentRevenue: number;
+  unpaidAmount: number;
+  mostProfitableVehicle: {
+    name: string;
+    revenue: number;
+    percentage: number;
+  } | null;
 }
 
 interface DetailedReport {
@@ -107,13 +121,16 @@ const Reports: React.FC = () => {
     monthlyRevenue: [],
     topVehicles: [],
     statistics: {
-      totalRevenue: '0',
-      averageRentalDuration: '0',
+      totalRevenue: '0 DZD',
+      averageRentalDuration: '0 jours',
       totalRentals: '0',
     },
     activeRentals: 0,
     completedRentals: 0,
     vehicleUtilization: [],
+    currentRevenue: 0,
+    unpaidAmount: 0,
+    mostProfitableVehicle: null
   });
   const [isAnnualReport, setIsAnnualReport] = useState(false);
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
@@ -139,9 +156,16 @@ const Reports: React.FC = () => {
         getAllRentals(currentUser.uid),
         getAllVehicles(currentUser.uid),
       ]);
-      setRentals(rentalsData);
+
+      // Ensure rentals have additionalFees
+      const formattedRentals = rentalsData.map(rental => ({
+        ...rental,
+        additionalFees: rental.additionalFees || { description: '', amount: 0 }
+      }));
+
+      setRentals(formattedRentals);
       setVehicles(vehiclesData);
-      calculateStats(rentalsData, vehiclesData);
+      calculateStats(formattedRentals, vehiclesData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -152,94 +176,128 @@ const Reports: React.FC = () => {
   const calculateStats = (rentalsData: Rental[], vehiclesData: Vehicle[]) => {
     try {
       const now = new Date();
-      const activeRentals = rentalsData.filter(rental => rental.status === 'active');
-      const completedRentals = rentalsData.filter(rental => rental.status === 'completed');
-
-      // Calculate total revenue
-      const totalRevenue = completedRentals.reduce((sum, rental) => {
-        const rentalDays = Math.ceil(
-          (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-        );
-        const baseRevenue = rental.totalCost;
-        const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
-        return sum + baseRevenue + driverRevenue;
-      }, 0);
+      let totalRevenue = 0;
+      let currentMonthRevenue = 0;
+      let unpaidAmount = 0;
+      let activeRentals = 0;
 
       // Calculate vehicle utilization
-      const vehicleUtilization = vehiclesData.map(vehicle => {
-        const vehicleRentals = completedRentals.filter(rental => rental.vehicleId === vehicle.id);
-        const totalDays = vehicleRentals.reduce((sum, rental) => {
-          return sum + Math.ceil(
-            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-          );
-        }, 0);
+      const vehicleUtilization = vehiclesData
+        .filter(vehicle => vehicle.id) // Filter out vehicles without id
+        .map(vehicle => ({
+          vehicleId: vehicle.id!,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          utilization: rentalsData
+            .filter(rental => rental.vehicleId === vehicle.id)
+            .reduce((sum, rental) => {
+              const days = Math.ceil(
+                (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
+              );
+              return sum + days;
+            }, 0)
+        }));
 
-        const revenue = vehicleRentals.reduce((sum, rental) => {
-          const rentalDays = Math.ceil(
-            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-          );
-          const baseRevenue = rental.totalCost;
-          const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
-          return sum + baseRevenue + driverRevenue;
-        }, 0);
+      // Calculate monthly revenue data
+      const monthlyRevenueMap = new Map<string, number>();
+      const vehicleRentalsMap = new Map<string, number>();
 
-        return {
-          vehicle: `${vehicle.brand} ${vehicle.model}`,
-          totalDays,
-          revenue
-        };
-      });
-
-      const revenueByMonth = new Map<string, number>();
-      completedRentals.forEach(rental => {
-        const dateFormat = isAnnualReport ? 'yyyy' : 'MMMM yyyy';
-        const period = format(rental.startDate.toDate(), dateFormat);
-        const rentalDays = Math.ceil(
-          (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-        );
-        const baseRevenue = rental.totalCost;
-        const driverRevenue = rental.withDriver ? (rental.driverCost * rentalDays) : 0;
-        const totalRevenue = baseRevenue + driverRevenue;
+      rentalsData.forEach(rental => {
+        const startDate = rental.startDate.toDate();
+        const endDate = rental.endDate.toDate();
+        const rentalTotal = rental.totalCost + (rental.additionalFees?.amount || 0);
+        const unpaid = rentalTotal - (rental.paidAmount || 0);
         
-        revenueByMonth.set(period, (revenueByMonth.get(period) || 0) + totalRevenue);
+        // Monthly revenue calculation
+        const monthKey = `${startDate.getFullYear()}-${startDate.getMonth() + 1}`;
+        monthlyRevenueMap.set(monthKey, (monthlyRevenueMap.get(monthKey) || 0) + (rental.paidAmount || 0));
+
+        // Vehicle rentals count for top vehicles
+        const vehicle = vehiclesData.find(v => v.id === rental.vehicleId);
+        if (vehicle) {
+          const vehicleKey = `${vehicle.brand} ${vehicle.model}`;
+          vehicleRentalsMap.set(vehicleKey, (vehicleRentalsMap.get(vehicleKey) || 0) + 1);
+        }
+
+        // Total revenue calculation
+        totalRevenue += rental.paidAmount || 0;
+
+        // Current month revenue
+        const rentalDate = rental.startDate.toDate();
+        if (rentalDate.getMonth() === now.getMonth() && rentalDate.getFullYear() === now.getFullYear()) {
+          currentMonthRevenue += rental.paidAmount || 0;
+        }
+
+        // Unpaid amount calculation
+        if (unpaid > 0) {
+          unpaidAmount += unpaid;
+        }
+
+        // Active rentals calculation
+        if (startDate <= now && endDate >= now) {
+          activeRentals++;
+        }
       });
 
-      const rentalsByVehicle = new Map<string, number>();
-      rentalsData.forEach((rental) => {
-        rentalsByVehicle.set(rental.vehicleId, (rentalsByVehicle.get(rental.vehicleId) || 0) + 1);
+      // Calculate vehicle revenue
+      const vehicleRevenueMap = new Map<string, { revenue: number, vehicle: Vehicle }>();
+      let maxRevenue = 0;
+      
+      rentalsData.forEach(rental => {
+        const vehicle = vehiclesData.find(v => v.id === rental.vehicleId);
+        if (vehicle) {
+          const currentRevenue = vehicleRevenueMap.get(rental.vehicleId)?.revenue || 0;
+          const rentalRevenue = rental.paidAmount || 0;
+          const newRevenue = currentRevenue + rentalRevenue;
+          maxRevenue = Math.max(maxRevenue, newRevenue);
+          vehicleRevenueMap.set(rental.vehicleId, {
+            revenue: newRevenue,
+            vehicle: vehicle
+          });
+        }
       });
 
-      const topVehicles = Array.from(rentalsByVehicle.entries())
-        .map(([vehicleId, count]) => {
-          const vehicle = vehiclesData.find(v => v.id === vehicleId);
-          return {
-            name: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Véhicule inconnu',
-            rentals: count
-          };
-        })
+      // Convert to array and find most profitable vehicle
+      const vehicleRevenues = Array.from(vehicleRevenueMap.entries())
+        .map(([id, data]) => ({
+          id,
+          name: `${data.vehicle.brand} ${data.vehicle.model}`,
+          revenue: data.revenue,
+          percentage: (data.revenue / maxRevenue) * 100
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+
+      const mostProfitableVehicle = vehicleRevenues[0] || null;
+
+      // Convert monthly revenue map to array and sort by date
+      const monthlyRevenueArray = Array.from(monthlyRevenueMap.entries())
+        .map(([month, amount]) => ({ month, amount }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      // Convert vehicle rentals map to array and get top 5
+      const topVehiclesArray = Array.from(vehicleRentalsMap.entries())
+        .map(([name, rentals]) => ({ name, rentals }))
         .sort((a, b) => b.rentals - a.rentals)
         .slice(0, 5);
 
-      const monthlyRevenue = Array.from(revenueByMonth.entries())
-        .map(([month, amount]) => ({ month, amount }))
-        .sort((a, b) => {
-          const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-          return months.indexOf(a.month.split(' ')[0]) - months.indexOf(b.month.split(' ')[0]);
-        });
-
       setStats({
-        monthlyRevenue,
-        topVehicles,
+        monthlyRevenue: monthlyRevenueArray,
+        topVehicles: topVehiclesArray,
         statistics: {
           totalRevenue: `${totalRevenue.toLocaleString('fr-FR')} DZD`,
-          averageRentalDuration: `${(completedRentals.reduce((sum, rental) => sum + Math.ceil(
-            (rental.endDate.toDate().getTime() - rental.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-          ), 0) / completedRentals.length || 0).toFixed(1)} jours`,
-          totalRentals: rentalsData.length.toString(),
+          averageRentalDuration: '0 jours',
+          totalRentals: rentalsData.length.toString()
         },
-        activeRentals: activeRentals.length,
-        completedRentals: completedRentals.length,
+        activeRentals: activeRentals,
+        completedRentals: rentalsData.filter(rental => rental.status === 'completed').length,
         vehicleUtilization,
+        currentRevenue: currentMonthRevenue,
+        unpaidAmount: unpaidAmount,
+        mostProfitableVehicle: mostProfitableVehicle ? {
+          name: mostProfitableVehicle.name,
+          revenue: mostProfitableVehicle.revenue,
+          percentage: mostProfitableVehicle.percentage
+        } : null
       });
     } catch (error) {
       console.error('Error calculating stats:', error);
@@ -295,7 +353,7 @@ const Reports: React.FC = () => {
 
         console.log('Filtered expenses:', filteredExpenses);
 
-        const revenue = vehicleRentals.reduce((sum, rental) => sum + rental.totalCost, 0);
+        const revenue = vehicleRentals.reduce((sum, rental) => sum + rental.totalCost + (rental.additionalFees?.amount || 0), 0);
         const expenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
         console.log('Total revenue:', revenue);
@@ -305,7 +363,7 @@ const Reports: React.FC = () => {
           ...vehicleRentals.map(rental => ({
             date: rental.startDate.toDate(),
             type: 'revenue' as const,
-            amount: rental.totalCost,
+            amount: rental.totalCost + (rental.additionalFees?.amount || 0),
             description: `Location du ${format(rental.startDate.toDate(), 'dd/MM/yyyy')} au ${format(rental.endDate.toDate(), 'dd/MM/yyyy')}`,
           })),
           ...filteredExpenses.map(expense => ({
@@ -552,20 +610,27 @@ const Reports: React.FC = () => {
                 border: `1px solid ${theme.palette.primary.light}`,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <CarIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
-                <Box>
-                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Locations Actives</Typography>
-                  <Typography variant="h4">{stats.activeRentals}</Typography>
-                </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <MonetizationOnIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
+                <Typography variant="subtitle1" sx={{ color: theme.palette.text.secondary }}>
+                  Véhicule le Plus Rentable
+                </Typography>
               </Box>
+              <Typography variant="h5" sx={{ mb: 0.5, fontWeight: 'medium' }}>
+                {stats.mostProfitableVehicle?.name || 'Aucun'}
+              </Typography>
+              {stats.mostProfitableVehicle && (
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+                  {stats.mostProfitableVehicle.revenue.toLocaleString('fr-FR')} DZD
+                </Typography>
+              )}
               <LinearProgress 
                 variant="determinate" 
-                value={60} 
+                value={stats.mostProfitableVehicle?.percentage || 0}
                 sx={{ 
-                  height: 8, 
-                  borderRadius: 4,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  height: 6, 
+                  borderRadius: 3,
+                  backgroundColor: theme.palette.action.disabledBackground,
                   '& .MuiLinearProgress-bar': {
                     backgroundColor: theme.palette.primary.main
                   }
@@ -587,15 +652,22 @@ const Reports: React.FC = () => {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <SpeedIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
+                <CarIcon sx={{ fontSize: 40, mr: 2, color: theme.palette.primary.main }} />
                 <Box>
-                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Total Locations</Typography>
-                  <Typography variant="h4">{stats.statistics.totalRentals}</Typography>
+                  <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Véhicule le Plus Loué</Typography>
+                  <Typography variant="h4">
+                    {stats.topVehicles[0]?.name || 'Aucun'}
+                  </Typography>
+                  {stats.topVehicles[0] && (
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {stats.topVehicles[0].rentals} locations
+                    </Typography>
+                  )}
                 </Box>
               </Box>
               <LinearProgress 
                 variant="determinate" 
-                value={75} 
+                value={stats.topVehicles[0] ? (stats.topVehicles[0].rentals / Math.max(...stats.topVehicles.map(v => v.rentals)) * 100) : 0} 
                 sx={{ 
                   height: 8, 
                   borderRadius: 4,
@@ -736,14 +808,9 @@ const Reports: React.FC = () => {
                       )}
                     />
                     <Bar 
-                      dataKey="totalDays" 
+                      dataKey="utilization" 
                       fill={theme.palette.primary.main}
                       name="Jours d'utilisation"
-                    />
-                    <Bar 
-                      dataKey="revenue" 
-                      fill={theme.palette.secondary.main}
-                      name="Revenus (DZD)"
                     />
                   </BarChart>
                 </ResponsiveContainer>
