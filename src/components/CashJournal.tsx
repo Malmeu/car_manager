@@ -112,6 +112,7 @@ const CashJournal: React.FC = () => {
       const rentalsMovements = rentalsSnapshot.docs
         .map(doc => {
           const data = doc.data();
+          const vehicle = vehiclesMap.get(data.vehicleId);
           const rentalDays = Math.ceil(
             (data.endDate.toDate().getTime() - data.startDate.toDate().getTime()) / (1000 * 3600 * 24)
           );
@@ -126,7 +127,7 @@ const CashJournal: React.FC = () => {
           return {
             id: doc.id,
             date: data.startDate.toDate(),
-            designation: `Location de véhicule - ${data.vehicleBrand} ${data.vehicleModel}${
+            designation: `Location de véhicule${vehicle ? ` - ${vehicle.brand} ${vehicle.model}` : ''}${
               data.additionalFees?.description ? ` (+ ${data.additionalFees.description})` : ''
             }${
               data.paymentStatus === 'pending' ? ' (En attente)' : 
