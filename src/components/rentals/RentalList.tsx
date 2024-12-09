@@ -20,7 +20,11 @@ import {
   Grid,
   ToggleButton,
   ToggleButtonGroup,
-  Chip
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,7 +34,7 @@ import { getAllCustomers } from '../../services/customerService';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { createContract, getContract } from '../../services/contractService';
-import { Contract, Customer, Vehicle, Rental } from '../../types';
+import { Contract, Customer, Vehicle, RentalType } from '../../types';
 import { ContractFormData } from '../../types/contract';
 import { useLocation } from 'react-router-dom';
 
@@ -41,7 +45,7 @@ interface FormData {
   startDate: Timestamp;
   endDate: Timestamp;
   totalCost: number;
-  status: 'active' | 'completed' | 'cancelled';
+  status: 'active' | 'completed' | 'cancelled' | 'reservation';
   paymentStatus: 'pending' | 'paid' | 'partial';
   paidAmount: number;
   wilaya: string;
@@ -58,13 +62,13 @@ interface RentalListProps {}
 
 const RentalList: React.FC<RentalListProps> = () => {
   const { currentUser } = useAuth();
-  const [rentals, setRentals] = useState<Rental[]>([]);
-  const [filteredRentals, setFilteredRentals] = useState<Rental[]>([]);
+  const [rentals, setRentals] = useState<RentalType[]>([]);
+  const [filteredRentals, setFilteredRentals] = useState<RentalType[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const [editingRental, setEditingRental] = useState<Rental | null>(null);
+  const [editingRental, setEditingRental] = useState<RentalType | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -89,7 +93,7 @@ const RentalList: React.FC<RentalListProps> = () => {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
-  const [rentalStatus, setRentalStatus] = useState<'active' | 'completed'>('active');
+  const [rentalStatus, setRentalStatus] = useState<'active' | 'completed' | 'all'>('active');
 
   const wilayas = [
     'Adrar', 'Chlef', 'Laghouat', 'Oum El Bouaghi', 'Batna', 'Béjaïa', 'Biskra',
@@ -137,9 +141,11 @@ const RentalList: React.FC<RentalListProps> = () => {
 
   useEffect(() => {
     // Filtrer les locations en fonction du statut sélectionné
-    const filtered = rentals.filter(rental => 
-      rentalStatus === 'active' ? rental.status === 'active' : rental.status === 'completed'
-    );
+    const filtered = rentals.filter(rental => {
+      if (rentalStatus === 'all') return true;
+      if (rentalStatus === 'active') return rental.status === 'active' || rental.status === 'reservation';
+      return rental.status === 'completed';
+    });
     setFilteredRentals(filtered);
   }, [rentals, rentalStatus]);
 
@@ -164,7 +170,7 @@ const RentalList: React.FC<RentalListProps> = () => {
         additionalFees: rental.additionalFees || { description: '', amount: 0 },
         startDate: rental.startDate instanceof Timestamp ? rental.startDate : Timestamp.fromDate(rental.startDate),
         endDate: rental.endDate instanceof Timestamp ? rental.endDate : Timestamp.fromDate(rental.endDate)
-      }));
+      })) as RentalType[];
 
       setRentals(formattedRentals);
       setVehicles(vehiclesData);
@@ -174,7 +180,7 @@ const RentalList: React.FC<RentalListProps> = () => {
     }
   };
 
-  const handleOpen = async (rental?: Rental) => {
+  const handleOpen = async (rental?: RentalType) => {
     if (!currentUser?.uid) return;
     
     try {
@@ -243,7 +249,7 @@ const RentalList: React.FC<RentalListProps> = () => {
     setSelectedCustomer(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent) => {
     const { name, value } = e.target;
     
     if (name.includes('.')) {
@@ -308,7 +314,7 @@ const RentalList: React.FC<RentalListProps> = () => {
         startDate: formData.startDate instanceof Date ? Timestamp.fromDate(formData.startDate) : formData.startDate,
         endDate: formData.endDate instanceof Date ? Timestamp.fromDate(formData.endDate) : formData.endDate,
         totalCost: formData.totalCost,
-        status: 'active' as const,
+        status: formData.status,
         paymentStatus: formData.paymentStatus as 'pending' | 'paid' | 'partial',
         paidAmount: formData.paidAmount,
         wilaya: formData.wilaya,
@@ -442,7 +448,7 @@ const RentalList: React.FC<RentalListProps> = () => {
     }
   };
 
-  const handleStatusChange = async (rental: Rental, newStatus: 'active' | 'completed') => {
+  const handleStatusChange = async (rental: RentalType, newStatus: 'active' | 'completed') => {
     try {
       if (newStatus === 'completed') {
         // 1. Mettre à jour le véhicule avec une nouvelle tentative si nécessaire
@@ -517,14 +523,14 @@ const RentalList: React.FC<RentalListProps> = () => {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Locations</Typography>
         <Box display="flex" gap={2} alignItems="center">
           <ToggleButtonGroup
             value={rentalStatus}
             exclusive
-            onChange={(event: React.MouseEvent<HTMLElement>, newStatus: 'active' | 'completed' | null) => {
+            onChange={(event: React.MouseEvent<HTMLElement>, newStatus: 'active' | 'completed' | 'all' | null) => {
               if (newStatus !== null) {
                 setRentalStatus(newStatus);
               }
@@ -533,10 +539,13 @@ const RentalList: React.FC<RentalListProps> = () => {
             size="small"
           >
             <ToggleButton value="active" aria-label="active rentals">
-              Actives
+              En cours & Réservations
             </ToggleButton>
             <ToggleButton value="completed" aria-label="completed rentals">
               Terminées
+            </ToggleButton>
+            <ToggleButton value="all" aria-label="all rentals">
+              Toutes
             </ToggleButton>
           </ToggleButtonGroup>
           <Button
@@ -577,8 +586,20 @@ const RentalList: React.FC<RentalListProps> = () => {
                   <TableCell>{rental.totalCost} DA</TableCell>
                   <TableCell>
                     <Chip
-                      label={rental.status === 'active' ? 'Active' : 'Terminée'}
-                      color={rental.status === 'active' ? 'primary' : 'default'}
+                      label={
+                        rental.status === 'active' ? 'En cours' :
+                        rental.status === 'completed' ? 'Terminée' :
+                        rental.status === 'cancelled' ? 'Annulée' :
+                        rental.status === 'reservation' ? 'Réservation' :
+                        'Inconnu'
+                      }
+                      color={
+                        rental.status === 'active' ? 'success' :
+                        rental.status === 'completed' ? 'default' :
+                        rental.status === 'cancelled' ? 'error' :
+                        rental.status === 'reservation' ? 'warning' :
+                        'default'
+                      }
                       onClick={() => rental.status === 'active' && handleStatusChange(rental, 'completed')}
                       sx={{ cursor: rental.status === 'active' ? 'pointer' : 'default' }}
                     />
@@ -689,10 +710,12 @@ const RentalList: React.FC<RentalListProps> = () => {
       </Dialog>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>{editingRental ? 'Éditer la location' : 'Nouvelle location'}</DialogTitle>
+        <DialogTitle>
+          {editingRental ? 'Modifier la location' : 'Nouvelle location'}
+        </DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
-            <Grid container spacing={2}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   select
@@ -782,49 +805,38 @@ const RentalList: React.FC<RentalListProps> = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Statut"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="completed">Terminée</MenuItem>
-                  <MenuItem value="cancelled">Annulée</MenuItem>
-                </TextField>
+                <FormControl fullWidth>
+                  <InputLabel id="status-label">Statut</InputLabel>
+                  <Select
+                    labelId="status-label"
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    label="Statut"
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="reservation">Réservation</MenuItem>
+                    <MenuItem value="cancelled">Annulée</MenuItem>
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Méthode de paiement"
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <MenuItem value="cash">Espèces</MenuItem>
-                  <MenuItem value="bank_transfer">Virement bancaire</MenuItem>
-                  <MenuItem value="other">Autre</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Statut du paiement"
-                  name="paymentStatus"
-                  value={formData.paymentStatus}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <MenuItem value="pending">En attente</MenuItem>
-                  <MenuItem value="partial">Partiel</MenuItem>
-                  <MenuItem value="paid">Payé</MenuItem>
-                </TextField>
+                <FormControl fullWidth>
+                  <InputLabel id="payment-status-label">Statut de paiement</InputLabel>
+                  <Select
+                    labelId="payment-status-label"
+                    id="paymentStatus"
+                    name="paymentStatus"
+                    value={formData.paymentStatus}
+                    onChange={handleInputChange}
+                    label="Statut de paiement"
+                  >
+                    <MenuItem value="pending">En attente</MenuItem>
+                    <MenuItem value="partial">Partiel</MenuItem>
+                    <MenuItem value="paid">Payé</MenuItem>
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField

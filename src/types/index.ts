@@ -30,14 +30,13 @@ export interface Customer {
     rentalsHistory: string[];
 }
 
-export interface Rental {
+export interface RentalType {
     id?: string;
     vehicleId: string;
     customerId: string;
     startDate: Timestamp;
     endDate: Timestamp;
-    status: 'active' | 'completed' | 'cancelled';
-    totalCost: number;
+    status: 'active' | 'completed' | 'cancelled' | 'reservation';
     paymentStatus: 'pending' | 'paid' | 'partial';
     paidAmount: number;
     wilaya: string;
@@ -48,7 +47,11 @@ export interface Rental {
         description: string;
         amount: number;
     };
+    totalCost: number;
 }
+
+// Alias pour la rétrocompatibilité
+export type Rental = RentalType;
 
 export interface Expense {
     id: string;

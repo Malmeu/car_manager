@@ -21,7 +21,7 @@ export interface Rental {
   startDate: Timestamp;
   endDate: Timestamp;
   totalCost: number;
-  status: 'active' | 'completed' | 'cancelled';
+  status: 'active' | 'completed' | 'cancelled' | 'reservation';
   paymentStatus: 'pending' | 'paid' | 'partial';
   paidAmount: number;
   wilaya: string;
