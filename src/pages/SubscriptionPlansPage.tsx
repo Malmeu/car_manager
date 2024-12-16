@@ -60,7 +60,7 @@ const SubscriptionPlansPage: React.FC = () => {
       });
 
       // Rediriger vers la page d'attente
-      navigate('/subscription-pending');
+      navigate('/subscription/pending');
     } catch (error) {
       console.error('Erreur lors de la souscription:', error);
       setError('Une erreur est survenue lors de la souscription. Veuillez réessayer.');
