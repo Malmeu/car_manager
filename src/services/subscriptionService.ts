@@ -15,6 +15,8 @@ import { Subscription, Plan, PLANS, BillingPeriod } from '../models/subscription
 
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 const NOTIFICATIONS_COLLECTION = 'notifications';
+const PAYMENTS_COLLECTION = 'payments';
+const ACTIVITIES_COLLECTION = 'activities';
 
 // Fonction utilitaire pour mettre à jour le statut d'un abonnement
 const updateSubscriptionStatus = async (subscriptionId: string, status: Subscription['status']): Promise<void> => {
@@ -68,6 +70,27 @@ export const subscriptionService = {
     });
     console.log('Notification created with ID:', notificationRef.id);
 
+    // Créer automatiquement un paiement associé
+    await addDoc(collection(db, PAYMENTS_COLLECTION), {
+      userId,
+      subscriptionId: subscriptionRef.id,
+      amount: subscription.price,
+      date: Timestamp.now(),
+      status: 'pending',
+      method: 'CCP', // Méthode par défaut
+      description: 'Paiement abonnement mensuel',
+      createdAt: Timestamp.now()
+    });
+
+    // Ajouter une activité
+    await addDoc(collection(db, ACTIVITIES_COLLECTION), {
+      type: 'subscription',
+      userId,
+      message: 'Nouvel abonnement créé',
+      date: Timestamp.now(),
+      status: 'success'
+    });
+
     return {
       ...subscription,
       id: subscriptionRef.id
@@ -105,6 +128,18 @@ export const subscriptionService = {
       billingPeriod,
       price
     });
+
+    // Créer automatiquement un paiement associé
+    await addDoc(collection(db, PAYMENTS_COLLECTION), {
+      userId: subscription.userId,
+      subscriptionId,
+      amount: price,
+      date: Timestamp.now(),
+      status: 'pending',
+      method: 'CCP', // Méthode par défaut
+      description: 'Paiement abonnement mensuel',
+      createdAt: Timestamp.now()
+    });
   },
 
   // Mettre à niveau un abonnement
@@ -131,6 +166,18 @@ export const subscriptionService = {
       maxVehicles: newPlan.maxVehicles,
       features: newPlan.features,
       status: 'active'
+    });
+
+    // Créer automatiquement un paiement associé
+    await addDoc(collection(db, PAYMENTS_COLLECTION), {
+      userId: subscription.userId,
+      subscriptionId,
+      amount: price,
+      date: Timestamp.now(),
+      status: 'pending',
+      method: 'CCP', // Méthode par défaut
+      description: 'Paiement abonnement mensuel',
+      createdAt: Timestamp.now()
     });
   },
 
@@ -267,6 +314,18 @@ export const subscriptionService = {
       message: 'Votre abonnement a été approuvé et est maintenant actif'
     });
     console.log('Notification created with ID:', notificationRef.id);
+
+    // Créer automatiquement un paiement associé
+    await addDoc(collection(db, PAYMENTS_COLLECTION), {
+      userId: subscription.userId,
+      subscriptionId,
+      amount: subscription.price,
+      date: Timestamp.now(),
+      status: 'pending',
+      method: 'CCP', // Méthode par défaut
+      description: 'Paiement abonnement mensuel',
+      createdAt: Timestamp.now()
+    });
   },
 
   // Rejeter un abonnement

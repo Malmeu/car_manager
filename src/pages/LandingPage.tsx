@@ -53,6 +53,7 @@ import { auth } from '../config/firebase';
 import { subscriptionService } from '../services/subscriptionService';
 import { sessionService } from '../services/sessionService';
 import { PLANS } from '../models/subscription';
+import AuthModal from '../components/auth/AuthModal';
 
 interface Tier {
   title: string;
@@ -69,20 +70,18 @@ const LandingPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalType, setAuthModalType] = useState<'login' | 'signup'>('login');
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'pro' | 'enterprise' | null>(null);
 
   const handleSubscribe = async (planId: 'basic' | 'pro' | 'enterprise') => {
     try {
       const user = auth.currentUser;
       
       if (!user) {
-        // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
-        navigate('/signup', { 
-          state: { 
-            returnUrl: '/',
-            selectedPlan: planId,
-            billingPeriod
-          } 
-        });
+        setSelectedPlan(planId);
+        setAuthModalType('signup');
+        setAuthModalOpen(true);
         return;
       }
 
@@ -94,7 +93,6 @@ const LandingPage: React.FC = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Erreur lors de la souscription:', error);
-      // Gérer l'erreur (vous pourriez vouloir afficher un message à l'utilisateur)
     }
   };
 
@@ -103,26 +101,20 @@ const LandingPage: React.FC = () => {
       const user = auth.currentUser;
       
       if (!user) {
-        // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
-        navigate('/register', { 
-          state: { 
-            returnUrl: '/',
-            selectedPlan: planId,
-            billingPeriod: 'monthly',
-            isTrial: true
-          } 
-        });
+        setSelectedPlan(planId);
+        setAuthModalType('signup');
+        setAuthModalOpen(true);
         return;
       }
 
-      // Créer l'abonnement d'essai et une nouvelle session
-      await subscriptionService.createSubscription(user.uid, planId, 'monthly', true);
+      // Créer l'abonnement d'essai
+      await subscriptionService.createSubscription(user.uid, planId, billingPeriod, true);
       await sessionService.initializeNewSession(user.uid);
       
       // Rediriger vers le tableau de bord
       navigate('/dashboard');
     } catch (error) {
-      console.error('Erreur lors de la création de l\'essai:', error);
+      console.error('Erreur lors du démarrage de l\'essai:', error);
     }
   };
 
@@ -133,13 +125,10 @@ const LandingPage: React.FC = () => {
       return;
     }
 
-    // Pour les autres plans, rediriger vers l'inscription
-    navigate('/register', { 
-      state: { 
-        selectedPlan: planId,
-        billingPeriod: billingPeriod
-      } 
-    });
+    // Pour les autres plans, ouvrir la modale d'inscription
+    setSelectedPlan(planId);
+    setAuthModalType('signup');
+    setAuthModalOpen(true);
   };
 
   const handleNewsletterSubscription = (event: React.FormEvent) => {
@@ -179,6 +168,14 @@ const LandingPage: React.FC = () => {
         <ListItem disablePadding>
           <ListItemButton onClick={() => {
             setMobileMenuOpen(false);
+            navigate('/guides');
+          }}>
+            <ListItemText primary="Guides" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setMobileMenuOpen(false);
             const element = document.getElementById('pricing');
             element?.scrollIntoView({ behavior: 'smooth' });
           }}>
@@ -188,16 +185,8 @@ const LandingPage: React.FC = () => {
         <ListItem disablePadding>
           <ListItemButton onClick={() => {
             setMobileMenuOpen(false);
-            const element = document.getElementById('faq');
-            element?.scrollIntoView({ behavior: 'smooth' });
-          }}>
-            <ListItemText primary="FAQ" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton onClick={() => {
-            setMobileMenuOpen(false);
-            navigate('/login');
+            setAuthModalType('login');
+            setAuthModalOpen(true);
           }}>
             <ListItemText primary="Se connecter" />
           </ListItemButton>
@@ -209,7 +198,8 @@ const LandingPage: React.FC = () => {
             color="primary"
             onClick={() => {
               setMobileMenuOpen(false);
-              navigate('/signup');
+              setAuthModalType('signup');
+              setAuthModalOpen(true);
             }}
           >
             S'inscrire
@@ -233,6 +223,12 @@ const LandingPage: React.FC = () => {
       </Button>
       <Button
         color="inherit"
+        onClick={() => navigate('/guides')}
+      >
+        Guides
+      </Button>
+      <Button
+        color="inherit"
         onClick={() => {
           const element = document.getElementById('pricing');
           element?.scrollIntoView({ behavior: 'smooth' });
@@ -243,21 +239,18 @@ const LandingPage: React.FC = () => {
       <Button
         color="inherit"
         onClick={() => {
-          const element = document.getElementById('faq');
-          element?.scrollIntoView({ behavior: 'smooth' });
+          setAuthModalType('login');
+          setAuthModalOpen(true);
         }}
-      >
-        FAQ
-      </Button>
-      <Button
-        color="inherit"
-        onClick={() => navigate('/login')}
       >
         Se connecter
       </Button>
       <Button
         variant="contained"
-        onClick={() => navigate('/signup')}
+        onClick={() => {
+          setAuthModalType('signup');
+          setAuthModalOpen(true);
+        }}
       >
         S'inscrire
       </Button>
@@ -660,6 +653,14 @@ const LandingPage: React.FC = () => {
       minHeight: '100vh',
       bgcolor: '#f5f5f5' 
     }}>
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialTab={authModalType}
+        selectedPlan={selectedPlan || undefined}
+        billingPeriod={billingPeriod}
+      />
+      
       {/* Navigation */}
       <AppBar position="fixed" sx={{ bgcolor: 'background.default', boxShadow: 1 }}>
         <Container maxWidth="lg">
@@ -772,7 +773,10 @@ const LandingPage: React.FC = () => {
                   <Button
                     variant="contained"
                     size="large"
-                    onClick={() => navigate('/login')}
+                    onClick={() => {
+                      setAuthModalType('login');
+                      setAuthModalOpen(true);
+                    }}
                     sx={{
                       py: 1.5,
                       px: 4,
@@ -1520,7 +1524,10 @@ const LandingPage: React.FC = () => {
                   variant="contained"
                   size="large"
                   color="secondary"
-                  onClick={() => navigate('/login')}
+                  onClick={() => {
+                    setAuthModalType('login');
+                    setAuthModalOpen(true);
+                  }}
                   sx={{
                     py: 1.5,
                     px: 4,

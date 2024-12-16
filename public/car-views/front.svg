@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+  <!-- Contour principal de la voiture -->
+  <path d="M200,300 Q400,320 600,300 L650,200 Q400,180 150,200 Z" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- Phares -->
+  <circle cx="250" cy="220" r="30" fill="none" stroke="black"/>
+  <circle cx="550" cy="220" r="30" fill="none" stroke="black"/>
+  
+  <!-- Calandre -->
+  <rect x="350" y="230" width="100" height="40" fill="none" stroke="black"/>
+  
+  <!-- Capot -->
+  <path d="M250,180 Q400,160 550,180 Q400,200 250,180" 
+        fill="none" stroke="black" stroke-width="2"/>
+</svg>

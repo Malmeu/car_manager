@@ -5,11 +5,9 @@ export interface Vehicle {
   model: string;
   year: number;
   registration: string;
-  licensePlate: string;
   status: 'available' | 'rented' | 'unavailable' | 'maintenance';
   dailyRate: number;
-  mileage: number;
-  kilometers: number;
+  baseMileage: number;  // Kilométrage initial
   fuelType: string;
   lastMaintenance?: Date;
   imageUrl?: string;

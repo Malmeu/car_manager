@@ -1,16 +1,16 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
 import Dashboard from './components/Dashboard';
+import DashboardWrapper from './components/DashboardWrapper';
 import VehicleList from './components/vehicles/VehicleList';
+import VehicleTrackingWrapper from './components/vehicles/VehicleTrackingWrapper';
 import CustomerList from './components/customers/CustomerList';
 import RentalList from './components/rentals/RentalList';
 import Reports from './components/reports/Reports';
 import CashJournal from './components/CashJournal';
 import Layout from './components/layout/Layout';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
 import LandingPage from './pages/LandingPage';
 import UserManagementPage from './pages/UserManagementPage';
 import AdminSubscriptionPage from './pages/AdminSubscriptionPage';
@@ -23,18 +23,15 @@ import ContractPreview from './components/contracts/ContractPreview';
 import UserSubscriptionPage from './pages/UserSubscriptionPage';
 import UtilitiesPage from './pages/UtilitiesPage';
 import ProfileCustomization from './components/profile/ProfileCustomization';
-import { AuthProvider } from './contexts/AuthContext';
+import GuidePage from './pages/GuidePage';
+import GuideArticlePage from './pages/GuideArticlePage';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
-const AdminLayout = () => {
-  return (
-    <ProtectedRoute adminOnly>
-      <Layout>
-        <Outlet />
-      </Layout>
-    </ProtectedRoute>
-  );
-};
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
+import AdminNotificationsPage from './pages/AdminNotificationsPage';
+import AdminSettingsPage from './pages/AdminSettingsPage';
 
 const UserLayout = () => {
   return (
@@ -46,52 +43,75 @@ const UserLayout = () => {
   );
 };
 
+const AdminProtectedRoute = () => {
+  const { currentUser, isAdmin } = useAuth();
+  const location = useLocation();
+
+  if (!currentUser) {
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  // Vérifier si l'utilisateur est admin
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+};
+
+const DefaultRedirect = () => {
+  const { currentUser } = useAuth();
+  return <Navigate to={currentUser ? "/dashboard" : "/"} replace />;
+};
+
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
         <Router>
           <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
-            <Route path="/subscription-pending" element={<SubscriptionPendingPage />} />
-            
-            {/* Landing Page */}
             <Route path="/" element={<LandingPage />} />
             
-            {/* Routes Admin */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Navigate to="/admin/users" replace />} />
-              <Route path="users" element={<UserManagementPage />} />
-              <Route path="subscriptions" element={<AdminSubscriptionPage />} />
-            </Route>
-
-            {/* Routes Utilisateur */}
+            {/* Routes protégées utilisateur */}
             <Route element={<UserLayout />}>
-              <Route path="/profile-customization" element={<ProfileCustomization />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/vehicles" element={<VehicleList />} />
+              <Route path="/vehicles/:id/tracking" element={<VehicleTrackingWrapper />} />
               <Route path="/customers" element={<CustomerList />} />
               <Route path="/rentals" element={<RentalList />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/expenses" element={<ExpenseManager />} />
-              <Route path="/cash-journal" element={<CashJournal />} />
               <Route path="/contracts" element={<ContractList />} />
               <Route path="/contracts/new" element={<ContractForm />} />
               <Route path="/contracts/:id" element={<ContractPreview />} />
+              <Route path="/expenses" element={<ExpenseManager />} />
+              <Route path="/cash-journal" element={<CashJournal />} />
+              <Route path="/reports" element={<Reports />} />
               <Route path="/subscription" element={<UserSubscriptionPage />} />
+              <Route path="/subscription/plans" element={<SubscriptionPlansPage />} />
+              <Route path="/subscription/pending" element={<SubscriptionPendingPage />} />
               <Route path="/utilities" element={<UtilitiesPage />} />
+              <Route path="/profile" element={<ProfileCustomization />} />
+              <Route path="/guide" element={<GuidePage />} />
+              <Route path="/guide/:articleId" element={<GuideArticlePage />} />
             </Route>
 
-            {/* Redirection par défaut */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Routes protégées admin */}
+            <Route element={<AdminProtectedRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                <Route path="/admin/users" element={<UserManagementPage />} />
+                <Route path="/admin/subscriptions" element={<AdminSubscriptionPage />} />
+                <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+                <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
+                <Route path="/admin/settings" element={<AdminSettingsPage />} />
+              </Route>
+            </Route>
+
+            <Route path="*" element={<DefaultRedirect />} />
           </Routes>
         </Router>
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

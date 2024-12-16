@@ -80,9 +80,9 @@ const RentalForm: React.FC = () => {
 
   // Calculer le coût total chaque fois que les valeurs pertinentes changent
   useEffect(() => {
-    const days = Math.ceil(
+    const days = Math.max(1, Math.ceil(
       (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 3600 * 24)
-    );
+    ));
     const totalCost = days * formData.totalCost;
     setCalculatedTotal(totalCost);
   }, [formData.startDate, formData.endDate, formData.totalCost]);
@@ -95,7 +95,7 @@ const RentalForm: React.FC = () => {
       const startTimestamp = Timestamp.fromDate(formData.startDate);
       const endTimestamp = Timestamp.fromDate(formData.endDate);
       
-      const days = Math.ceil((endTimestamp.toDate().getTime() - startTimestamp.toDate().getTime()) / (1000 * 3600 * 24));
+      const days = Math.max(1, Math.ceil((endTimestamp.toDate().getTime() - startTimestamp.toDate().getTime()) / (1000 * 3600 * 24)));
       const totalCost = days * formData.totalCost;
 
       const rentalData = {
@@ -140,6 +140,38 @@ const RentalForm: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target as HTMLInputElement;
+    
+    if (name === 'startDate' || name === 'endDate') {
+      const newDate = new Date(value);
+      const otherDateField = name === 'startDate' ? 'endDate' : 'startDate';
+      const otherDate = formData[otherDateField];
+
+      // Pour la date de début
+      if (name === 'startDate') {
+        if (newDate > formData.endDate) {
+          // Si la nouvelle date de début est après la date de fin, on met à jour la date de fin
+          setFormData(prev => ({
+            ...prev,
+            [name]: newDate,
+            endDate: newDate
+          }));
+          return;
+        }
+      }
+      // Pour la date de fin
+      else if (name === 'endDate') {
+        if (newDate < formData.startDate) {
+          alert('La date de fin doit être après la date de début');
+          return;
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        [name]: newDate
+      }));
+      return;
+    }
     
     setFormData(prev => ({
       ...prev,

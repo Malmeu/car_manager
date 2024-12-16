@@ -6,12 +6,14 @@ export const COLLECTION_NAME = 'customers';
 export interface Customer {
   id?: string;
   userId: string;
+  type: 'particular' | 'business';
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   address: string;
   drivingLicense: string;
+  companyName?: string;
   rentalsHistory: string[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -31,6 +33,8 @@ export const migrateClient = async (clientId: string) => {
     const clientData = clientDoc.data();
     const newCustomer = await addDoc(collection(db, COLLECTION_NAME), {
       ...clientData,
+      type: 'particular',
+      companyName: undefined,
       migratedAt: new Date(),
       updatedAt: new Date()
     });

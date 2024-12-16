@@ -157,7 +157,7 @@ const Calendar: React.FC = () => {
       
       const resourcesList = vehiclesData.map(vehicle => ({
         id: vehicle.id || '',
-        title: `${vehicle.brand} ${vehicle.model} (${vehicle.licensePlate})`,
+        title: `${vehicle.brand} ${vehicle.model} (${vehicle.registration})`,
       }));
       setResources(resourcesList);
 

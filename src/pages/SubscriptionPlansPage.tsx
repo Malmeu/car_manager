@@ -20,6 +20,8 @@ import { Plan, BillingPeriod, PLANS } from '../models/subscription';
 import { useAuth } from '../contexts/AuthContext';
 import { subscriptionService } from '../services/subscriptionService';
 import { useNavigate } from 'react-router-dom';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const SubscriptionPlansPage: React.FC = () => {
   const theme = useTheme();
@@ -48,11 +50,20 @@ const SubscriptionPlansPage: React.FC = () => {
         planId === 'trial'
       );
 
+      // Mettre à jour le statut de l'abonnement dans le document utilisateur
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        'subscription.status': 'pending',
+        'subscription.plan': planId,
+        'subscription.billingPeriod': billingPeriod,
+        'subscription.updatedAt': new Date()
+      });
+
       // Rediriger vers la page d'attente
       navigate('/subscription-pending');
     } catch (error) {
       console.error('Erreur lors de la souscription:', error);
-      setError("Une erreur est survenue lors de la souscription. Veuillez réessayer.");
+      setError('Une erreur est survenue lors de la souscription. Veuillez réessayer.');
     }
   };
 

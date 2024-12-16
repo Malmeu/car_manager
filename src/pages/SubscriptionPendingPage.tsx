@@ -34,7 +34,7 @@ const SubscriptionPendingPage: React.FC = () => {
         const sub = await subscriptionService.getCurrentSubscription(currentUser.uid);
         setSubscription(sub);
 
-        // Si l'abonnement est actif, rediriger vers le dashboard
+        // Si l'abonnement est actif, rediriger automatiquement vers le dashboard
         if (sub?.status === 'active') {
           navigate('/dashboard');
         }
@@ -51,6 +51,11 @@ const SubscriptionPendingPage: React.FC = () => {
     const interval = setInterval(checkSubscriptionStatus, 30000);
     return () => clearInterval(interval);
   }, [currentUser, navigate]);
+
+  const handleProfileClick = () => {
+    // Permettre d'aller au dashboard même si l'abonnement est en attente
+    navigate('/dashboard', { replace: true });
+  };
 
   if (loading) {
     return (
@@ -119,7 +124,7 @@ const SubscriptionPendingPage: React.FC = () => {
           </Button>
           <Button
             variant="contained"
-            onClick={() => navigate('/profile')}
+            onClick={handleProfileClick}
           >
             Mon profil
           </Button>

@@ -64,6 +64,14 @@ export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<string>
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), rental);
+
+    // Mettre à jour le statut du véhicule à "rented"
+    const vehicleRef = doc(db, 'vehicles', rental.vehicleId);
+    await updateDoc(vehicleRef, {
+      status: 'rented',
+      editingRental: true
+    });
+
     return docRef.id;
   } catch (error) {
     console.error('Error adding rental:', error);
@@ -91,6 +99,17 @@ export const updateRental = async (id: string, rentalData: Partial<Rental>): Pro
     }
 
     await updateDoc(rentalRef, updateData);
+
+    // Si le statut de la location change à "completed" ou "cancelled",
+    // mettre à jour le statut du véhicule à "available"
+    if (updateData.status === 'completed' || updateData.status === 'cancelled') {
+      const rental = (await getDoc(rentalRef)).data() as Rental;
+      const vehicleRef = doc(db, 'vehicles', rental.vehicleId);
+      await updateDoc(vehicleRef, {
+        status: 'available',
+        editingRental: false
+      });
+    }
   } catch (error) {
     console.error('Error updating rental:', error);
     throw error;

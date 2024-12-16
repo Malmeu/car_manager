@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+  <!-- Contour principal -->
+  <path d="M200,200 Q400,180 600,200 L650,300 Q400,320 150,300 Z" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- Feux arrière -->
+  <rect x="220" y="220" width="60" height="30" fill="none" stroke="black"/>
+  <rect x="520" y="220" width="60" height="30" fill="none" stroke="black"/>
+  
+  <!-- Coffre -->
+  <path d="M250,250 H550 V270 H250 Z" fill="none" stroke="black"/>
+  
+  <!-- Pare-chocs -->
+  <path d="M200,280 Q400,300 600,280" fill="none" stroke="black" stroke-width="3"/>
+</svg>

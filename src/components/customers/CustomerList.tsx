@@ -23,6 +23,11 @@ import {
   TableHead,
   TableRow,
   Paper,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,6 +40,7 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon,
   Assessment as AssessmentIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { Customer, addCustomer, getAllCustomers, updateCustomer, deleteCustomer, searchCustomersByName } from '../../services/customerService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -86,12 +92,14 @@ const CustomerList: React.FC = () => {
   const [openReport, setOpenReport] = useState(false);
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>({
     userId: currentUser?.uid || '',
+    type: 'particular',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     address: '',
     drivingLicense: '',
+    companyName: '',
     rentalsHistory: []
   });
   const [rentals, setRentals] = useState<RentalHistory[]>([]);
@@ -118,24 +126,28 @@ const CustomerList: React.FC = () => {
       setEditingCustomer(customer);
       setFormData({
         userId: customer.userId,
+        type: customer.type || 'particular',
         firstName: customer.firstName,
         lastName: customer.lastName,
         email: customer.email,
         phone: customer.phone,
         address: customer.address,
         drivingLicense: customer.drivingLicense,
+        companyName: customer.companyName || '',
         rentalsHistory: customer.rentalsHistory
       });
     } else {
       setEditingCustomer(null);
       setFormData({
         userId: currentUser?.uid || '',
+        type: 'particular',
         firstName: '',
         lastName: '',
         email: '',
         phone: '',
         address: '',
         drivingLicense: '',
+        companyName: '',
         rentalsHistory: []
       });
     }
@@ -391,158 +403,320 @@ const CustomerList: React.FC = () => {
         </Box>
       </Box>
 
-      <Grid container spacing={3}>
-        {filteredCustomers.map((customer) => (
-          <Grid item xs={12} sm={6} md={4} key={customer.id}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-                    {customer.firstName[0]?.toUpperCase()}
-                    {customer.lastName[0]?.toUpperCase()}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6">
-                      {customer.firstName}
-                    </Typography>
-                    <Typography color="textSecondary">
-                      {customer.lastName}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Entreprises
+        </Typography>
+        <Grid container spacing={3}>
+          {filteredCustomers
+            .filter(customer => customer.type === 'business')
+            .map((customer) => (
+            <Grid item xs={12} sm={6} md={4} key={customer.id}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
+                color: 'white',
+                position: 'relative',
+                overflow: 'visible',
+                '&:before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: -2,
+                  left: -2,
+                  right: -2,
+                  bottom: -2,
+                  background: 'linear-gradient(45deg, #1a237e, #0d47a1, #1a237e)',
+                  zIndex: -1,
+                  borderRadius: '8px'
+                }
+              }}>
+                <CardContent>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    mb: 2,
+                    position: 'relative'
+                  }}>
+                    <Avatar sx={{ 
+                      bgcolor: '#fff',
+                      color: '#1a237e',
+                      mr: 2,
+                      width: 56,
+                      height: 56,
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                    }}>
+                      <BusinessIcon sx={{ fontSize: 32 }} />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h5" component="div" sx={{ 
+                        fontWeight: 'bold',
+                        textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+                      }}>
+                        {customer.companyName}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        Entreprise
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 1.5,
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 1,
+                    p: 2,
+                    mt: 2
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <EmailIcon sx={{ mr: 1, color: 'white' }} />
+                      <Typography variant="body2">{customer.email}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <PhoneIcon sx={{ mr: 1, color: 'white' }} />
+                      <Typography variant="body2">{customer.phone}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <LocationIcon sx={{ mr: 1, color: 'white' }} />
+                      <Typography variant="body2">{customer.address}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <LicenseIcon sx={{ mr: 1, color: 'white' }} />
+                      <Typography variant="body2">{customer.drivingLicense}</Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+                <CardActions sx={{ 
+                  justifyContent: 'flex-end',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  p: 1.5
+                }}>
+                  <Tooltip title="Modifier">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleOpenDialog(customer)}
+                      sx={{ color: 'white' }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Supprimer">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleDelete(customer.id!)}
+                      sx={{ color: 'white' }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Rapport">
+                    <IconButton 
+                      size="small"
+                      onClick={() => customer.id && fetchCustomerReport(customer)}
+                      sx={{ color: 'white' }}
+                    >
+                      <AssessmentIcon />
+                    </IconButton>
+                  </Tooltip>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Particuliers
+        </Typography>
+        <Grid container spacing={3}>
+          {filteredCustomers
+            .filter(customer => customer.type === 'particular')
+            .map((customer) => (
+            <Grid item xs={12} sm={6} md={4} key={customer.id}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                      <PersonIcon />
+                    </Avatar>
+                    <Typography variant="h6" component="div">
+                      {customer.firstName} {customer.lastName}
                     </Typography>
                   </Box>
-                </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  <Typography>{customer.email}</Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <PhoneIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  <Typography>{customer.phone}</Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LicenseIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  <Typography>{customer.drivingLicense}</Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <LocationIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  <Typography>{customer.address}</Typography>
-                </Box>
-              </CardContent>
-
-              <CardActions sx={{ justifyContent: 'flex-end' }}>
-                <Tooltip title="Voir le rapport">
-                  <IconButton
-                    size="small"
-                    onClick={() => customer.id && fetchCustomerReport(customer)}
-                    color="info"
-                  >
-                    <AssessmentIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Modifier">
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setEditingCustomer(customer);
-                      setFormData(customer);
-                      setOpen(true);
-                    }}
-                    color="primary"
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{customer.email}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <PhoneIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{customer.phone}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <LocationIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{customer.address}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <LicenseIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{customer.drivingLicense}</Typography>
+                  </Box>
+                </CardContent>
+                <CardActions>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleOpenDialog(customer)}
+                    title="Modifier"
                   >
                     <EditIcon />
                   </IconButton>
-                </Tooltip>
-                <Tooltip title="Supprimer">
-                  <IconButton
-                    size="small"
-                    onClick={() => customer.id && handleDelete(customer.id)}
-                    color="error"
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleDelete(customer.id!)}
+                    title="Supprimer"
                   >
                     <DeleteIcon />
                   </IconButton>
-                </Tooltip>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  <IconButton 
+                    size="small"
+                    onClick={() => customer.id && fetchCustomerReport(customer)}
+                    title="Rapport"
+                  >
+                    <AssessmentIcon />
+                  </IconButton>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              name="firstName"
-              label="Prénom"
-              type="text"
-              fullWidth
-              value={formData.firstName}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="lastName"
-              label="Nom"
-              type="text"
-              fullWidth
-              value={formData.lastName}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="email"
-              label="Email"
-              type="email"
-              fullWidth
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="phone"
-              label="Numéro de Tel"
-              type="tel"
-              fullWidth
-              value={formData.phone}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="drivingLicense"
-              label="Numéro de permis"
-              type="text"
-              fullWidth
-              value={formData.drivingLicense}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="address"
-              label="Addresse"
-              type="text"
-              fullWidth
-              value={formData.address}
-              onChange={handleInputChange}
-              required
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Annuler</Button>
-            <Button type="submit" variant="contained" color="primary">
-              {editingCustomer ? 'Enregistrer' : 'Ajouter'}
-            </Button>
-          </DialogActions>
-        </form>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingCustomer ? 'Modifier le client' : 'Ajouter un client'}
+        </DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+            <FormControl component="fieldset" fullWidth margin="normal" required>
+              <FormLabel component="legend">Type de client</FormLabel>
+              <RadioGroup
+                row
+                name="type"
+                value={formData.type}
+                onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement>)}
+                sx={{ mb: 2 }}
+              >
+                <FormControlLabel 
+                  value="particular" 
+                  control={<Radio />} 
+                  label="Particulier" 
+                />
+                <FormControlLabel 
+                  value="business" 
+                  control={<Radio />} 
+                  label="Entreprise" 
+                />
+              </RadioGroup>
+            </FormControl>
+
+            {formData.type === 'business' && (
+              <TextField
+                fullWidth
+                label="Nom de l'entreprise"
+                name="companyName"
+                value={formData.companyName || ''}
+                onChange={handleInputChange}
+                required
+                margin="normal"
+              />
+            )}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Prénom"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nom"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Téléphone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Adresse"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Numéro de permis"
+                  name="drivingLicense"
+                  value={formData.drivingLicense}
+                  onChange={handleInputChange}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            variant="contained" 
+            color="primary"
+          >
+            {editingCustomer ? 'Modifier' : 'Ajouter'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Dialog

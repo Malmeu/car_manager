@@ -21,7 +21,7 @@ import {
   Paper,
   Tooltip as MuiTooltip,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Assessment as AssessmentIcon, Add as AddIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { getAllCustomers, deleteCustomer, Customer } from '../../services/customerService';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -32,6 +32,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
+import AddCustomerDialog from './AddCustomerDialog';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -150,6 +151,7 @@ const ClientList: React.FC = () => {
   const [stats, setStats] = useState<RentalStats | null>(null);
   const [clientReport, setClientReport] = useState<ClientReport | null>(null);
   const [openReport, setOpenReport] = useState(false);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
   const navigate = useNavigate();
 
   const fetchClients = async () => {
@@ -243,6 +245,19 @@ const ClientList: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Clients
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setOpenAddDialog(true)}
+          startIcon={<AddIcon />}
+        >
+          Ajouter un client
+        </Button>
+      </Box>
       <Typography variant="h4" component="h1" gutterBottom>
         Client
       </Typography>
@@ -424,6 +439,15 @@ const ClientList: React.FC = () => {
           <Button onClick={handleCloseReport}>Fermer</Button>
         </DialogActions>
       </Dialog>
+
+      <AddCustomerDialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        onSuccess={() => {
+          setOpenAddDialog(false);
+          fetchClients();
+        }}
+      />
     </Box>
   );
 };

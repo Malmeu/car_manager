@@ -228,7 +228,7 @@ const ContractForm: React.FC = () => {
                 >
                   {vehicles.map((vehicle) => (
                     <MenuItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.brand} {vehicle.model} - {vehicle.licensePlate}
+                      {vehicle.brand} {vehicle.model} - {vehicle.registration}
                     </MenuItem>
                   ))}
                 </Select>

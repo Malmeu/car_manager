@@ -26,6 +26,7 @@ import {
   Speed as SpeedIcon,
   Event as DateIcon,
   Search as SearchIcon,
+  Timeline as TimelineIcon,
 } from '@mui/icons-material';
 import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
 import { getAllRentals } from '../../services/rentalService';
@@ -34,8 +35,24 @@ import { onSnapshot, collection } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscriptionService } from '../../services/subscriptionService'; // Import the subscriptionService
 import VehicleDetailDialog from './VehicleDetailDialog'; // Import VehicleDetailDialog
+import { useNavigate } from 'react-router-dom';
+import { VehicleCard } from './VehicleCard';
+
+const initialState: Omit<Vehicle, 'id'> = {
+  userId: '',
+  brand: '',
+  model: '',
+  year: new Date().getFullYear(),
+  registration: '',
+  status: 'available',
+  dailyRate: 0,
+  baseMileage: 0,
+  fuelType: '',
+  imageUrl: '',
+};
 
 const VehicleList: React.FC = () => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
@@ -44,36 +61,36 @@ const VehicleList: React.FC = () => {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
-    brand: '',
-    model: '',
-    year: new Date().getFullYear(),
-    registration: '',
-    licensePlate: '',
-    status: 'available',
-    dailyRate: 0,
-    mileage: 0,
-    kilometers: 0,
-    fuelType: 'essence',
-    userId: currentUser?.uid || ''
-  });
+  const [formData, setFormData] = useState(initialState);
   const [activeRentals, setActiveRentals] = useState<string[]>([]);
 
   useEffect(() => {
     console.log('VehicleList - Component mounted');
-    loadVehicles();
+    let isSubscribed = true;
 
-    // Écouter les changements de la collection vehicles
+    const loadInitialVehicles = async () => {
+      try {
+        if (!currentUser?.uid || !isSubscribed) return;
+        const vehiclesData = await getAllVehicles(currentUser.uid);
+        if (isSubscribed) {
+          setVehicles(vehiclesData);
+        }
+      } catch (error) {
+        console.error('Error loading initial vehicles:', error);
+      }
+    };
+
+    // Charger les véhicules initiaux
+    loadInitialVehicles();
+
+    // Configurer l'écouteur Firestore
     const unsubscribe = onSnapshot(
       collection(db, 'vehicles'),
       (snapshot) => {
+        if (!isSubscribed) return;
+        
         console.log('Firestore - Vehicle collection update detected');
-        console.log('Number of documents:', snapshot.size);
-        snapshot.docChanges().forEach((change) => {
-          console.log('Document change type:', change.type);
-          console.log('Document data:', change.doc.data());
-        });
-        loadVehicles();
+        loadInitialVehicles();
       },
       (error) => {
         console.error('Firestore - Error listening to vehicles:', error);
@@ -81,10 +98,11 @@ const VehicleList: React.FC = () => {
     );
 
     return () => {
-      console.log('VehicleList - Component unmounting');
+      console.log('VehicleList - Component unmounting, cleaning up subscriptions');
+      isSubscribed = false;
       unsubscribe();
     };
-  }, []); // Initial load
+  }, [currentUser]); // Dépendance à currentUser
 
   useEffect(() => {
     console.log('Filtering vehicles:', {
@@ -112,7 +130,16 @@ const VehicleList: React.FC = () => {
         getAllRentals(currentUser.uid)
       ]);
 
-      console.log('Vehicles data received:', vehiclesData.length);
+      // Vérifier que chaque véhicule a un ID
+      const validVehicles = vehiclesData.filter(vehicle => {
+        if (!vehicle.id) {
+          console.error('Vehicle without ID:', vehicle);
+          return false;
+        }
+        return true;
+      });
+
+      console.log('Vehicles data received:', validVehicles.length);
       console.log('Rentals data received:', rentalsData.length);
 
       // Récupérer les IDs des véhicules actuellement en location
@@ -124,7 +151,7 @@ const VehicleList: React.FC = () => {
       setActiveRentals(rentedVehicleIds);
 
       // Mettre à jour le statut des véhicules en fonction des locations actives
-      const updatedVehicles = vehiclesData.map(vehicle => {
+      const updatedVehicles = validVehicles.map(vehicle => {
         const isRented = rentedVehicleIds.includes(vehicle.id!);
         console.log(`Vehicle ${vehicle.id} (${vehicle.brand} ${vehicle.model}) - Rented: ${isRented}`);
         
@@ -158,29 +185,15 @@ const VehicleList: React.FC = () => {
         model: vehicle.model,
         year: vehicle.year,
         registration: vehicle.registration,
-        licensePlate: vehicle.licensePlate,
         status: vehicle.status,
         dailyRate: vehicle.dailyRate,
-        mileage: vehicle.mileage,
-        kilometers: vehicle.kilometers,
+        baseMileage: vehicle.baseMileage,
         fuelType: vehicle.fuelType,
         userId: vehicle.userId,
       });
     } else {
       setEditingVehicle(null);
-      setFormData({
-        brand: '',
-        model: '',
-        year: new Date().getFullYear(),
-        registration: '',
-        licensePlate: '',
-        status: 'available',
-        dailyRate: 0,
-        mileage: 0,
-        kilometers: 0,
-        fuelType: '',
-        userId: currentUser?.uid || '',
-      });
+      setFormData(initialState);
     }
     setOpen(true);
   };
@@ -199,7 +212,7 @@ const VehicleList: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'year' || name === 'dailyRate' || name === 'mileage' || name === 'kilometers' ? Number(value) : value,
+      [name]: name === 'year' || name === 'dailyRate' || name === 'baseMileage' ? Number(value) : value,
     }));
   };
 
@@ -259,8 +272,21 @@ const VehicleList: React.FC = () => {
     }
   };
 
+  const handleTrackingClick = (vehicleId: string | undefined) => {
+    if (!vehicleId) return;
+    navigate(`/vehicles/${vehicleId}/tracking`);
+  };
+
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    handleOpen(vehicle);
+  };
+
+  const handleDeleteVehicle = async (vehicleId: string) => {
+    handleDelete(vehicleId);
+  };
+
   return (
-    <Box p={3}>
+    <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Véhicules</Typography>
         <Box display="flex" gap={2}>
@@ -290,115 +316,12 @@ const VehicleList: React.FC = () => {
 
       <Grid container spacing={3}>
         {filteredVehicles.map((vehicle) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={vehicle.id}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                borderRadius: 2,
-                overflow: 'hidden',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: 6,
-                  transform: 'translateY(-2px)'
-                }
-              }}
-              onClick={() => handleCardClick(vehicle)}
-            >
-              <Box
-                sx={{
-                  p: 2,
-                  background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                  color: 'white',
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {vehicle.brand} {vehicle.model}
-                </Typography>
-                <Box display="flex" gap={1}>
-                  <Chip
-                    size="small"
-                    label={activeRentals.includes(vehicle.id!) ? 'En location' :
-                           vehicle.status === 'available' ? 'Disponible' : 'Indisponible'}
-                    color={activeRentals.includes(vehicle.id!) ? 'warning' :
-                           vehicle.status === 'available' ? 'success' : 'error'}
-                    onClick={(e) => handleStatusToggle(e, vehicle)}
-                    sx={{ 
-                      cursor: activeRentals.includes(vehicle.id!) ? 'default' : 'pointer',
-                      backgroundColor: activeRentals.includes(vehicle.id!) ? '#ed6c02' :
-                                    vehicle.status === 'available' ? '#2e7d32' : '#d32f2f',
-                      color: 'white',
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    label={`${vehicle.year}`}
-                    icon={<DateIcon />}
-                    sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: 'white' }}
-                  />
-                </Box>
-              </Box>
-              <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                <Box display="flex" flexDirection="column" gap={1.5}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <FuelIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
-                      {vehicle.fuelType}
-                    </Typography>
-                  </Box>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <SpeedIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {vehicle.kilometers.toLocaleString()} km
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    backgroundColor: '#f5f5f5',
-                    p: 1,
-                    borderRadius: 1
-                  }}>
-                    <span style={{ fontWeight: 500 }}>Immat:</span> {vehicle.registration}
-                  </Typography>
-                  <Typography variant="h6" color="primary" sx={{ 
-                    mt: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#e3f2fd',
-                    p: 1,
-                    borderRadius: 1
-                  }}>
-                    {vehicle.dailyRate.toLocaleString()} DZD/jour
-                  </Typography>
-                </Box>
-              </CardContent>
-              <CardActions sx={{ 
-                justifyContent: 'flex-end', 
-                p: 1.5,
-                borderTop: '1px solid #eee'
-              }}>
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleEditClick(e, vehicle)}
-                  color="primary"
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleDeleteClick(e, vehicle)}
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </CardActions>
-            </Card>
+          <Grid item xs={12} sm={6} md={4} key={vehicle.id}>
+            <VehicleCard
+              vehicle={vehicle}
+              onEdit={handleEditVehicle}
+              onDelete={handleDeleteVehicle}
+            />
           </Grid>
         ))}
       </Grid>
@@ -450,11 +373,11 @@ const VehicleList: React.FC = () => {
             />
             <TextField
               margin="dense"
-              name="licensePlate"
-              label="Plaque d'immatriculation"
-              type="text"
+              name="baseMileage"
+              label="Kilométrage initial"
+              type="number"
               fullWidth
-              value={formData.licensePlate}
+              value={formData.baseMileage}
               onChange={handleInputChange}
               required
             />
@@ -479,16 +402,6 @@ const VehicleList: React.FC = () => {
               type="number"
               fullWidth
               value={formData.dailyRate}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              margin="dense"
-              name="kilometers"
-              label="Kilométrage"
-              type="number"
-              fullWidth
-              value={formData.kilometers}
               onChange={handleInputChange}
               required
             />

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+  <!-- Carrosserie principale -->
+  <path d="M150,250 L200,150 H500 L600,250 H550 L500,350 H200 Z" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- Fenêtres -->
+  <path d="M250,170 H450 L430,250 H270 Z" fill="none" stroke="black"/>
+  
+  <!-- Roues -->
+  <circle cx="250" cy="350" r="40" fill="none" stroke="black"/>
+  <circle cx="450" cy="350" r="40" fill="none" stroke="black"/>
+  
+  <!-- Porte -->
+  <path d="M320,200 V320 H430 V250 Z" fill="none" stroke="black"/>
+</svg>

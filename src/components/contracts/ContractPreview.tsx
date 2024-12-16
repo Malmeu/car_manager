@@ -234,11 +234,11 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ formData: propFormDat
               <Grid item xs={6}>
                 <Typography variant="body1"><strong>Marque:</strong> {vehicle.brand}</Typography>
                 <Typography variant="body1"><strong>Modèle:</strong> {vehicle.model}</Typography>
-                <Typography variant="body1"><strong>Immatriculation:</strong> {vehicle.licensePlate}</Typography>
+                <Typography variant="body1"><strong>Immatriculation:</strong> {vehicle.registration}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body1"><strong>Année:</strong> {vehicle.year}</Typography>
-                <Typography variant="body1"><strong>Kilométrage:</strong> {vehicle.mileage} km</Typography>
+                <Typography variant="body1"><strong>Kilométrage initial:</strong> {vehicle.baseMileage} km</Typography>
               </Grid>
             </Grid>
           </Box>

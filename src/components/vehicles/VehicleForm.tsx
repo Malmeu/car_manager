@@ -19,18 +19,17 @@ interface VehicleFormProps {
   onSave: () => void;
 }
 
-const initialState: Omit<Vehicle, 'id'> = {
+const initialState: Vehicle = {
+  userId: '',
   brand: '',
   model: '',
   year: new Date().getFullYear(),
   registration: '',
-  licensePlate: '',
-  dailyRate: 0,
-  mileage: 0,
-  fuelType: '',
-  kilometers: 0,
   status: 'available',
-  userId: '',
+  dailyRate: 0,
+  baseMileage: 0,
+  fuelType: '',
+  imageUrl: ''
 };
 
 const VehicleForm: React.FC<VehicleFormProps> = ({
@@ -38,13 +37,12 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
   onClose,
   onSave,
 }) => {
-  const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>(initialState);
+  const [formData, setFormData] = useState<Vehicle>(initialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (vehicle) {
-      const { id, ...vehicleData } = vehicle;
-      setFormData(vehicleData);
+      setFormData(vehicle);
     } else {
       setFormData(initialState);
     }
@@ -56,10 +54,8 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
     if (!formData.brand) newErrors.brand = 'La marque est requise';
     if (!formData.model) newErrors.model = 'Le modèle est requis';
     if (!formData.registration) newErrors.registration = "Le numéro de série est requis";
-    if (!formData.licensePlate) newErrors.licensePlate = "L'immatriculation est requise";
     if (formData.dailyRate <= 0) newErrors.dailyRate = 'Le prix journalier doit être supérieur à 0';
-    if (formData.mileage < 0) newErrors.mileage = 'Le kilométrage ne peut pas être négatif';
-    if (formData.kilometers < 0) newErrors.kilometers = 'Le kilométrage ne peut pas être négatif';
+    if (formData.baseMileage < 0) newErrors.baseMileage = 'Le kilométrage de base ne peut pas être négatif';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -72,7 +68,12 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
 
     try {
       if (vehicle?.id) {
-        await updateDoc(doc(db, 'vehicles', vehicle.id), formData);
+        const vehicleData = {
+          ...formData,
+          lastMaintenance: formData.lastMaintenance || null,
+          imageUrl: formData.imageUrl || '',
+        };
+        await updateDoc(doc(db, 'vehicles', vehicle.id), vehicleData);
       } else {
         await addDoc(collection(db, 'vehicles'), formData);
       }
@@ -86,7 +87,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'year' || name === 'dailyRate' || name === 'mileage' || name === 'kilometers'
+      [name]: name === 'year' || name === 'dailyRate' || name === 'baseMileage'
         ? Number(value)
         : value,
     }));
@@ -137,23 +138,12 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Numéro de série"
+              label="Immatriculation"
               name="registration"
               value={formData.registration}
               onChange={handleChange}
               error={!!errors.registration}
               helperText={errors.registration}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Plaque d'immatriculation"
-              name="licensePlate"
-              value={formData.licensePlate}
-              onChange={handleChange}
-              error={!!errors.licensePlate}
-              helperText={errors.licensePlate}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -180,20 +170,20 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
             >
               <MenuItem value="essence">Essence</MenuItem>
               <MenuItem value="diesel">Diesel</MenuItem>
-              <MenuItem value="hybrid">Hybride</MenuItem>
-              <MenuItem value="electric">Électrique</MenuItem>
+              <MenuItem value="hybride">Hybride</MenuItem>
+              <MenuItem value="electrique">Électrique</MenuItem>
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Kilométrage"
-              name="kilometers"
+              label="Kilométrage de base"
+              name="baseMileage"
               type="number"
-              value={formData.kilometers}
+              value={formData.baseMileage}
               onChange={handleChange}
-              error={!!errors.kilometers}
-              helperText={errors.kilometers}
+              error={!!errors.baseMileage}
+              helperText={errors.baseMileage}
               InputProps={{ inputProps: { min: 0 } }}
             />
           </Grid>

@@ -83,7 +83,7 @@ const VehicleDetails: React.FC<VehicleDetailsProps> = ({ vehicle }) => {
                 <strong>Prix journalier:</strong> {vehicle.dailyRate} DZD
               </Typography>
               <Typography variant="body1">
-                <strong>Kilométrage:</strong> {vehicle.mileage.toLocaleString()} km
+                <strong>Kilométrage initial:</strong> {(vehicle.baseMileage || 0).toLocaleString()} km
               </Typography>
               {vehicle.lastMaintenance && (
                 <Typography variant="body1">

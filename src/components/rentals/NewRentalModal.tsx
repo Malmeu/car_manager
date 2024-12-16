@@ -206,6 +206,7 @@ const NewRentalModal: React.FC<NewRentalModalProps> = ({
         const newCustomerId = await addCustomer({
           ...customerFormData,
           userId: currentUser.uid,
+          type: 'particular',
           rentalsHistory: [],
           drivingLicense: customerFormData.drivingLicense
         });
@@ -269,7 +270,7 @@ const NewRentalModal: React.FC<NewRentalModalProps> = ({
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body1">
-                  <strong>Immatriculation:</strong> {selectedVehicle.licensePlate}
+                  <strong>Immatriculation:</strong> {selectedVehicle.registration}
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>

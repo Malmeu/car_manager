@@ -419,4 +419,5 @@ const Dashboard = () => {
   );
 };
 
+// Exporter le composant sans la vérification d'abonnement
 export default Dashboard;

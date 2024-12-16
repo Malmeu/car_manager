@@ -15,12 +15,15 @@ import {
   ListItemIcon,
   ListItemText,
   CssBaseline,
-  SpeedDial,
-  SpeedDialIcon,
-  Tooltip,
+  useMediaQuery,
+  useTheme,
+  Collapse,
   Button,
   Link,
   CircularProgress,
+  SwipeableDrawer,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -41,6 +44,8 @@ import {
   Description as DescriptionIcon,
   Build as BuildIcon,
   Person as PersonIcon,
+  ExpandLess,
+  ExpandMore,
 } from '@mui/icons-material';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -51,19 +56,127 @@ import { useAuth } from '../../contexts/AuthContext';
 import { subscriptionService } from '../../services/subscriptionService';
 import NotificationCenter from '../notifications/NotificationCenter';
 import SubscriptionStatus from '../subscription/SubscriptionStatus';
+import { globalStyles } from '../../styles/globalStyles';
+import MenuListItem from './MenuListItem';
 
 const drawerWidth = 240;
 
 const Layout = ({ children }: { children?: React.ReactNode }) => {
-  const [open, setOpen] = React.useState(true);
-  const { currentUser, isAdmin } = useAuth();
+  // Tous les hooks d'état au début du composant
+  const [open, setOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [loading, setLoading] = useState(true);
   const [hasValidSubscription, setHasValidSubscription] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(localStorage.getItem('companyLogo'));
   const [companyName, setCompanyName] = useState<string>(localStorage.getItem('companyName') || 'Car Manager Pro');
   const [primaryColor, setPrimaryColor] = useState<string>(localStorage.getItem('primaryColor') || '#1a237e');
+
+  // Autres hooks
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { currentUser, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Gestionnaires d'événements
+  const handleDrawerToggle = () => {
+    if (isMobile) {
+      setMobileOpen(!mobileOpen);
+    } else {
+      setOpen(!open);
+    }
+  };
+
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
+  // Items du menu
+  const menuItems = [
+    {
+      text: 'Tableau de bord',
+      icon: <DashboardIcon />,
+      path: '/dashboard',
+    },
+    ...(isAdmin ? [
+      {
+        text: 'Administration',
+        icon: <AdminIcon />,
+        path: '/admin/dashboard'
+      }
+    ] : []),
+    {
+      text: 'Véhicules',
+      icon: <CarIcon />,
+      path: '/vehicles'
+    },
+    {
+      text: 'Contrats',
+      icon: <DescriptionIcon />,
+      path: '/contracts'
+    },
+    {
+      text: 'Clients',
+      icon: <PeopleIcon />,
+      path: '/customers'
+    },
+    {
+      text: 'Locations',
+      icon: <ContractIcon />,
+      path: '/rentals'
+    },
+    {
+      text: 'Frais',
+      icon: <EuroIcon />,
+      path: '/expenses',
+    },
+    {
+      text: 'Caisse',
+      icon: <AccountBalanceIcon />,
+      path: '/cash-journal',
+    },
+    {
+      text: 'Rapports',
+      icon: <ReportIcon />,
+      path: '/reports'
+    },
+    {
+      text: 'Utilitaires',
+      icon: <BuildIcon />,
+      path: '/utilities'
+    },
+    {
+      text: 'Mon Abonnement',
+      icon: <CreditCardIcon />,
+      path: '/subscription'
+    }
+  ];
+
+  // Fermer automatiquement le drawer sur mobile lors d'un changement de route
+  useEffect(() => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  }, [location.pathname, isMobile]);
+
+  // Ajuster l'état ouvert/fermé en fonction de la taille de l'écran
+  useEffect(() => {
+    setOpen(!isMobile);
+  }, [isMobile]);
 
   const openedMixin = useMemo(
     () => (theme: any) => ({
@@ -169,7 +282,12 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       })<{
         open?: boolean;
       }>(({ theme, open }) => ({
-        backgroundColor: primaryColor,
+        backgroundColor: 'transparent',
+        boxShadow: 'none',
+        backdropFilter: 'blur(20px)',
+        background: 'rgba(255, 255, 255, 0.8)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+        color: primaryColor,
         transition: theme.transitions.create(['margin', 'width'], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.leavingScreen,
@@ -290,91 +408,35 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
     );
   }
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const menuItems: any[] = [
-    {
-      text: 'Tableau de bord',
-      icon: <DashboardIcon />,
-      path: '/dashboard',
-    },
-    ...(isAdmin ? [
-      {
-        text: 'Utilisateurs',
-        icon: <PeopleIcon />,
-        path: '/admin/users'
-      },
-      {
-        text: 'Abonnements',
-        icon: <CreditCardIcon />,
-        path: '/admin/subscriptions'
-      }
-    ] : []),
-    {
-      text: 'Véhicules',
-      icon: <CarIcon />,
-      path: '/vehicles'
-    },
-    {
-      text: 'Contrats',
-      icon: <DescriptionIcon />,
-      path: '/contracts'
-    },
-    {
-      text: 'Clients',
-      icon: <PeopleIcon />,
-      path: '/customers'
-    },
-    {
-      text: 'Locations',
-      icon: <ContractIcon />,
-      path: '/rentals'
-    },
-    {
-      text: 'Frais',
-      icon: <EuroIcon />,
-      path: '/expenses',
-    },
-    {
-      text: 'Caisse',
-      icon: <AccountBalanceIcon />,
-      path: '/cash-journal',
-    },
-    {
-      text: 'Rapports',
-      icon: <ReportIcon />,
-      path: '/reports'
-    },
-    {
-      text: 'Utilitaires',
-      icon: <BuildIcon />,
-      path: '/utilities'
-    },
-    {
-      text: 'Mon Abonnement',
-      icon: <CreditCardIcon />,
-      path: '/subscription'
-    }
-  ];
-
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
-      <AppBar 
-        position="fixed" 
+      <AppBar
+        position="fixed"
         open={open}
         sx={{
-          backgroundColor: primaryColor,
+          backgroundColor: 'transparent',
+          boxShadow: 'none',
+          backdropFilter: 'blur(20px)',
+          background: 'rgba(255, 255, 255, 0.8)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+          color: primaryColor,
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{
+              marginRight: 2,
+              ...(open && !isMobile && { display: 'none' }),
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             {companyLogo && (
               <Box
@@ -382,23 +444,35 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
                 src={companyLogo}
                 alt="Logo"
                 sx={{
-                  height: 40,
-                  width: 40,
+                  height: { xs: 32, sm: 40 },
+                  width: { xs: 32, sm: 40 },
                   marginRight: 2,
                   borderRadius: '50%',
                   objectFit: 'cover'
                 }}
               />
             )}
-            <Typography variant="h6" noWrap component="div">
+            <Typography 
+              variant="h6" 
+              noWrap 
+              component="div"
+              sx={{
+                fontSize: { xs: '1rem', sm: '1.25rem' },
+                display: { xs: !open ? 'block' : 'none', sm: 'block' }
+              }}
+            >
               {companyName}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: { xs: 0.5, sm: 1 }
+          }}>
             <IconButton
               color="inherit"
-              onClick={() => navigate('/profile-customization')}
+              onClick={handleMenu}
               sx={{
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -407,44 +481,151 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
             >
               <PersonIcon />
             </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleCloseMenu}
+            >
+              <MenuItem onClick={() => navigate('/profile-customization')}>
+                <ListItemIcon>
+                  <PersonIcon fontSize="small" />
+                </ListItemIcon>
+                Mon Profil
+              </MenuItem>
+              {isAdmin && (
+                <MenuItem onClick={() => navigate('/admin/dashboard')}>
+                  <ListItemIcon>
+                    <AdminIcon fontSize="small" />
+                  </ListItemIcon>
+                  Administration
+                </MenuItem>
+              )}
+              <MenuItem onClick={handleLogout}>
+                <ListItemIcon>
+                  <LogoutIcon fontSize="small" />
+                </ListItemIcon>
+                Déconnexion
+              </MenuItem>
+            </Menu>
             <NotificationCenter />
             <Button 
               color="inherit" 
               onClick={handleLogout} 
               startIcon={<LogoutIcon />}
+              sx={{
+                display: { xs: 'none', sm: 'flex' }
+              }}
             >
               Déconnexion
             </Button>
+            <IconButton
+              color="inherit"
+              onClick={handleLogout}
+              sx={{
+                display: { xs: 'flex', sm: 'none' },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              <LogoutIcon />
+            </IconButton>
           </Box>
         </Toolbar>
       </AppBar>
-      <Drawer variant="permanent" open={open}>
-        <DrawerHeader>
-          <IconButton>
-            {theme.direction === 'rtl' ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </IconButton>
-        </DrawerHeader>
-        <Divider />
-        <List>
-          {menuItems.map((item) => (
-            <ListItem
-              key={item.text}
-              button
-              onClick={() => navigate(item.path || '#')}
-              sx={{
-                backgroundColor: location.pathname === item.path ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
-      <Main open={open}>
+
+      {isMobile ? (
+        <SwipeableDrawer
+          variant="temporary"
+          open={mobileOpen}
+          onOpen={() => setMobileOpen(true)}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              background: 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              border: 'none',
+            },
+          }}
+        >
+          <DrawerHeader>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 2 }}>
+              {companyLogo && (
+                <Box
+                  component="img"
+                  src={companyLogo}
+                  alt="Logo"
+                  sx={{
+                    height: 32,
+                    width: 32,
+                    marginRight: 2,
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+              )}
+              <Typography variant="subtitle1" noWrap sx={{ flexGrow: 1 }}>
+                {companyName}
+              </Typography>
+              <IconButton onClick={() => setMobileOpen(false)}>
+                <ChevronLeftIcon />
+              </IconButton>
+            </Box>
+          </DrawerHeader>
+          <Divider />
+          <List sx={{ pt: 0 }}>
+            {menuItems.map((item) => (
+              <MenuListItem
+                key={item.text}
+                item={item}
+                onClick={() => navigate(item.path || '#')}
+                primaryColor={primaryColor}
+              />
+            ))}
+          </List>
+        </SwipeableDrawer>
+      ) : (
+        <Drawer variant="permanent" open={open}>
+          <DrawerHeader>
+            <IconButton onClick={() => setOpen(!open)}>
+              {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+            </IconButton>
+          </DrawerHeader>
+          <Divider />
+          <List sx={{ pt: 0 }}>
+            {menuItems.map((item) => (
+              <MenuListItem
+                key={item.text}
+                item={item}
+                onClick={() => navigate(item.path || '#')}
+                primaryColor={primaryColor}
+              />
+            ))}
+          </List>
+        </Drawer>
+      )}
+
+      <Main open={open && !isMobile}>
         <DrawerHeader />
-        {currentUser && <SubscriptionStatus />}
-        {children || <Outlet />}
+        <Box 
+          sx={{
+            ...globalStyles.gradientBackground,
+            p: { xs: 2, sm: 3 },
+            borderRadius: '20px',
+            margin: '16px',
+            minHeight: 'calc(100vh - 100px)',
+          }}
+        >
+          {currentUser && <SubscriptionStatus />}
+          <Box sx={{ mt: 3 }}>
+            {children || <Outlet />}
+          </Box>
+        </Box>
       </Main>
     </Box>
   );

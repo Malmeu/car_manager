@@ -21,12 +21,23 @@ const generateId = () => {
 // Get all vehicles for a specific user
 export const getAllVehicles = async (userId: string): Promise<Vehicle[]> => {
   try {
+    console.log('Getting vehicles for user:', userId);
     const q = query(
       collection(db, COLLECTION_NAME),
       where('userId', '==', userId)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Vehicle));
+    const vehicles = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const vehicle = {
+        ...data,
+        id: doc.id
+      } as Vehicle;
+      console.log('Loaded vehicle:', vehicle);
+      return vehicle;
+    });
+    console.log('Total vehicles loaded:', vehicles.length);
+    return vehicles;
   } catch (error) {
     console.error('Error getting vehicles:', error);
     throw error;
@@ -36,8 +47,11 @@ export const getAllVehicles = async (userId: string): Promise<Vehicle[]> => {
 // Add a new vehicle
 export const addVehicle = async (vehicleData: Omit<Vehicle, 'id'>): Promise<Vehicle> => {
   try {
+    console.log('Adding new vehicle:', vehicleData);
     const docRef = await addDoc(collection(db, COLLECTION_NAME), vehicleData);
-    return { ...vehicleData, id: docRef.id };
+    const newVehicle = { ...vehicleData, id: docRef.id };
+    console.log('Added vehicle with ID:', docRef.id);
+    return newVehicle;
   } catch (error) {
     console.error('Error adding vehicle:', error);
     throw error;
@@ -47,9 +61,12 @@ export const addVehicle = async (vehicleData: Omit<Vehicle, 'id'>): Promise<Vehi
 // Update a vehicle
 export const updateVehicle = async (id: string, vehicleData: Partial<Vehicle>): Promise<Vehicle> => {
   try {
+    console.log('Updating vehicle:', id, vehicleData);
     const vehicleRef = doc(db, COLLECTION_NAME, id);
     await updateDoc(vehicleRef, vehicleData);
-    return { ...vehicleData, id } as Vehicle;
+    const updatedVehicle = { ...vehicleData, id } as Vehicle;
+    console.log('Updated vehicle:', updatedVehicle);
+    return updatedVehicle;
   } catch (error) {
     console.error('Error updating vehicle:', error);
     throw error;
