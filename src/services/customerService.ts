@@ -124,9 +124,7 @@ export const deleteCustomer = async (id: string) => {
 export const getAllCustomers = async (userId?: string) => {
   try {
     const customersRef = collection(db, COLLECTION_NAME);
-    const querySnapshot = userId 
-      ? await getDocs(query(customersRef, where('userId', '==', userId)))
-      : await getDocs(customersRef);
+    const querySnapshot = await getDocs(customersRef);
       
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -141,15 +139,14 @@ export const getAllCustomers = async (userId?: string) => {
 // Search customers by name
 export const searchCustomersByName = async (searchTerm: string): Promise<Customer[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    return querySnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }) as Customer)
-      .filter(customer => 
-        customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    const customers = await getAllCustomers();
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    return customers.filter(customer => 
+      customer.firstName.toLowerCase().includes(searchTermLower) ||
+      customer.lastName.toLowerCase().includes(searchTermLower) ||
+      (customer.companyName && customer.companyName.toLowerCase().includes(searchTermLower))
+    );
   } catch (error) {
     console.error('Error searching customers:', error);
     return [];
