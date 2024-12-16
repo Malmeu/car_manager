@@ -146,11 +146,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       });
 
       onClose();
-      
-      // Attendre que Firebase confirme l'authentification
-      setTimeout(() => {
-        navigate('/subscription/plans');
-      }, 1000);
+      window.location.href = '/subscription/plans';
     } catch (error: any) {
       setError("Erreur lors de l'inscription. Vérifiez vos informations.");
     }
