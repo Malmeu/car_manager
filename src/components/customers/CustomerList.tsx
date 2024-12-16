@@ -83,6 +83,7 @@ interface RentalStats {
 
 const CustomerList: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -107,14 +108,25 @@ const CustomerList: React.FC = () => {
 
   useEffect(() => {
     if (currentUser?.uid) {
+      console.log('Current user:', { uid: currentUser.uid, isAdmin });
       loadCustomers();
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    // Mettre à jour filteredCustomers quand customers change
+    setFilteredCustomers(customers);
+  }, [customers]);
+
   const loadCustomers = async () => {
     try {
-      if (!currentUser?.uid) return;
+      if (!currentUser?.uid) {
+        console.log('No current user');
+        return;
+      }
+      console.log('Loading customers for user:', { uid: currentUser.uid, isAdmin });
       const data = await getAllCustomers(currentUser.uid, isAdmin);
+      console.log('Loaded customers:', data);
       setCustomers(data);
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -125,10 +137,10 @@ const CustomerList: React.FC = () => {
     try {
       if (!currentUser?.uid) return;
       if (searchTerm.trim() === '') {
-        loadCustomers();
+        setFilteredCustomers(customers);
       } else {
         const results = await searchCustomersByName(searchTerm, currentUser.uid, isAdmin);
-        setCustomers(results);
+        setFilteredCustomers(results);
       }
     } catch (error) {
       console.error('Error searching customers:', error);
@@ -178,16 +190,29 @@ const CustomerList: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value,
+      userId: currentUser?.uid || prev.userId, // Toujours garder le userId actuel
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (!currentUser?.uid) {
+        console.error('No user ID available');
+        return;
+      }
+
+      const dataToSubmit = {
+        ...formData,
+        userId: currentUser.uid // Toujours utiliser l'ID de l'utilisateur actuel
+      };
+      
+      console.log('Submitting customer form:', { dataToSubmit, editingCustomer });
+      
       if (editingCustomer?.id) {
-        await updateCustomer(editingCustomer.id, formData);
+        await updateCustomer(editingCustomer.id, dataToSubmit);
       } else {
-        await addCustomer(formData);
+        await addCustomer(dataToSubmit);
       }
       handleClose();
       loadCustomers();
@@ -358,15 +383,6 @@ const CustomerList: React.FC = () => {
     setSelectedCustomer(null);
     setCustomerReport(null);
   };
-
-  const filteredCustomers = customers.filter(customer =>
-    customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.drivingLicense.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <Box sx={{ p: 3 }}>

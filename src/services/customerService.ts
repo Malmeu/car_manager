@@ -81,12 +81,14 @@ export const getCustomerById = async (id: string) => {
 // Add new customer
 export const addCustomer = async (customerData: Omit<Customer, 'id'>) => {
   try {
+    console.log('Adding new customer with data:', customerData);
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...customerData,
       rentalsHistory: [],
       createdAt: new Date(),
       updatedAt: new Date()
     });
+    console.log('Added customer with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding customer:', error);
@@ -123,23 +125,32 @@ export const deleteCustomer = async (id: string) => {
 // Get all customers
 export const getAllCustomers = async (userId?: string, isAdmin: boolean = false) => {
   try {
+    console.log('Getting customers with:', { userId, isAdmin });
+    if (!userId) {
+      console.log('No userId provided');
+      return [];
+    }
+
     const customersRef = collection(db, COLLECTION_NAME);
     let querySnapshot;
     
     if (isAdmin) {
-      // Les admins voient tous les clients
+      console.log('Admin user, getting all customers');
       querySnapshot = await getDocs(customersRef);
-    } else if (userId) {
-      // Les utilisateurs normaux ne voient que leurs clients
-      querySnapshot = await getDocs(query(customersRef, where('userId', '==', userId)));
     } else {
-      return [];
+      console.log('Regular user, getting customers for userId:', userId);
+      // Ne récupérer que les clients avec le userId exact
+      const q = query(customersRef, where('userId', '==', userId));
+      querySnapshot = await getDocs(q);
     }
-      
-    return querySnapshot.docs.map(doc => ({
+    
+    const customers = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Customer[];
+    
+    console.log('Found customers:', customers);
+    return customers;
   } catch (error) {
     console.error('Error getting customers:', error);
     return [];
