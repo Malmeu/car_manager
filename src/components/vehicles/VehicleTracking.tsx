@@ -214,7 +214,7 @@ const VehicleTracking: React.FC = () => {
       setBaseMileage(initialMileage);
 
       // Calculer la somme des relevés
-      const mileageSum = vehicleData.mileages.reduce((sum, mileage) => sum + (mileage.value || 0), 0);
+      const mileageSum = vehicleData.mileages?.reduce((sum, mileage) => sum + (mileage.value || 0), 0) || 0;
       
       // Kilométrage total = kilométrage initial + somme des relevés
       setTotalMileage(initialMileage + mileageSum);
