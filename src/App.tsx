@@ -51,7 +51,6 @@ const AdminProtectedRoute = () => {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  // Vérifier si l'utilisateur est admin
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -71,7 +70,10 @@ function App() {
         <CssBaseline />
         <Router>
           <Routes>
+            {/* Routes publiques */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/subscription/plans" element={<SubscriptionPlansPage />} />
+            <Route path="/subscription/pending" element={<SubscriptionPendingPage />} />
             
             {/* Routes protégées utilisateur */}
             <Route element={<UserLayout />}>
@@ -87,8 +89,6 @@ function App() {
               <Route path="/cash-journal" element={<CashJournal />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/subscription" element={<UserSubscriptionPage />} />
-              <Route path="/subscription/plans" element={<SubscriptionPlansPage />} />
-              <Route path="/subscription/pending" element={<SubscriptionPendingPage />} />
               <Route path="/utilities" element={<UtilitiesPage />} />
               <Route path="/profile" element={<ProfileCustomization />} />
               <Route path="/guide" element={<GuidePage />} />
@@ -99,14 +99,15 @@ function App() {
             <Route element={<AdminProtectedRoute />}>
               <Route element={<AdminLayout />}>
                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-                <Route path="/admin/users" element={<UserManagementPage />} />
                 <Route path="/admin/subscriptions" element={<AdminSubscriptionPage />} />
                 <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                 <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
                 <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                <Route path="/admin/users" element={<UserManagementPage />} />
               </Route>
             </Route>
 
+            {/* Redirection par défaut */}
             <Route path="*" element={<DefaultRedirect />} />
           </Routes>
         </Router>
