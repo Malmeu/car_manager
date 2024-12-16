@@ -53,8 +53,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userData = userDoc.data();
-        setIsAdmin(userData?.isAdmin || false);
-        setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
+        
+        // Vérifier si c'est un nouvel utilisateur qui n'a pas encore choisi son abonnement
+        if (userData && userData.subscription?.status === 'pending' && !userData.subscription?.plan) {
+          // Ne pas définir isClient pour les nouveaux utilisateurs
+          setIsAdmin(false);
+          setIsClient(false);
+        } else {
+          setIsAdmin(userData?.isAdmin || false);
+          setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
+        }
       } else {
         setIsAdmin(false);
         setIsClient(false);
