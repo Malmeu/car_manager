@@ -86,7 +86,7 @@ const CustomerList: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerReport, setCustomerReport] = useState<CustomerReport | null>(null);
   const [openReport, setOpenReport] = useState(false);
@@ -114,10 +114,24 @@ const CustomerList: React.FC = () => {
   const loadCustomers = async () => {
     try {
       if (!currentUser?.uid) return;
-      const data = await getAllCustomers(currentUser.uid);
+      const data = await getAllCustomers(currentUser.uid, isAdmin);
       setCustomers(data);
     } catch (error) {
       console.error('Error loading customers:', error);
+    }
+  };
+
+  const handleSearch = async () => {
+    try {
+      if (!currentUser?.uid) return;
+      if (searchTerm.trim() === '') {
+        loadCustomers();
+      } else {
+        const results = await searchCustomersByName(searchTerm, currentUser.uid, isAdmin);
+        setCustomers(results);
+      }
+    } catch (error) {
+      console.error('Error searching customers:', error);
     }
   };
 
@@ -152,21 +166,6 @@ const CustomerList: React.FC = () => {
       });
     }
     setOpen(true);
-  };
-
-  const handleSearch = async () => {
-    if (!currentUser?.uid) return;
-    
-    if (searchTerm.trim()) {
-      try {
-        const results = await searchCustomersByName(searchTerm);
-        setCustomers(results);
-      } catch (error) {
-        console.error('Error searching customers:', error);
-      }
-    } else {
-      loadCustomers();
-    }
   };
 
   const handleClose = () => {

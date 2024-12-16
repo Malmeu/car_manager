@@ -121,10 +121,20 @@ export const deleteCustomer = async (id: string) => {
 };
 
 // Get all customers
-export const getAllCustomers = async (userId?: string) => {
+export const getAllCustomers = async (userId?: string, isAdmin: boolean = false) => {
   try {
     const customersRef = collection(db, COLLECTION_NAME);
-    const querySnapshot = await getDocs(customersRef);
+    let querySnapshot;
+    
+    if (isAdmin) {
+      // Les admins voient tous les clients
+      querySnapshot = await getDocs(customersRef);
+    } else if (userId) {
+      // Les utilisateurs normaux ne voient que leurs clients
+      querySnapshot = await getDocs(query(customersRef, where('userId', '==', userId)));
+    } else {
+      return [];
+    }
       
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -137,9 +147,9 @@ export const getAllCustomers = async (userId?: string) => {
 };
 
 // Search customers by name
-export const searchCustomersByName = async (searchTerm: string): Promise<Customer[]> => {
+export const searchCustomersByName = async (searchTerm: string, userId?: string, isAdmin: boolean = false): Promise<Customer[]> => {
   try {
-    const customers = await getAllCustomers();
+    const customers = await getAllCustomers(userId, isAdmin);
     const searchTermLower = searchTerm.toLowerCase();
     
     return customers.filter(customer => 
