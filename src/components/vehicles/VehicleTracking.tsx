@@ -627,54 +627,64 @@ const VehicleTracking: React.FC = () => {
             Historique des relevés
           </Typography>
           <Grid container spacing={2}>
-            {vehicleData?.mileages.sort((a, b) => {
-              const dateA = new Date(a.date).getTime();
-              const dateB = new Date(b.date).getTime();
-              return dateB - dateA;
-            }).map((mileage, index) => (
-              <Grid item xs={12} sm={6} md={4} key={mileage.id || index}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Box>
-                        <Typography variant="subtitle2" color="textSecondary">
-                          Date du relevé
-                        </Typography>
-                        <Typography variant="body1" gutterBottom>
-                          {formatDate(mileage.date)}
-                        </Typography>
-                        <Typography variant="subtitle2" color="textSecondary">
-                          Valeur
-                        </Typography>
-                        <Typography variant="h6" color="primary">
-                          {mileage.value?.toLocaleString()} km
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          console.log('Deleting mileage with ID:', mileage.id); // Pour le debug
-                          handleDeleteMileage(mileage.id);
-                        }}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                    {mileage.notes && (
-                      <>
-                        <Typography variant="subtitle2" color="textSecondary" sx={{ mt: 1 }}>
-                          Notes
-                        </Typography>
-                        <Typography variant="body2">
-                          {mileage.notes}
-                        </Typography>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+            {vehicleData?.mileages && vehicleData.mileages.length > 0 ? (
+              vehicleData.mileages
+                .sort((a, b) => {
+                  const dateA = new Date(a.date).getTime();
+                  const dateB = new Date(b.date).getTime();
+                  return dateB - dateA;
+                })
+                .map((mileage, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={mileage.id || index}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Box>
+                            <Typography variant="subtitle2" color="textSecondary">
+                              Date du relevé
+                            </Typography>
+                            <Typography variant="body1" gutterBottom>
+                              {formatDate(mileage.date)}
+                            </Typography>
+                            <Typography variant="subtitle2" color="textSecondary">
+                              Valeur
+                            </Typography>
+                            <Typography variant="h6" color="primary">
+                              {mileage.value?.toLocaleString()} km
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              console.log('Deleting mileage with ID:', mileage.id); // Pour le debug
+                              handleDeleteMileage(mileage.id);
+                            }}
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                        {mileage.notes && (
+                          <>
+                            <Typography variant="subtitle2" color="textSecondary" sx={{ mt: 1 }}>
+                              Notes
+                            </Typography>
+                            <Typography variant="body2">
+                              {mileage.notes}
+                            </Typography>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))
+              ) : (
+                <Grid item xs={12}>
+                  <Typography variant="body1" color="textSecondary" align="center">
+                    Aucun relevé disponible
+                  </Typography>
+                </Grid>
+              )}
           </Grid>
         </Box>
       </TabPanel>
@@ -953,7 +963,7 @@ const VehicleTracking: React.FC = () => {
             </Grid>
           ) : (
             <Box sx={{ textAlign: 'center', py: 3 }}>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body1" color="textSecondary">
                 Aucun constat n'a été ajouté pour ce véhicule.
               </Typography>
             </Box>
