@@ -146,7 +146,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       });
 
       onClose();
-      navigate('/subscription-plans');
+      navigate('/subscription/plans');
     } catch (error: any) {
       setError("Erreur lors de l'inscription. Vérifiez vos informations.");
     }
