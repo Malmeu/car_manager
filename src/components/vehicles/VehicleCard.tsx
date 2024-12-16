@@ -350,7 +350,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
               <Box display="flex" alignItems="center" gap={1}>
                 <SpeedIcon fontSize="small" color="primary" />
                 <Typography variant="body2">
-                  {(vehicle.baseMileage || 0).toLocaleString()} km
+                  {((vehicle?.baseMileage || 0).toLocaleString())} km
                 </Typography>
               </Box>
             </Box>
@@ -367,7 +367,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
               <Box display="flex" alignItems="center" gap={1}>
                 <SpeedIcon fontSize="small" color="primary" />
                 <Typography variant="body2">
-                  {loading ? '...' : totalMileage.toLocaleString()} km
+                  {loading ? '...' : (totalMileage || 0).toLocaleString()} km
                 </Typography>
               </Box>
             </Box>
