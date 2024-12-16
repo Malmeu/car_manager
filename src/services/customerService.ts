@@ -132,17 +132,11 @@ export const getAllCustomers = async (userId?: string, isAdmin: boolean = false)
     }
 
     const customersRef = collection(db, COLLECTION_NAME);
-    let querySnapshot;
     
-    if (isAdmin) {
-      console.log('Admin user, getting all customers');
-      querySnapshot = await getDocs(customersRef);
-    } else {
-      console.log('Regular user, getting customers for userId:', userId);
-      // Ne récupérer que les clients avec le userId exact
-      const q = query(customersRef, where('userId', '==', userId));
-      querySnapshot = await getDocs(q);
-    }
+    // Même en tant qu'admin, on ne récupère que les clients de l'utilisateur actuel
+    console.log('Getting customers for userId:', userId);
+    const q = query(customersRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
     
     const customers = querySnapshot.docs.map(doc => ({
       id: doc.id,
