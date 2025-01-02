@@ -16,8 +16,21 @@ import {
   Card,
   CardContent,
   Grid,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  Timestamp,
+  doc,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { startOfMonth, endOfMonth, format, isSameDay } from 'date-fns';
@@ -40,9 +53,9 @@ interface CashMovement {
   expense: number;
   type: 'vehicle_revenue' | 'vehicle_expense' | 'business_expense';
   isPending?: boolean;
-  totalAmount: number;  
-  paidAmount: number;   
-  remainingAmount: number; 
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
 }
 
 const CashJournal: React.FC = () => {
@@ -54,24 +67,35 @@ const CashJournal: React.FC = () => {
   const [totalPending, setTotalPending] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchAllMovements();
+    }
+  }, [currentUser, refreshKey, selectedYear]);
 
   const handlePayRemaining = async (movementId: string, remainingAmount: number) => {
     try {
       setIsLoading(true);
       const rentalRef = doc(db, 'rentals', movementId);
       const rentalDoc = await getDoc(rentalRef);
-      
+
       if (rentalDoc.exists()) {
         const rentalData = rentalDoc.data();
-        
+
         // Mettre à jour le statut de paiement et le montant payé
         await updateDoc(rentalRef, {
           paymentStatus: 'paid',
-          paidAmount: rentalData.totalCost
+          paidAmount: rentalData.totalCost,
         });
 
         // Rafraîchir les données
-        setRefreshKey(prev => prev + 1);
+        setRefreshKey((prev) => prev + 1);
       }
     } catch (error) {
       console.error('Erreur lors du solde du paiement:', error);
@@ -80,73 +104,78 @@ const CashJournal: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (currentUser) {
-      fetchAllMovements();
-    }
-  }, [currentUser, refreshKey]);
-
   const fetchAllMovements = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.log('Aucun utilisateur connecté');
+      return;
+    }
 
+    setIsLoading(true);
     try {
-      const start = startOfMonth(new Date());
-      const end = endOfMonth(new Date());
+      console.log('Début du chargement des données de caisse');
+      const start = new Date(selectedYear, 0, 1); // 1er janvier de l'année sélectionnée
+      const end = new Date(selectedYear, 11, 31); // 31 décembre de l'année sélectionnée
       const movements: CashMovement[] = [];
 
       // 1. Récupérer les véhicules
+      console.log('Chargement des véhicules...');
       const vehicles = await getAllVehicles(currentUser.uid);
-      const vehiclesMap = new Map(vehicles.map(v => [v.id, { brand: v.brand, model: v.model }]));
+      console.log(`${vehicles.length} véhicules trouvés`);
+      const vehiclesMap = new Map(vehicles.map((v) => [v.id, { brand: v.brand, model: v.model }]));
 
       // 2. Récupérer les revenus des locations
+      console.log('Chargement des locations...');
       const rentalsRef = collection(db, 'rentals');
+      const startTimestamp = Timestamp.fromDate(start);
+      const endTimestamp = Timestamp.fromDate(end);
+
+      console.log('Période de recherche:', {
+        year: selectedYear,
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+
       const rentalsQuery = query(
         rentalsRef,
         where('userId', '==', currentUser.uid),
-        where('startDate', '>=', Timestamp.fromDate(start)),
-        where('startDate', '<=', Timestamp.fromDate(end))
+        where('startDate', '>=', startTimestamp),
+        where('startDate', '<=', endTimestamp)
       );
+
       const rentalsSnapshot = await getDocs(rentalsQuery);
+      console.log(`${rentalsSnapshot.docs.length} locations trouvées pour l'année ${selectedYear}`);
 
       // Traiter les locations
-      const rentalsMovements = rentalsSnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          const vehicle = vehiclesMap.get(data.vehicleId);
-          const rentalDays = Math.ceil(
-            (data.endDate.toDate().getTime() - data.startDate.toDate().getTime()) / (1000 * 3600 * 24)
-          );
-          const baseRevenue = data.totalCost;
-          const additionalFees = data.additionalFees?.amount || 0;
-          const totalRevenue = baseRevenue + additionalFees;
+      const rentalsMovements = rentalsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        const vehicle = vehiclesMap.get(data.vehicleId);
+        const totalRevenue = (data.totalCost || 0) + (data.additionalFees?.amount || 0);
+        const paidAmount = data.paymentStatus === 'paid' ? totalRevenue : (data.paidAmount || 0);
+        const remainingAmount = totalRevenue - paidAmount;
 
-          // Créer un seul mouvement par location
-          const paidAmount = data.paymentStatus === 'paid' ? totalRevenue : (data.paidAmount || 0);
-          const remainingAmount = totalRevenue - paidAmount;
-          
-          return {
-            id: doc.id,
-            date: data.startDate.toDate(),
-            designation: `Location de véhicule${vehicle ? ` - ${vehicle.brand} ${vehicle.model}` : ''}${
-              data.additionalFees?.description ? ` (+ ${data.additionalFees.description})` : ''
-            }${
-              data.paymentStatus === 'pending' ? ' (En attente)' : 
-              data.paymentStatus === 'partial' ? ' (Paiement partiel)' : ''
-            }`,
-            revenue: paidAmount,
-            expense: 0,
-            type: 'vehicle_revenue' as const,
-            totalAmount: totalRevenue,
-            paidAmount: paidAmount,
-            remainingAmount: remainingAmount,
-            isPending: data.paymentStatus === 'pending'
-          } as CashMovement;
-        });
+        return {
+          id: doc.id,
+          date: data.startDate.toDate(),
+          designation: `Location de véhicule${vehicle ? ` - ${vehicle.brand} ${vehicle.model}` : ''}${
+            data.additionalFees?.description ? ` (+ ${data.additionalFees.description})` : ''
+          }${
+            data.paymentStatus === 'pending' ? ' (En attente)' : data.paymentStatus === 'partial' ? ' (Paiement partiel)' : ''
+          }`,
+          revenue: paidAmount,
+          expense: 0,
+          type: 'vehicle_revenue' as const,
+          totalAmount: totalRevenue,
+          paidAmount: paidAmount,
+          remainingAmount: remainingAmount,
+          isPending: data.paymentStatus === 'pending',
+        } as CashMovement;
+      });
 
-      // Ajouter les mouvements de location valides
+      console.log(`${rentalsMovements.length} mouvements de location traités`);
       movements.push(...rentalsMovements);
 
       // 3. Récupérer les dépenses véhicules
+      console.log('Chargement des dépenses véhicules...');
       const vehicleExpensesRef = collection(db, 'expenses');
       const vehicleExpensesQuery = query(
         vehicleExpensesRef,
@@ -155,6 +184,7 @@ const CashJournal: React.FC = () => {
         where('date', '<=', Timestamp.fromDate(end))
       );
       const vehicleExpensesSnapshot = await getDocs(vehicleExpensesQuery);
+      console.log(`${vehicleExpensesSnapshot.docs.length} dépenses véhicules trouvées`);
 
       vehicleExpensesSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -164,15 +194,16 @@ const CashJournal: React.FC = () => {
           date: data.date.toDate(),
           designation: `${data.name}${vehicle ? ` - ${vehicle.brand} ${vehicle.model}` : ''}`,
           revenue: 0,
-          expense: data.amount,
+          expense: data.amount || 0,
           type: 'vehicle_expense' as const,
-          totalAmount: 0,
-          paidAmount: 0,
+          totalAmount: data.amount || 0,
+          paidAmount: data.amount || 0,
           remainingAmount: 0,
         });
       });
 
       // 4. Récupérer les dépenses entreprise
+      console.log('Chargement des dépenses entreprise...');
       const businessExpensesRef = collection(db, 'businessExpenses');
       const businessExpensesQuery = query(
         businessExpensesRef,
@@ -181,6 +212,7 @@ const CashJournal: React.FC = () => {
         where('date', '<=', Timestamp.fromDate(end))
       );
       const businessExpensesSnapshot = await getDocs(businessExpensesQuery);
+      console.log(`${businessExpensesSnapshot.docs.length} dépenses entreprise trouvées`);
 
       businessExpensesSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -189,34 +221,40 @@ const CashJournal: React.FC = () => {
           date: data.date.toDate(),
           designation: `Frais entreprise - ${data.designation}`,
           revenue: 0,
-          expense: data.amount,
+          expense: data.amount || 0,
           type: 'business_expense' as const,
-          totalAmount: 0,
-          paidAmount: 0,
+          totalAmount: data.amount || 0,
+          paidAmount: data.amount || 0,
           remainingAmount: 0,
         });
       });
 
       // Trier les mouvements par date
-      const sortedMovements = movements.sort((a, b) => b.date.getTime() - a.date.getTime());
-      setCashMovements(sortedMovements);
+      movements.sort((a, b) => b.date.getTime() - a.date.getTime());
 
       // Calculer les totaux
       const totals = movements.reduce(
         (acc, mov) => ({
-          revenue: acc.revenue + (mov.paidAmount || mov.revenue),
+          revenue: acc.revenue + mov.revenue,
           expense: acc.expense + mov.expense,
-          pending: acc.pending + (mov.remainingAmount || 0)
+          pending: acc.pending + (mov.isPending ? mov.remainingAmount : 0),
         }),
         { revenue: 0, expense: 0, pending: 0 }
       );
 
+      console.log('Totaux calculés:', totals);
+
+      setCashMovements(movements);
       setTotalRevenue(totals.revenue);
       setTotalExpense(totals.expense);
-      setTotalPending(totals.pending);
       setTotalCash(totals.revenue - totals.expense);
+      setTotalPending(totals.pending);
+
+      console.log('Chargement des données terminé avec succès');
     } catch (error) {
-      console.error('Error fetching movements:', error);
+      console.error('Erreur lors du chargement des données:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -225,6 +263,20 @@ const CashJournal: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Journal de Caisse
       </Typography>
+
+      <FormControl sx={{ mb: 4 }}>
+        <InputLabel id="year-select-label">Année</InputLabel>
+        <Select
+          labelId="year-select-label"
+          id="year-select"
+          value={selectedYear}
+          label="Année"
+          onChange={(e) => handleYearChange(Number(e.target.value))}
+        >
+          <MenuItem value={2024}>2024</MenuItem>
+          <MenuItem value={2025}>2025</MenuItem>
+        </Select>
+      </FormControl>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -258,9 +310,9 @@ const CashJournal: React.FC = () => {
               <Typography color="textSecondary" gutterBottom>
                 État de la Caisse
               </Typography>
-              <Typography 
-                variant="h5" 
-                component="div" 
+              <Typography
+                variant="h5"
+                component="div"
                 sx={{ color: totalCash >= 0 ? 'success.main' : 'error.main' }}
               >
                 {totalCash.toLocaleString('fr-FR')} DA
@@ -288,18 +340,18 @@ const CashJournal: React.FC = () => {
               <TableRow
                 key={movement.id}
                 sx={{
-                  backgroundColor: 
-                    movement.type === 'vehicle_expense' || movement.type === 'business_expense' 
-                      ? 'rgba(254, 226, 226, 0.5)'  // Rouge très clair pour les dépenses
-                      : movement.isPending 
-                        ? 'rgba(255, 244, 229, 0.9)'  // Orange clair pour les paiements en attente
-                        : movement.remainingAmount > 0 
-                          ? 'rgba(254, 243, 199, 0.9)'  // Jaune clair pour les paiements partiels
+                  backgroundColor:
+                    movement.type === 'vehicle_expense' || movement.type === 'business_expense'
+                      ? 'rgba(254, 226, 226, 0.5)' // Rouge très clair pour les dépenses
+                      : movement.isPending
+                        ? 'rgba(255, 244, 229, 0.9)' // Orange clair pour les paiements en attente
+                        : movement.remainingAmount > 0
+                          ? 'rgba(254, 243, 199, 0.9)' // Jaune clair pour les paiements partiels
                           : movement.type === 'vehicle_revenue'
-                            ? 'rgba(220, 252, 231, 0.5)'  // Vert très clair pour les locations payées
+                            ? 'rgba(220, 252, 231, 0.5)' // Vert très clair pour les locations payées
                             : 'inherit',
                   '&:hover': {
-                    backgroundColor: 
+                    backgroundColor:
                       movement.type === 'vehicle_expense' || movement.type === 'business_expense'
                         ? 'rgba(254, 226, 226, 0.7)'
                         : movement.isPending
@@ -308,29 +360,26 @@ const CashJournal: React.FC = () => {
                             ? 'rgba(254, 243, 199, 1)'
                             : movement.type === 'vehicle_revenue'
                               ? 'rgba(220, 252, 231, 0.7)'
-                              : 'rgba(0, 0, 0, 0.04)'
-                  }
+                              : 'rgba(0, 0, 0, 0.04)',
+                  },
                 }}
               >
                 <TableCell>{movement.date.toLocaleDateString()}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     {movement.type === 'vehicle_expense' || movement.type === 'business_expense' ? (
-                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-red-500 rounded-full"/>
+                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-red-500 rounded-full" />
                     ) : (
-                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-green-500 rounded-full"/>
+                      <span className="inline-flex items-center justify-center w-2 h-2 mr-2 bg-green-500 rounded-full" />
                     )}
-                    
+
                     {movement.designation}
                   </div>
                 </TableCell>
                 <TableCell align="right">
                   {movement.totalAmount.toLocaleString('fr-FR')} DA
                 </TableCell>
-                <TableCell align="right" sx={{ 
-                  color: movement.type === 'vehicle_revenue' ? 'success.main' : 'error.main',
-                  fontWeight: 'bold' 
-                }}>
+                <TableCell align="right" sx={{ color: movement.type === 'vehicle_revenue' ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
                   {movement.paidAmount.toLocaleString('fr-FR')} DA
                 </TableCell>
                 <TableCell align="right" sx={{ color: 'error.main', fontWeight: 'bold' }}>
@@ -345,44 +394,28 @@ const CashJournal: React.FC = () => {
                         {isLoading ? 'Chargement...' : 'Solder'}
                       </button>
                     </div>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </TableCell>
                 <TableCell align="right" sx={{ color: movement.expense > 0 ? 'error.main' : 'inherit' }}>
                   {movement.expense > 0 ? `${movement.expense.toLocaleString('fr-FR')} DA` : '-'}
                 </TableCell>
               </TableRow>
             ))}
-            
+
             {/* Totals Row */}
             <TableRow sx={{ backgroundColor: 'grey.100' }}>
               <TableCell colSpan={3} sx={{ fontWeight: 'bold' }}>
                 Totaux
               </TableCell>
-              <TableCell 
-                align="right" 
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: 'success.main'
-                }}
-              >
+              <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
                 {totalRevenue.toLocaleString('fr-FR')} DA
               </TableCell>
-              <TableCell 
-                align="right"
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: 'error.main'
-                }}
-              >
+              <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main' }}>
                 {totalPending.toLocaleString('fr-FR')} DA
               </TableCell>
-              <TableCell 
-                align="right"
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: 'error.main'
-                }}
-              >
+              <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main' }}>
                 {totalExpense.toLocaleString('fr-FR')} DA
               </TableCell>
             </TableRow>
