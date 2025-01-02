@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -17,11 +17,17 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Log the current authentication state
+// Configurer la persistance de l'authentification
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error('Erreur lors de la configuration de la persistance:', error);
+  });
+
+// Log de l'état d'authentification
 auth.onAuthStateChanged((user) => {
     if (user) {
-        console.log('User is signed in:', user.uid);
+        console.log('Utilisateur connecté:', user.uid);
     } else {
-        console.log('User is signed out');
+        console.log('Utilisateur déconnecté');
     }
 });

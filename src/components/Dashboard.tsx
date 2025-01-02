@@ -68,18 +68,38 @@ const Dashboard = () => {
     details: [] 
   });
   const [showRemainingDetails, setShowRemainingDetails] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const companyName = localStorage.getItem('companyName') || 'Votre Entreprise';
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.log('No current user, skipping data fetch');
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
 
       try {
+        console.log('Fetching data for user:', currentUser.uid);
+        
         const [rentalsData, vehiclesData, clientsData] = await Promise.all([
           getAllRentals(currentUser.uid),
           getAllVehicles(currentUser.uid),
           getAllCustomers(currentUser.uid)
         ]) as [Rental[], Vehicle[], Customer[]];
+
+        console.log('Fetched data:', {
+          rentals: rentalsData.length,
+          vehicles: vehiclesData.length,
+          clients: clientsData.length
+        });
+
+        setTotalVehicles(vehiclesData.length);
+        setTotalClients(clientsData.length);
 
         const now = new Date();
         let activeRentalsCount = 0;
@@ -94,63 +114,70 @@ const Dashboard = () => {
           
           if (startDate <= now && endDate >= now) {
             activeRentalsCount++;
-            currentRevenueTotal += rentalTotal;
-            const unpaid = rentalTotal - (rental.paidAmount || 0);
-            if (unpaid > 0) {
-              unpaidAmountTotal += unpaid;
-              const foundClient = clientsData.find(c => c.id === rental.customerId);
-              if (foundClient) {
-                unpaidDetails.push({
-                  client: `${foundClient.firstName} ${foundClient.lastName}`,
-                  amount: unpaid
-                });
-              }
+          }
+          
+          currentRevenueTotal += rentalTotal;
+          const unpaid = rentalTotal - (rental.paidAmount || 0);
+          
+          if (unpaid > 0) {
+            unpaidAmountTotal += unpaid;
+            const foundClient = clientsData.find(c => c.id === rental.customerId);
+            if (foundClient) {
+              unpaidDetails.push({
+                client: `${foundClient.firstName} ${foundClient.lastName}`,
+                amount: unpaid
+              });
             }
           }
         });
 
-        // Calculate available vehicles
-        const availableVehicles = vehiclesData.filter(vehicle => {
-          if (!vehicle.id) return false;
-          
-          // Check if vehicle is manually set as unavailable
-          if (vehicle.status === 'unavailable' || vehicle.status === 'maintenance') {
-            return false;
-          }
-
-          // Check if vehicle has any active rentals
-          const hasActiveRental = rentalsData.some(rental => 
-            rental.vehicleId === vehicle.id && 
-            rental.status === 'active' &&
-            rental.startDate.toDate() <= now && 
-            rental.endDate.toDate() >= now
-          );
-
-          return !hasActiveRental;
-        });
-
-        setTotalVehicles(vehiclesData.length);
-        setTotalClients(clientsData.length);
         setActiveRentals(activeRentalsCount);
         setTotalRevenue(currentRevenueTotal);
-        setRemainingToCollect({
-          total: unpaidAmountTotal,
-          details: unpaidDetails
+        setRemainingToCollect({ 
+          total: unpaidAmountTotal, 
+          details: unpaidDetails 
         });
+
+        // Calculate available cars
+        const availableCarsDetails = vehiclesData
+          .filter(vehicle => !rentalsData.some(rental => 
+            rental.vehicleId === vehicle.id &&
+            rental.startDate.toDate() <= now &&
+            rental.endDate.toDate() >= now
+          ))
+          .map(vehicle => `${vehicle.brand} ${vehicle.model}`);
+
         setAvailableCars({
-          total: availableVehicles.length,
-          details: availableVehicles.map(v => `${v.brand} ${v.model}`)
+          total: availableCarsDetails.length,
+          details: availableCarsDetails
         });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        if (error instanceof Error) {
-          console.error(error.message);
-        }
+
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
   }, [currentUser]);
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Typography>Chargement des données...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>

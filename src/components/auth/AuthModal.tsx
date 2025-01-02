@@ -17,7 +17,7 @@ import {
   VisibilityOff,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithGoogle, loginWithEmailPassword, registerWithEmailPassword } from '../../firebase/auth';
 import { auth, db } from '../../config/firebase';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc } from 'firebase/firestore';
@@ -105,10 +105,24 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [company, setCompany] = useState('');
   const [address, setAddress] = useState('');
 
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      onClose();
+      if (selectedPlan) {
+        navigate('/dashboard', { state: { selectedPlan, billingPeriod } });
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      setError('Erreur lors de la connexion avec Google');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      await loginWithEmailPassword(loginEmail, loginPassword);
       onClose();
       if (selectedPlan) {
         navigate('/dashboard', { state: { selectedPlan, billingPeriod } });
@@ -127,7 +141,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, signupEmail, signupPassword);
+      const userCredential = await registerWithEmailPassword(signupEmail, signupPassword);
       
       // Créer le document utilisateur dans Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -233,6 +247,29 @@ const AuthModal: React.FC<AuthModalProps> = ({
               >
                 Se connecter
               </StyledButton>
+              <Box sx={{ mt: 2 }}>
+                <StyledButton
+                  fullWidth
+                  variant="contained"
+                  onClick={handleGoogleSignIn}
+                  sx={{
+                    mb: 2,
+                    backgroundColor: '#ffffff',
+                    color: '#000000',
+                    border: '1px solid #e0e0e0',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    },
+                  }}
+                >
+                  <img
+                    src="/google-icon.png"
+                    alt="Google"
+                    style={{ width: 20, height: 20, marginRight: 10 }}
+                  />
+                  Continuer avec Google
+                </StyledButton>
+              </Box>
             </form>
           ) : (
             <form onSubmit={handleSignup}>
@@ -315,6 +352,29 @@ const AuthModal: React.FC<AuthModalProps> = ({
               >
                 Créer le compte
               </StyledButton>
+              <Box sx={{ mt: 2 }}>
+                <StyledButton
+                  fullWidth
+                  variant="contained"
+                  onClick={handleGoogleSignIn}
+                  sx={{
+                    mb: 2,
+                    backgroundColor: '#ffffff',
+                    color: '#000000',
+                    border: '1px solid #e0e0e0',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    },
+                  }}
+                >
+                  <img
+                    src="/google-icon.png"
+                    alt="Google"
+                    style={{ width: 20, height: 20, marginRight: 10 }}
+                  />
+                  Continuer avec Google
+                </StyledButton>
+              </Box>
             </form>
           )}
         </DialogContent>

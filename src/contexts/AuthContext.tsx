@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../config/firebase';
-import { User, signInWithEmailAndPassword, signOut, UserCredential } from 'firebase/auth';
+import { User, UserCredential } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { signInWithGoogle, loginWithEmailPassword, registerWithEmailPassword, logOut } from '../firebase/auth';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -9,6 +10,8 @@ interface AuthContextType {
   isClient: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<UserCredential>;
+  loginWithGoogle: () => Promise<UserCredential>;
+  register: (email: string, password: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
 }
 
@@ -22,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<UserCredential> => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential: UserCredential = await loginWithEmailPassword(email, password);
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       const userData = userDoc.data();
       
@@ -36,9 +39,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async (): Promise<UserCredential> => {
+    try {
+      const userCredential: UserCredential = await signInWithGoogle();
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      const userData = userDoc.data();
+      
+      setIsAdmin(userData?.isAdmin || false);
+      setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
+      
+      return userCredential;
+    } catch (error) {
+      console.error('Google login failed:', error);
+      throw error;
+    }
+  };
+
+  const register = async (email: string, password: string): Promise<UserCredential> => {
+    try {
+      const userCredential: UserCredential = await registerWithEmailPassword(email, password);
+      setIsAdmin(false);
+      setIsClient(false);
+      return userCredential;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
+    }
+  };
+
   const logout = async (): Promise<void> => {
     try {
-      await signOut(auth);
+      await logOut();
       setCurrentUser(null);
       setIsAdmin(false);
       setIsClient(false);
@@ -50,24 +81,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setCurrentUser(user); // Mettre à jour currentUser immédiatement
+      
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-        
-        // Vérifier si c'est un nouvel utilisateur qui n'a pas encore choisi son abonnement
-        if (userData && userData.subscription?.status === 'pending' && !userData.subscription?.plan) {
-          // Ne pas définir isClient pour les nouveaux utilisateurs
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          const userData = userDoc.data();
+          
+          if (userData && userData.subscription?.status === 'pending' && !userData.subscription?.plan) {
+            setIsAdmin(false);
+            setIsClient(false);
+          } else {
+            setIsAdmin(userData?.isAdmin || false);
+            setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des données utilisateur:', error);
           setIsAdmin(false);
           setIsClient(false);
-        } else {
-          setIsAdmin(userData?.isAdmin || false);
-          setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
         }
       } else {
         setIsAdmin(false);
         setIsClient(false);
       }
-      setCurrentUser(user);
+      
       setLoading(false);
     });
 
@@ -80,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isClient,
     loading,
     login,
+    loginWithGoogle,
+    register,
     logout
   };
 

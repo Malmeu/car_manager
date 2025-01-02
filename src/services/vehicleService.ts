@@ -22,21 +22,28 @@ const generateId = () => {
 export const getAllVehicles = async (userId: string): Promise<Vehicle[]> => {
   try {
     console.log('Getting vehicles for user:', userId);
+    if (!userId) {
+      console.error('No userId provided to getAllVehicles');
+      return [];
+    }
+
     const q = query(
       collection(db, COLLECTION_NAME),
       where('userId', '==', userId)
     );
     const snapshot = await getDocs(q);
-    const vehicles = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const vehicle = {
-        ...data,
-        id: doc.id
-      } as Vehicle;
-      console.log('Loaded vehicle:', vehicle);
-      return vehicle;
-    });
-    console.log('Total vehicles loaded:', vehicles.length);
+    
+    if (snapshot.empty) {
+      console.log('No vehicles found for user:', userId);
+      return [];
+    }
+
+    const vehicles = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Vehicle[];
+
+    console.log(`Found ${vehicles.length} vehicles for user:`, userId);
     return vehicles;
   } catch (error) {
     console.error('Error getting vehicles:', error);
