@@ -3,12 +3,14 @@ import { auth, db } from '../config/firebase';
 import { User, UserCredential } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { signInWithGoogle, loginWithEmailPassword, registerWithEmailPassword, logOut } from '../firebase/auth';
+import { isTwoFactorEnabled } from '../services/twoFactorService';
 
 interface AuthContextType {
   currentUser: User | null;
   isAdmin: boolean;
   isClient: boolean;
   loading: boolean;
+  twoFactorEnabled: boolean;
   login: (email: string, password: string) => Promise<UserCredential>;
   loginWithGoogle: () => Promise<UserCredential>;
   register: (email: string, password: string) => Promise<UserCredential>;
@@ -22,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isClient, setIsClient] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   const login = async (email: string, password: string): Promise<UserCredential> => {
     try {
@@ -95,14 +98,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAdmin(userData?.isAdmin || false);
             setIsClient(!userData?.isAdmin && userData?.subscription !== undefined);
           }
+
+          // Vérifier si la 2FA est activée
+          const has2FA = await isTwoFactorEnabled(user.uid);
+          setTwoFactorEnabled(has2FA);
         } catch (error) {
           console.error('Erreur lors du chargement des données utilisateur:', error);
           setIsAdmin(false);
           setIsClient(false);
+          setTwoFactorEnabled(false);
         }
       } else {
         setIsAdmin(false);
         setIsClient(false);
+        setTwoFactorEnabled(false);
       }
       
       setLoading(false);
@@ -116,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     isClient,
     loading,
+    twoFactorEnabled,
     login,
     loginWithGoogle,
     register,

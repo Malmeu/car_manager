@@ -21,6 +21,8 @@ import { signInWithGoogle, loginWithEmailPassword, registerWithEmailPassword } f
 import { auth, db } from '../../config/firebase';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc } from 'firebase/firestore';
+import { validatePassword } from '../../services/securityService';
+import { loginAttemptService } from '../../services/loginAttemptService';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -90,6 +92,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [lockoutTime, setLockoutTime] = useState<Date | null>(null);
   
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -121,8 +126,33 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
+
     try {
+      // Vérifier les tentatives de connexion
+      const loginCheck = await loginAttemptService.checkLoginAttempts(loginEmail);
+      
+      if (!loginCheck.allowed) {
+        if (loginCheck.lockoutTime) {
+          const formattedTime = loginAttemptService.getFormattedLockoutTime(loginCheck.lockoutTime);
+          setError(`Compte temporairement bloqué. Réessayez dans ${formattedTime}.`);
+          setLockoutTime(loginCheck.lockoutTime);
+        } else {
+          setError('Trop de tentatives de connexion. Compte temporairement bloqué.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      setRemainingAttempts(loginCheck.remainingAttempts);
+
+      // Tentative de connexion
       await loginWithEmailPassword(loginEmail, loginPassword);
+      
+      // Enregistrer la tentative réussie
+      await loginAttemptService.recordLoginAttempt(loginEmail, true);
+      
       onClose();
       if (selectedPlan) {
         navigate('/dashboard', { state: { selectedPlan, billingPeriod } });
@@ -130,12 +160,45 @@ const AuthModal: React.FC<AuthModalProps> = ({
         navigate('/dashboard');
       }
     } catch (error: any) {
-      setError('Email ou mot de passe incorrect');
+      // Enregistrer la tentative échouée
+      await loginAttemptService.recordLoginAttempt(loginEmail, false);
+      
+      // Vérifier à nouveau les tentatives pour obtenir le nombre restant
+      const updatedCheck = await loginAttemptService.checkLoginAttempts(loginEmail);
+      setRemainingAttempts(updatedCheck.remainingAttempts);
+
+      let errorMessage = 'Erreur lors de la connexion.';
+      
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        errorMessage = 'Email ou mot de passe incorrect.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Format d\'email invalide.';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'Ce compte a été désactivé.';
+      }
+
+      if (updatedCheck.remainingAttempts > 0) {
+        errorMessage += ` Il vous reste ${updatedCheck.remainingAttempts} tentative${updatedCheck.remainingAttempts > 1 ? 's' : ''}.`;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setPasswordErrors([]);
+
+    // Valider le mot de passe
+    const validation = validatePassword(signupPassword);
+    if (!validation.isValid) {
+      setPasswordErrors(validation.errors);
+      return;
+    }
+
     if (signupPassword !== signupConfirmPassword) {
       setError('Les mots de passe ne correspondent pas');
       return;
@@ -166,6 +229,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const [loading, setLoading] = useState(false);
+
   return (
     <StyledDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <Box sx={{ position: 'relative', p: 2 }}>
@@ -193,8 +258,30 @@ const AuthModal: React.FC<AuthModalProps> = ({
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
+          </Alert>
+        )}
+        {passwordErrors.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Votre mot de passe doit :
+            </Typography>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {passwordErrors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+        {lockoutTime && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Compte bloqué jusqu'à {lockoutTime.toLocaleTimeString()}
+          </Alert>
+        )}
+        {remainingAttempts !== null && remainingAttempts < 3 && remainingAttempts > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Attention : il vous reste {remainingAttempts} tentative{remainingAttempts > 1 ? 's' : ''} avant le blocage temporaire du compte.
           </Alert>
         )}
 
@@ -244,8 +331,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <StyledButton
                 fullWidth
                 type="submit"
+                disabled={loading || (lockoutTime !== null && lockoutTime > new Date())}
               >
-                Se connecter
+                {loading ? 'Chargement...' : 'Se connecter'}
               </StyledButton>
               <Box sx={{ mt: 2 }}>
                 <StyledButton

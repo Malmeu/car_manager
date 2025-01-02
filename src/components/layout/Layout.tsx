@@ -614,7 +614,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
         <DrawerHeader />
         <Box 
           sx={{
-            ...globalStyles.gradientBackground,
+           // ...globalStyles.gradientBackground,
             p: { xs: 2, sm: 3 },
             borderRadius: '20px',
             margin: '16px',

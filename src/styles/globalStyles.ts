@@ -1,46 +1,33 @@
 import { Theme } from '@mui/material/styles';
 
 export const globalStyles = {
-  gradientBackground: {
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
-    minHeight: '100vh',
-  },
-
-  // Effet de glassmorphism pour les cartes
-  glassEffect: {
-    background: 'rgba(255, 255, 255, 0.7)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
-    boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-  },
-
-  // Animation pour les éléments du menu
   menuItemAnimation: {
-    transition: 'all 0.3s ease-in-out',
-    position: 'relative',
-    overflow: 'hidden',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: '-100%',
-      width: '100%',
-      height: '100%',
-      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-      transition: 'all 0.5s ease',
-    },
-    '&:hover::before': {
-      left: '100%',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+      transform: 'translateX(5px)',
     },
   },
-
-  // Effet de hover pour les cartes
   cardHoverEffect: {
-    transition: 'all 0.3s ease',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': {
       transform: 'translateY(-5px)',
-      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
     },
+  },
+  buttonHoverEffect: {
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+      transform: 'scale(1.05)',
+    },
+  },
+  gradientText: {
+    background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  glassmorphism: {
+    background: 'rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
   },
 };

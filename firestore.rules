@@ -41,6 +41,20 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    // Login Attempts collection - Permettre l'accès public car nécessaire avant l'authentification
+    match /loginAttempts/{email} {
+      allow read, write: if true;
+      
+      // Règles de validation pour empêcher les abus
+      allow create: if request.resource.data.attempts is number
+                   && request.resource.data.attempts >= 0
+                   && request.resource.data.attempts <= 5;
+      
+      allow update: if request.resource.data.attempts is number
+                   && request.resource.data.attempts >= 0
+                   && request.resource.data.attempts <= 5;
+    }
+
     // Default rule for all other collections
     match /{document=**} {
       allow read, write: if isAuthenticated();
