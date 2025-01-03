@@ -84,6 +84,7 @@ interface DashboardStats {
   partialPayments: number;      // Total des paiements partiels versés
   remainingToCollect: number;   // Reste à encaisser
   totalCashflow: number;        // Total historique de la caisse
+  currentRevenue: number;       // Revenus encaissés des locations actives/réservations
 }
 
 interface ExtendedRental extends Rental {
@@ -122,7 +123,8 @@ function Dashboard() {
     activeRentalsAmount: 0,
     partialPayments: 0,
     remainingToCollect: 0,
-    totalCashflow: 0
+    totalCashflow: 0,
+    currentRevenue: 0
   });
   const [showRemainingDetails, setShowRemainingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,9 +146,11 @@ function Dashboard() {
         
         // Calculer les statistiques
         const currentDate = new Date();
-        let activeRentalsAmount = 0;
-        let partialPayments = 0;
-        let remainingToCollect = 0;
+        let activeRentalsAmount = 0;      // Montant total des locations actives
+        let partialPayments = 0;          // Paiements partiels
+        let remainingToCollect = 0;       // Reste à encaisser
+        let totalCashflow = 0;            // Total historique de la caisse
+        let currentRevenue = 0;           // Revenus encaissés des locations actives/réservations
         
         // Filtrer les locations actives et calculer les montants
         const activeRentalsList = rentals.filter(rental => {
@@ -165,7 +169,7 @@ function Dashboard() {
           const rentalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
           const paidAmount = rental.paidAmount || 0;
           
-          // Ajouter au montant total
+          // Ajouter au montant total des locations actives
           activeRentalsAmount += rentalAmount;
           
           // Calculer le reste à encaisser seulement pour les locations non payées
@@ -179,13 +183,18 @@ function Dashboard() {
           if (paidAmount > 0 && paidAmount < rentalAmount && rental.paymentStatus === 'partial') {
             partialPayments += paidAmount;
           }
+
+          // Ajouter aux revenus encaissés si un paiement a été reçu
+          if (paidAmount > 0) {
+            currentRevenue += paidAmount;
+          }
         });
 
-        // Calculer le total historique de la caisse (toutes les locations terminées)
-        let totalCashflow = 0;
+        // Calculer le total historique de la caisse (toutes les locations)
         rentals.forEach(rental => {
-          if (rental.status === 'completed') {
-            totalCashflow += rental.paidAmount || 0;
+          const paidAmount = rental.paidAmount || 0;
+          if (paidAmount > 0) {
+            totalCashflow += paidAmount;
           }
         });
 
@@ -194,7 +203,8 @@ function Dashboard() {
           activeRentalsAmount,
           partialPayments,
           remainingToCollect,
-          totalCashflow: totalCashflow + partialPayments
+          totalCashflow,
+          currentRevenue
         });
 
         setActiveRentals(activeRentalsList.length);
@@ -296,10 +306,10 @@ function Dashboard() {
           <Grid item xs={12} sm={6} md={3}>
             <InfoCard
               title="Revenus Encaissés"
-              value={`${dashboardStats.activeRentalsAmount.toLocaleString()} DA`}
+              value={`${dashboardStats.currentRevenue.toLocaleString()} DA`}
               icon={PaidIcon}
               color={pastelColors.pink}
-              tooltip="Montant total encaissé des locations en cours"
+              tooltip="Montant total encaissé des locations et réservations en cours"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
