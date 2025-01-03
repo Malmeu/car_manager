@@ -55,6 +55,19 @@ export interface Condition {
   damagePoints?: Record<string, DamagePoint[]>;
 }
 
+export interface FuelRecord {
+  id: string;
+  date: Date;
+  liters: number;
+  cost: number;
+  mileage: number;
+  fuelType: string;
+  fullTank: boolean;
+  station?: string;
+  notes?: string;
+  receipt?: string; // URL du reçu
+}
+
 export interface VehicleTracking {
   vehicleId: string;
   maintenances: Maintenance[];
@@ -62,4 +75,5 @@ export interface VehicleTracking {
   insurances: Insurance[];
   receipts: Receipt[];
   conditions: Condition[];
+  fuelRecords: FuelRecord[];
 }

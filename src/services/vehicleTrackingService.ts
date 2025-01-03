@@ -7,7 +7,8 @@ import {
   Insurance, 
   Receipt, 
   Condition as VehicleCondition,
-  DamagePoint
+  DamagePoint,
+  FuelRecord
 } from '../types/vehicleTracking';
 import axios from 'axios';
 import { API_URL } from '../config/api';
@@ -467,21 +468,155 @@ export const migrateConditions = async (vehicleId: string): Promise<void> => {
   }
 };
 
+// Gestion des relevés de carburant
+export const addFuelRecord = async (
+  vehicleId: string,
+  fuelRecord: Omit<FuelRecord, 'id'>,
+  receipt?: File
+): Promise<FuelRecord> => {
+  try {
+    // Upload du reçu si fourni
+    let receiptUrl = '';
+    if (receipt) {
+      receiptUrl = await saveFileLocally(receipt, vehicleId, 'fuel-receipt');
+    }
+
+    // Préparer les données
+    const fuelRecordData = {
+      ...fuelRecord,
+      date: new Date(fuelRecord.date),
+      receipt: receiptUrl || undefined
+    };
+
+    // Ajouter à Firestore
+    const fuelRecordRef = await addDoc(
+      collection(db, 'vehicles', vehicleId, 'fuelRecords'),
+      fuelRecordData
+    );
+
+    return {
+      id: fuelRecordRef.id,
+      ...fuelRecordData
+    } as FuelRecord;
+  } catch (error) {
+    console.error('Error adding fuel record:', error);
+    throw error;
+  }
+};
+
+export const updateFuelRecord = async (
+  vehicleId: string,
+  fuelRecordId: string,
+  fuelRecord: Partial<Omit<FuelRecord, 'id'>>,
+  receipt?: File
+): Promise<void> => {
+  try {
+    const updateData: any = { ...fuelRecord };
+    
+    // Upload du nouveau reçu si fourni
+    if (receipt) {
+      updateData.receipt = await saveFileLocally(receipt, vehicleId, 'fuel-receipt');
+    }
+
+    if (fuelRecord.date) {
+      updateData.date = new Date(fuelRecord.date);
+    }
+
+    await updateDoc(
+      doc(db, 'vehicles', vehicleId, 'fuelRecords', fuelRecordId),
+      updateData
+    );
+  } catch (error) {
+    console.error('Error updating fuel record:', error);
+    throw error;
+  }
+};
+
+export const deleteFuelRecord = async (
+  vehicleId: string,
+  fuelRecordId: string
+): Promise<void> => {
+  try {
+    await deleteDoc(
+      doc(db, 'vehicles', vehicleId, 'fuelRecords', fuelRecordId)
+    );
+  } catch (error) {
+    console.error('Error deleting fuel record:', error);
+    throw error;
+  }
+};
+
+export const getFuelRecords = async (
+  vehicleId: string
+): Promise<FuelRecord[]> => {
+  try {
+    const querySnapshot = await getDocs(
+      collection(db, 'vehicles', vehicleId, 'fuelRecords')
+    );
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: convertToDate(doc.data().date)
+    })) as FuelRecord[];
+  } catch (error) {
+    console.error('Error getting fuel records:', error);
+    throw error;
+  }
+};
+
 // Récupérer toutes les données de suivi pour un véhicule
 export const getVehicleTracking = async (vehicleId: string): Promise<VehicleTracking | null> => {
   try {
-    console.log('Fetching vehicle tracking data for ID:', vehicleId);
-    
     // Migrer les conditions si nécessaire
     await migrateConditions(vehicleId);
     
-    const response = await fetch(`${API_URL}/vehicles/${vehicleId}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch vehicle tracking data');
-    }
-    return await response.json();
+    const [maintenances, mileages, insurances, receipts, conditions, fuelRecords] = await Promise.all([
+      getDocs(collection(db, 'vehicles', vehicleId, 'maintenances')),
+      getDocs(collection(db, 'vehicles', vehicleId, 'mileages')),
+      getDocs(collection(db, 'vehicles', vehicleId, 'insurances')),
+      getDocs(collection(db, 'vehicles', vehicleId, 'receipts')),
+      getDocs(collection(db, 'vehicles', vehicleId, 'conditions')),
+      getDocs(collection(db, 'vehicles', vehicleId, 'fuelRecords'))
+    ]);
+
+    return {
+      vehicleId,
+      maintenances: maintenances.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: convertToDate(doc.data().date)
+      })) as Maintenance[],
+      mileages: mileages.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: convertToDate(doc.data().date)
+      })) as Mileage[],
+      insurances: insurances.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        startDate: convertToDate(doc.data().startDate),
+        endDate: convertToDate(doc.data().endDate)
+      })) as Insurance[],
+      receipts: receipts.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: convertToDate(doc.data().date),
+        validUntil: convertToDate(doc.data().validUntil)
+      })) as Receipt[],
+      conditions: conditions.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: convertToDate(doc.data().date)
+      })) as Condition[],
+      fuelRecords: fuelRecords.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: convertToDate(doc.data().date)
+      })) as FuelRecord[]
+    };
   } catch (error) {
-    console.error('Error fetching vehicle tracking:', error);
+    console.error('Error getting vehicle tracking:', error);
     return null;
   }
 };
