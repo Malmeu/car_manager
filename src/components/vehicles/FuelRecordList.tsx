@@ -36,6 +36,8 @@ import {
   deleteFuelRecord,
   getFuelRecords
 } from '../../services/vehicleTrackingService';
+import { db } from '../../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface FuelRecordFormData extends Omit<FuelRecord, 'id' | 'date'> {
   date: string;
@@ -62,9 +64,11 @@ export const FuelRecordList: React.FC<Props> = ({ vehicleId }) => {
   const [formData, setFormData] = useState<FuelRecordFormData>(initialFormData);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [currentMileage, setCurrentMileage] = useState<number>(0);
 
   useEffect(() => {
     loadFuelRecords();
+    loadCurrentMileage();
   }, [vehicleId]);
 
   const loadFuelRecords = async () => {
@@ -76,6 +80,24 @@ export const FuelRecordList: React.FC<Props> = ({ vehicleId }) => {
     }
   };
 
+  const loadCurrentMileage = async () => {
+    try {
+      const vehicleDoc = await getDoc(doc(db, 'vehicles', vehicleId));
+      if (vehicleDoc.exists()) {
+        const vehicleData = vehicleDoc.data();
+        setCurrentMileage(vehicleData.baseMileage || 0);
+        
+        // Mettre à jour le formulaire avec le kilométrage actuel
+        setFormData(prev => ({
+          ...prev,
+          mileage: vehicleData.baseMileage || 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading current mileage:', error);
+    }
+  };
+
   const handleOpen = (record?: FuelRecord) => {
     if (record) {
       setFormData({
@@ -84,7 +106,11 @@ export const FuelRecordList: React.FC<Props> = ({ vehicleId }) => {
       });
       setEditingId(record.id);
     } else {
-      setFormData(initialFormData);
+      setFormData({
+        ...initialFormData,
+        mileage: currentMileage, // Utiliser le kilométrage actuel pour un nouveau relevé
+        date: new Date().toISOString().split('T')[0],
+      });
       setEditingId(null);
     }
     setOpen(true);

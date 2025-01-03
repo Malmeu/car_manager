@@ -31,6 +31,7 @@ import MileageModal from './modals/MileageModal';
 import InsuranceModal from './modals/InsuranceModal';
 import ReceiptModal from './modals/ReceiptModal';
 import ConditionModal from './modals/ConditionModal';
+import FuelRecordList from './FuelRecordList';
 import { VehicleTracking as IVehicleTracking, Maintenance, Condition, DamagePoint } from '../../types/vehicleTracking';
 import { Vehicle } from '../../types/index';
 import { getVehicleTracking, deleteMaintenance, addCondition, deleteCondition, deleteMileage } from '../../services/vehicleTrackingService';
@@ -569,11 +570,18 @@ const VehicleTracking: React.FC = () => {
       </Box>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={value} onChange={handleChange} aria-label="vehicle tracking tabs">
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          aria-label="vehicle tracking tabs"
+          variant="scrollable"
+          scrollButtons="auto"
+        >
           <Tab label="Kilométrage" {...a11yProps(0)} />
-          <Tab label="Entretiens" {...a11yProps(1)} />
-          <Tab label="Assurance" {...a11yProps(2)} />
-          <Tab label="État du véhicule" {...a11yProps(3)} />
+          <Tab label="Carburant" {...a11yProps(1)} />
+          <Tab label="Entretiens" {...a11yProps(2)} />
+          <Tab label="Assurance" {...a11yProps(3)} />
+          <Tab label="État du véhicule" {...a11yProps(4)} />
         </Tabs>
       </Box>
 
@@ -690,6 +698,12 @@ const VehicleTracking: React.FC = () => {
       </TabPanel>
 
       <TabPanel value={value} index={1}>
+        <Box sx={{ p: 2 }}>
+          {id && <FuelRecordList vehicleId={id} />}
+        </Box>
+      </TabPanel>
+
+      <TabPanel value={value} index={2}>
         <Button
           variant="contained"
           onClick={() => setOpenMaintenanceModal(true)}
@@ -772,7 +786,7 @@ const VehicleTracking: React.FC = () => {
         </Timeline>
       </TabPanel>
 
-      <TabPanel value={value} index={2}>
+      <TabPanel value={value} index={3}>
         <Button
           variant="contained"
           onClick={() => setOpenInsuranceModal(true)}
@@ -800,7 +814,7 @@ const VehicleTracking: React.FC = () => {
         </Grid>
       </TabPanel>
 
-      <TabPanel value={value} index={3}>
+      <TabPanel value={value} index={4}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Button
             variant="contained"

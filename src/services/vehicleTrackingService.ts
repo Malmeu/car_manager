@@ -481,11 +481,11 @@ export const addFuelRecord = async (
       receiptUrl = await saveFileLocally(receipt, vehicleId, 'fuel-receipt');
     }
 
-    // Préparer les données
+    // Préparer les données en excluant receipt s'il n'y a pas d'URL
     const fuelRecordData = {
       ...fuelRecord,
       date: new Date(fuelRecord.date),
-      receipt: receiptUrl || undefined
+      ...(receiptUrl ? { receipt: receiptUrl } : {})  // N'inclure receipt que s'il y a une URL
     };
 
     // Ajouter à Firestore
