@@ -14,7 +14,13 @@ import {
   Button,
   Tooltip,
   Paper,
-  CircularProgress
+  CircularProgress,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction,
+  IconButton,
+  Card,
+  CardContent
 } from '@mui/material';
 import { Info as InfoIcon } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
@@ -29,11 +35,13 @@ import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { differenceInDays } from 'date-fns';
-import { CalendarButton } from './Calendar';
 import { getAllVehicles } from '../services/vehicleService';
 import { getAllRentals, Rental } from '../services/rentalService';
 import { Customer, Vehicle } from '../types';
 import { getAllCustomers } from '../services/customerService';
+import { Person as PersonIcon, DirectionsCar as CarIcon, CalendarMonth as CalendarIcon, Add as AddIcon, Key as KeyIcon, Description as ContractIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { CalendarModal } from './Calendar';
 
 // Définition des couleurs pastel
 const pastelColors = {
@@ -114,6 +122,7 @@ interface AvailableCars {
 }
 
 function Dashboard() {
+  const navigate = useNavigate();
   const { currentUser, loading } = useAuth();
   const [totalVehicles, setTotalVehicles] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
@@ -129,6 +138,11 @@ function Dashboard() {
   const [showRemainingDetails, setShowRemainingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const companyName = localStorage.getItem('companyName') || 'Votre Entreprise';
+  const [openNewCustomerDialog, setOpenNewCustomerDialog] = useState(false);
+  const [openNewVehicleDialog, setOpenNewVehicleDialog] = useState(false);
+  const [openNewRentalDialog, setOpenNewRentalDialog] = useState(false);
+  const [openNewContractDialog, setOpenNewContractDialog] = useState(false);
+  const [openCalendar, setOpenCalendar] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -258,9 +272,55 @@ function Dashboard() {
   return (
     <Container maxWidth="xl">
       <Box sx={{ flexGrow: 1, py: 3 }}>
+        <SpeedDial
+          ariaLabel="Accès rapide"
+          sx={{ position: 'fixed', bottom: 32, right: 32 }}
+          icon={<SpeedDialIcon />}
+        >
+          <SpeedDialAction
+            icon={<PersonIcon />}
+            tooltipTitle="Nouveau client"
+            onClick={() => navigate('/customers', { state: { openNewCustomer: true } })}
+          />
+          <SpeedDialAction
+            icon={<CarIcon />}
+            tooltipTitle="Nouveau véhicule"
+            onClick={() => navigate('/vehicles', { state: { openNewVehicle: true } })}
+          />
+          <SpeedDialAction
+            icon={<KeyIcon />}
+            tooltipTitle="Nouvelle location"
+            onClick={() => navigate('/rentals', { state: { openNewRental: true } })}
+          />
+          <SpeedDialAction
+            icon={<ContractIcon />}
+            tooltipTitle="Nouveau contrat"
+            onClick={() => navigate('/contracts', { state: { openNewContract: true } })}
+          />
+        </SpeedDial>
+
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-          <CalendarButton />
+          <Tooltip title="Calendrier des locations">
+            <IconButton 
+              color="primary" 
+              onClick={() => setOpenCalendar(true)}
+              sx={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.08)'
+                }
+              }}
+            >
+              <CalendarIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
+
+        <CalendarModal 
+          open={openCalendar}
+          onClose={() => setOpenCalendar(false)}
+        />
+
         {/* Première ligne */}
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>

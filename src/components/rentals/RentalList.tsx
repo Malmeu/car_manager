@@ -524,103 +524,266 @@ const RentalList: React.FC<RentalListProps> = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Locations</Typography>
-        <Box display="flex" gap={2} alignItems="center">
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 4 
+      }}>
+        <Box>
           <ToggleButtonGroup
             value={rentalStatus}
             exclusive
-            onChange={(event: React.MouseEvent<HTMLElement>, newStatus: 'active' | 'completed' | 'all' | null) => {
-              if (newStatus !== null) {
-                setRentalStatus(newStatus);
+            onChange={(e, newValue) => {
+              if (newValue !== null) {
+                setRentalStatus(newValue);
               }
             }}
-            aria-label="rental status"
-            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                borderRadius: '8px',
+                mx: 0.5,
+                px: 3,
+                py: 1,
+                border: '1px solid rgba(0, 0, 0, 0.12)',
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                },
+              },
+            }}
           >
-            <ToggleButton value="active" aria-label="active rentals">
+            <ToggleButton value="active">
               En cours & Réservations
             </ToggleButton>
-            <ToggleButton value="completed" aria-label="completed rentals">
+            <ToggleButton value="completed">
               Terminées
             </ToggleButton>
-            <ToggleButton value="all" aria-label="all rentals">
+            <ToggleButton value="all">
               Toutes
             </ToggleButton>
           </ToggleButtonGroup>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpen()}
-          >
-            Nouvelle location
-          </Button>
         </Box>
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpen()}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            px: 3,
+            py: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          }}
+        >
+          Nouvelle location
+        </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
+          borderRadius: '16px',
+          boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+          '.MuiTableCell-root': {
+            borderColor: 'rgba(224, 224, 224, 0.4)'
+          }
+        }}
+      >
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Date de début</TableCell>
-              <TableCell>Date de fin</TableCell>
-              <TableCell>Client</TableCell>
-              <TableCell>Véhicule</TableCell>
-              <TableCell>Coût total</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Paiement</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                DATE DE DÉBUT
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                DATE DE FIN
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                CLIENT
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                VÉHICULE
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                COÛT TOTAL
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                STATUT
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                PAIEMENT
+              </TableCell>
+              <TableCell align="right" sx={{ 
+                fontWeight: 600,
+                color: 'text.secondary',
+                backgroundColor: 'background.paper',
+                borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                py: 2
+              }}>
+                ACTIONS
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredRentals.map((rental) => {
               const vehicle = vehicles.find(v => v.id === rental.vehicleId);
               const customer = customers.find(c => c.id === rental.customerId);
+              const totalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
+
               return (
-                <TableRow key={rental.id}>
-                  <TableCell>{formatDate(rental.startDate)}</TableCell>
-                  <TableCell>{formatDate(rental.endDate)}</TableCell>
-                  <TableCell>{customer ? `${customer.firstName} ${customer.lastName}` : 'N/A'}</TableCell>
-                  <TableCell>{vehicle ? `${vehicle.brand} ${vehicle.model}` : 'N/A'}</TableCell>
-                  <TableCell>{rental.totalCost} DA</TableCell>
+                <TableRow 
+                  key={rental.id}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      transition: 'background-color 0.2s ease'
+                    },
+                    '& td': {
+                      py: 2.5,
+                      px: 2
+                    }
+                  }}
+                >
                   <TableCell>
-                    <Chip
-                      label={
-                        rental.status === 'active' ? 'En cours' :
-                        rental.status === 'completed' ? 'Terminée' :
-                        rental.status === 'cancelled' ? 'Annulée' :
-                        rental.status === 'reservation' ? 'Réservation' :
-                        'Inconnu'
-                      }
-                      color={
-                        rental.status === 'active' ? 'success' :
-                        rental.status === 'completed' ? 'default' :
-                        rental.status === 'cancelled' ? 'error' :
-                        rental.status === 'reservation' ? 'warning' :
-                        'default'
-                      }
-                      onClick={() => rental.status === 'active' && handleStatusChange(rental, 'completed')}
-                      sx={{ cursor: rental.status === 'active' ? 'pointer' : 'default' }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography>
-                      Status: {rental.paymentStatus}
-                      <br />
-                      Méthode: {rental.paymentMethod}
-                      <br />
-                      Payé: {rental.paidAmount} DA
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {format(rental.startDate.toDate(), 'dd/MM/yyyy')}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleOpen(rental)} color="primary">
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {format(rental.endDate.toDate(), 'dd/MM/yyyy')}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {customer && (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            mr: 1.5,
+                            fontSize: '0.875rem',
+                            fontWeight: 500
+                          }}
+                        >
+                          {customer.firstName[0]}{customer.lastName[0]}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {customer.firstName} {customer.lastName}
+                        </Typography>
+                      </Box>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {vehicle && (
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {vehicle.brand} {vehicle.model}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                      {totalAmount.toLocaleString()} DA
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={rental.status === 'active' ? 'En cours' : 
+                             rental.status === 'completed' ? 'Terminée' :
+                             rental.status === 'reservation' ? 'Réservation' : 'Annulée'}
+                      color={rental.status === 'active' ? 'success' :
+                             rental.status === 'completed' ? 'info' :
+                             rental.status === 'reservation' ? 'warning' : 'error'}
+                      size="small"
+                      sx={{ minWidth: '100px' }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={rental.paymentStatus === 'paid' ? `Payé: ${rental.paidAmount} DA` :
+                             rental.paymentStatus === 'partial' ? `Partiel: ${rental.paidAmount} DA` : 'En attente'}
+                      color={rental.paymentStatus === 'paid' ? 'success' :
+                             rental.paymentStatus === 'partial' ? 'info' : 'warning'}
+                      size="small"
+                      sx={{ minWidth: '120px' }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      onClick={() => handleOpen(rental)}
+                      size="small"
+                      sx={{ 
+                        mr: 1,
+                        color: 'primary.main',
+                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
+                      }}
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton 
-                      onClick={() => handleDelete(rental.id!)} 
-                      color="error"
-                      disabled={rental.status === 'completed'}
+                    <IconButton
+                      onClick={() => rental.id && handleDelete(rental.id)}
+                      size="small"
+                      sx={{ 
+                        color: 'error.main',
+                        '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.04)' }
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -631,7 +794,6 @@ const RentalList: React.FC<RentalListProps> = () => {
           </TableBody>
         </Table>
       </TableContainer>
-
       {/* Boîte de dialogue pour afficher le contrat */}
       <Dialog
         open={contractDialogOpen}

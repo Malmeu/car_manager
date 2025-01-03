@@ -85,19 +85,6 @@ const LocationHistory: React.FC = () => {
     loadData(); 
   }, [currentUser]);
 
-  const getStatusColor = (status: string): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'primary';
-      case 'completed':
-        return 'success';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
   const formatDate = (timestamp: Timestamp) => {
     return timestamp.toDate().toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -116,59 +103,256 @@ const LocationHistory: React.FC = () => {
     return customer ? `${customer.firstName} ${customer.lastName}` : 'Client inconnu';
   };
 
-  const getStatusLabel = (status: string): string => {
+  const getPaymentStatusChip = (rental: DisplayRental) => {
+    const paidAmount = rental.paidAmount || 0;
+    const totalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
+    
+    if (paidAmount === 0) {
+      return (
+        <Chip
+          label="En attente"
+          color="warning"
+          size="small"
+          sx={{ minWidth: '120px' }}
+        />
+      );
+    } else if (paidAmount < totalAmount) {
+      return (
+        <Chip
+          label={`Partiel: ${paidAmount} DA`}
+          color="info"
+          size="small"
+          sx={{ minWidth: '120px' }}
+        />
+      );
+    } else {
+      return (
+        <Chip
+          label={`Payé: ${paidAmount} DA`}
+          color="success"
+          size="small"
+          sx={{ minWidth: '120px' }}
+        />
+      );
+    }
+  };
+
+  const getRentalStatusChip = (status: string) => {
+    let color: "warning" | "success" | "error" | "info" = "info";
+    let label = status;
+
     switch (status.toLowerCase()) {
       case 'active':
-        return 'En cours';
+        color = "success";
+        label = "En cours";
+        break;
+      case 'reservation':
+        color = "warning";
+        label = "Réservation";
+        break;
       case 'completed':
-        return 'Terminée';
+        color = "info";
+        label = "Terminée";
+        break;
       case 'cancelled':
-        return 'Annulée';
-      default:
-        return status;
+        color = "error";
+        label = "Annulée";
+        break;
     }
+
+    return (
+      <Chip
+        label={label}
+        color={color}
+        size="small"
+        sx={{ minWidth: '100px' }}
+      />
+    );
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', mb: 4 }}>
-        Historique des Locations
-      </Typography>
-
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
+          mb: 3,
+          borderRadius: '16px',
+          boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+          '.MuiTableCell-root': {
+            borderColor: 'rgba(224, 224, 224, 0.4)'
+          }
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: 'secondary.main' }}>
-              <TableCell>ID</TableCell>
-              <TableCell>Véhicule</TableCell>
-              <TableCell>Client</TableCell>
-              <TableCell>Date de début</TableCell>
-              <TableCell>Date de fin</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Montant (DA)</TableCell>
+            <TableRow>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                DATE DE DÉBUT
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                DATE DE FIN
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                CLIENT
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                VÉHICULE
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                COÛT TOTAL
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                STATUT
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                PAIEMENT
+              </TableCell>
+              <TableCell 
+                align="right"
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  backgroundColor: 'background.paper',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.4)',
+                  py: 2
+                }}
+              >
+                ACTIONS
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {locations.map((location) => (
-              <TableRow 
-                key={location.id}
-                sx={{ '&:hover': { backgroundColor: 'background.paper' } }}
-              >
-                <TableCell>{location.id}</TableCell>
-                <TableCell>{getVehicleName(location.vehicleId)}</TableCell>
-                <TableCell>{getCustomerName(location.customerId)}</TableCell>
-                <TableCell>{formatDate(location.startDate)}</TableCell>
-                <TableCell>{formatDate(location.endDate)}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={getStatusLabel(location.status)}
-                    color={getStatusColor(location.status)}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>{location.totalCost.toLocaleString('fr-FR')} DA</TableCell>
-              </TableRow>
-            ))}
+            {locations.map((location) => {
+              const vehicle = vehicles[location.vehicleId];
+              const customer = customers[location.customerId];
+              const totalAmount = location.totalCost + (location.additionalFees?.amount || 0);
+
+              return (
+                <TableRow 
+                  key={location.id} 
+                  sx={{ 
+                    '&:hover': { 
+                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      transition: 'background-color 0.2s ease'
+                    },
+                    '& td': {
+                      py: 2.5,
+                      px: 2
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {formatDate(location.startDate)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {formatDate(location.endDate)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {customer ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            mr: 1.5,
+                            fontSize: '0.875rem',
+                            fontWeight: 500
+                          }}
+                        >
+                          {customer.firstName[0]}{customer.lastName[0]}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {customer.firstName} {customer.lastName}
+                        </Typography>
+                      </Box>
+                    ) : 'Client inconnu'}
+                  </TableCell>
+                  <TableCell>
+                    {vehicle ? (
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {vehicle.brand} {vehicle.model}
+                      </Typography>
+                    ) : 'Véhicule inconnu'}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                      {totalAmount.toLocaleString()} DA
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{getRentalStatusChip(location.status)}</TableCell>
+                  <TableCell>{getPaymentStatusChip(location)}</TableCell>
+                  <TableCell align="right">
+                    {/* Vos actions existantes */}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
