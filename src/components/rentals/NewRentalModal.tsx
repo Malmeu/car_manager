@@ -173,10 +173,18 @@ const NewRentalModal: React.FC<NewRentalModalProps> = ({
       ]);
       setCustomers(customersData);
       
-      // Filtrer les véhicules qui ont un ID défini
-      const validVehicles = vehiclesData.filter((v): v is Vehicle => 
-        typeof v.id === 'string' && v.id !== undefined
-      );
+      // Filtrer les véhicules disponibles
+      const validVehicles = vehiclesData
+        .filter((v): v is VehicleModel => 
+          typeof v.id === 'string' && 
+          v.id !== undefined &&
+          v.status === 'available'
+        )
+        .map(v => ({
+          ...v,
+          id: v.id as string
+        }));
+
       setVehicles(validVehicles);
 
       // Si on a une ressource sélectionnée, on cherche le véhicule correspondant

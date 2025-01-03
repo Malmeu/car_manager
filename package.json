@@ -18,7 +18,7 @@
     "@fullcalendar/resource-timeline": "^6.1.10",
     "@fullcalendar/scrollgrid": "^6.1.10",
     "@fullcalendar/timegrid": "^6.1.15",
-    "@mui/icons-material": "^5.16.9",
+    "@mui/icons-material": "^5.16.13",
     "@mui/lab": "^5.0.0-alpha.155",
     "@mui/material": "^5.16.9",
     "@mui/x-date-pickers": "^6.18.2",

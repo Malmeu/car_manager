@@ -1,37 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardActions,
   Typography,
-  Button,
+  IconButton,
   Box,
   Chip,
-  IconButton,
-  Collapse,
-  Badge,
-  Grid,
+  Switch,
   Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
+  Button,
   Tabs,
   Tab,
-  Switch,
+  Badge,
+  Collapse,
+  Grid
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import SpeedIcon from '@mui/icons-material/Speed';
 import DateRangeIcon from '@mui/icons-material/DateRange';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 import CloseIcon from '@mui/icons-material/Close';
 import { doc, updateDoc, getFirestore } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
-import { Vehicle } from '../../models/Vehicle';
+import { Vehicle, VehicleStatus } from '../../types';
 import { VehicleTracking } from '../../types/vehicleTracking';
 import { getVehicleTracking } from '../../services/vehicleTrackingService';
 import { Notification, checkNotifications } from '../../services/notificationService';
@@ -69,6 +70,22 @@ function TabPanel(props: TabPanelProps) {
     </div>
   );
 }
+
+const statusLabels: Record<VehicleStatus, string> = {
+  available: 'Disponible',
+  rented: 'En location',
+  reservation: 'En réservation',
+  maintenance: 'En maintenance',
+  unavailable: 'Indisponible'
+};
+
+const statusColors: Record<VehicleStatus, string> = {
+  available: 'success.main',
+  rented: 'info.main',
+  reservation: 'warning.main',
+  maintenance: 'error.main',
+  unavailable: 'error.main'
+};
 
 export const VehicleCard: React.FC<VehicleCardProps> = ({
   vehicle,
@@ -236,54 +253,15 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                 </Badge>
               </IconButton>
             )}
-            <IconButton
-              size="small"
-              sx={{ 
-                color: 'white',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(vehicle);
-              }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{ 
-                color: 'white',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                vehicle.id && onDelete(vehicle.id);
-              }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
           </Box>
         </Box>
 
         <Box display="flex" gap={1} flexWrap="wrap">
           <Chip
             size="small"
-            label={
-              vehicle.status === 'available' 
-                ? 'Disponible' 
-                : vehicle.status === 'rented'
-                ? 'En location'
-                : 'En maintenance'
-            }
+            label={statusLabels[vehicle.status]}
             sx={{ 
-              backgroundColor: 
-                vehicle.status === 'available' 
-                  ? 'success.main' 
-                  : vehicle.status === 'rented'
-                  ? 'info.main'
-                  : 'error.main',
+              backgroundColor: statusColors[vehicle.status],
               color: 'white',
               fontWeight: 500,
               '& .MuiChip-label': { px: 2 }
@@ -444,9 +422,10 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                 }
               }}
               sx={{ 
+                backgroundColor: (theme) => `${theme.palette.primary.main}15`,
                 color: (theme) => theme.palette.primary.main,
                 '&:hover': {
-                  backgroundColor: (theme) => theme.palette.primary.light,
+                  backgroundColor: (theme) => theme.palette.primary.main,
                   color: 'white',
                 },
               }}
@@ -456,15 +435,16 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
           </Tooltip>
           <Tooltip title="Modifier">
             <IconButton
-              size="small"
+              size="medium"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(vehicle);
               }}
               sx={{ 
+                backgroundColor: (theme) => `${theme.palette.primary.main}15`,
                 color: (theme) => theme.palette.primary.main,
                 '&:hover': {
-                  backgroundColor: (theme) => theme.palette.primary.light,
+                  backgroundColor: (theme) => theme.palette.primary.main,
                   color: 'white',
                 },
               }}
@@ -474,7 +454,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
           </Tooltip>
           <Tooltip title="Supprimer">
             <IconButton
-              size="small"
+              size="medium"
               onClick={(e) => {
                 e.stopPropagation();
                 if (vehicle.id) {
@@ -482,9 +462,10 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                 }
               }}
               sx={{ 
+                backgroundColor: (theme) => `${theme.palette.error.main}15`,
                 color: (theme) => theme.palette.error.main,
                 '&:hover': {
-                  backgroundColor: (theme) => theme.palette.error.light,
+                  backgroundColor: (theme) => theme.palette.error.main,
                   color: 'white',
                 },
               }}

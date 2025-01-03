@@ -1,4 +1,4 @@
-import { Vehicle } from '../models/Vehicle';
+import { Vehicle } from '../types';
 import { db } from '../config/firebase';
 import { 
   collection,
@@ -38,12 +38,25 @@ export const getAllVehicles = async (userId: string): Promise<Vehicle[]> => {
       return [];
     }
 
-    const vehicles = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Vehicle[];
+    const vehicles = snapshot.docs.map(doc => {
+      const data = doc.data();
+      console.log('Vehicle data from Firestore:', {
+        id: doc.id,
+        ...data
+      });
+      return {
+        id: doc.id,
+        ...data
+      };
+    }) as Vehicle[];
 
     console.log(`Found ${vehicles.length} vehicles for user:`, userId);
+    console.log('Vehicles with their status:', vehicles.map(v => ({
+      id: v.id,
+      brand: v.brand,
+      model: v.model,
+      status: v.status
+    })));
     return vehicles;
   } catch (error) {
     console.error('Error getting vehicles:', error);
@@ -107,4 +120,4 @@ export const getAvailableVehicles = async (userId: string): Promise<Vehicle[]> =
   }
 };
 
-export type { Vehicle } from '../models/Vehicle';
+export type { Vehicle } from '../types';

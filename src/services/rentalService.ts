@@ -65,10 +65,10 @@ export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<string>
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), rental);
 
-    // Mettre à jour le statut du véhicule à "rented"
+    // Mettre à jour le statut du véhicule selon le type de location
     const vehicleRef = doc(db, 'vehicles', rental.vehicleId);
     await updateDoc(vehicleRef, {
-      status: 'rented',
+      status: rental.status === 'active' ? 'rented' : 'reservation',
       editingRental: true
     });
 
@@ -98,17 +98,30 @@ export const updateRental = async (id: string, rentalData: Partial<Rental>): Pro
         : Timestamp.fromDate(new Date(rentalData.endDate));
     }
 
+    // Récupérer la location actuelle pour obtenir le vehicleId
+    const currentRental = await getDoc(rentalRef);
+    const rental = currentRental.data() as Rental;
+
     await updateDoc(rentalRef, updateData);
 
-    // Si le statut de la location change à "completed" ou "cancelled",
-    // mettre à jour le statut du véhicule à "available"
-    if (updateData.status === 'completed' || updateData.status === 'cancelled') {
-      const rental = (await getDoc(rentalRef)).data() as Rental;
+    // Si le statut change, mettre à jour le statut du véhicule
+    if (rentalData.status && rental.vehicleId) {
       const vehicleRef = doc(db, 'vehicles', rental.vehicleId);
-      await updateDoc(vehicleRef, {
-        status: 'available',
-        editingRental: false
-      });
+      
+      // Si la location est terminée ou annulée, remettre le véhicule comme disponible
+      if (rentalData.status === 'completed' || rentalData.status === 'cancelled') {
+        await updateDoc(vehicleRef, {
+          status: 'available',
+          editingRental: false
+        });
+      }
+      // Si la location devient active, marquer le véhicule comme loué
+      else if (rentalData.status === 'active') {
+        await updateDoc(vehicleRef, {
+          status: 'rented',
+          editingRental: true
+        });
+      }
     }
   } catch (error) {
     console.error('Error updating rental:', error);
@@ -120,6 +133,21 @@ export const updateRental = async (id: string, rentalData: Partial<Rental>): Pro
 export const deleteRental = async (id: string): Promise<void> => {
   try {
     const rentalRef = doc(db, COLLECTION_NAME, id);
+    
+    // Récupérer les informations de la location avant de la supprimer
+    const rentalSnap = await getDoc(rentalRef);
+    if (rentalSnap.exists()) {
+      const rentalData = rentalSnap.data() as Rental;
+      
+      // Mettre à jour le statut du véhicule à "available"
+      const vehicleRef = doc(db, 'vehicles', rentalData.vehicleId);
+      await updateDoc(vehicleRef, {
+        status: 'available',
+        editingRental: false
+      });
+    }
+    
+    // Supprimer la location
     await deleteDoc(rentalRef);
   } catch (error) {
     console.error('Error deleting rental:', error);

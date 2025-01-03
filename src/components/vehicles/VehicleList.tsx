@@ -28,7 +28,8 @@ import {
   Search as SearchIcon,
   Timeline as TimelineIcon,
 } from '@mui/icons-material';
-import { Vehicle, addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
+import { Vehicle, VehicleStatus } from '../../types';
+import { addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from '../../services/vehicleService';
 import { getAllRentals } from '../../services/rentalService';
 import { db } from '../../config/firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
@@ -130,38 +131,94 @@ const VehicleList: React.FC = () => {
         getAllRentals(currentUser.uid)
       ]);
 
-      // Vérifier que chaque véhicule a un ID
+      // Vérifier que chaque véhicule a un ID et un statut valide
       const validVehicles = vehiclesData.filter(vehicle => {
         if (!vehicle.id) {
           console.error('Vehicle without ID:', vehicle);
           return false;
         }
+        
+        // Vérifier si le statut est valide
+        if (!vehicle.status || !['available', 'rented', 'maintenance', 'unavailable', 'reservation'].includes(vehicle.status)) {
+          console.error('Vehicle with invalid status:', vehicle);
+          vehicle.status = 'available';  // Définir un statut par défaut
+        }
+        
         return true;
       });
 
-      console.log('Vehicles data received:', validVehicles.length);
-      console.log('Rentals data received:', rentalsData.length);
+      console.log('Initial vehicles data:', validVehicles.map(v => ({
+        id: v.id,
+        brand: v.brand,
+        model: v.model,
+        status: v.status
+      })));
 
-      // Récupérer les IDs des véhicules actuellement en location
+      // Récupérer les IDs des véhicules actuellement en location active ou en réservation
       const rentedVehicleIds = rentalsData
         .filter(rental => rental.status === 'active')
         .map(rental => rental.vehicleId);
+
+      const reservedVehicleIds = rentalsData
+        .filter(rental => rental.status === 'reservation')
+        .map(rental => rental.vehicleId);
       
       console.log('Active rental vehicle IDs:', rentedVehicleIds);
-      setActiveRentals(rentedVehicleIds);
+      console.log('Reserved vehicle IDs:', reservedVehicleIds);
 
-      // Mettre à jour le statut des véhicules en fonction des locations actives
+      // Mettre à jour le statut des véhicules
       const updatedVehicles = validVehicles.map(vehicle => {
-        const isRented = rentedVehicleIds.includes(vehicle.id!);
-        console.log(`Vehicle ${vehicle.id} (${vehicle.brand} ${vehicle.model}) - Rented: ${isRented}`);
-        
-        return {
-          ...vehicle,
-          status: isRented ? 'rented' as const : vehicle.status
-        };
+        if (!vehicle.id) return vehicle;
+
+        const isRented = rentedVehicleIds.includes(vehicle.id);
+        const isReserved = reservedVehicleIds.includes(vehicle.id);
+        const currentStatus = vehicle.status || 'available';
+
+        console.log(`Processing vehicle ${vehicle.id}:`, {
+          brand: vehicle.brand,
+          model: vehicle.model,
+          currentStatus,
+          isRented,
+          isReserved
+        });
+
+        // Si le véhicule est en location active
+        if (isRented) {
+          console.log(`Setting ${vehicle.brand} ${vehicle.model} to rented`);
+          return {
+            ...vehicle,
+            status: 'rented' as const
+          };
+        }
+
+        // Si le véhicule est réservé
+        if (isReserved) {
+          console.log(`Setting ${vehicle.brand} ${vehicle.model} to reservation`);
+          return {
+            ...vehicle,
+            status: 'reservation' as const
+          };
+        }
+
+        // Si le véhicule n'est ni en location ni réservé et n'est pas en maintenance
+        if (!isRented && !isReserved && currentStatus !== 'maintenance') {
+          console.log(`Setting ${vehicle.brand} ${vehicle.model} to available`);
+          return {
+            ...vehicle,
+            status: 'available' as const
+          };
+        }
+
+        return vehicle;
       });
 
-      console.log('Setting updated vehicles:', updatedVehicles.length);
+      console.log('Final vehicle statuses:', updatedVehicles.map(v => ({
+        id: v.id,
+        brand: v.brand,
+        model: v.model,
+        status: v.status
+      })));
+
       setVehicles(updatedVehicles);
     } catch (error) {
       console.error('Error loading vehicles:', error);
@@ -394,6 +451,7 @@ const VehicleList: React.FC = () => {
               <MenuItem value="available">Disponible</MenuItem>
               <MenuItem value="rented">En location</MenuItem>
               <MenuItem value="unavailable">Non disponible</MenuItem>
+              <MenuItem value="reservation">Réservé</MenuItem>
             </TextField>
             <TextField
               margin="dense"

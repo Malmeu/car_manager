@@ -112,13 +112,6 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       icon: <DashboardIcon />,
       path: '/dashboard',
     },
-    ...(isAdmin ? [
-      {
-        text: 'Administration',
-        icon: <AdminIcon />,
-        path: '/admin/dashboard'
-      }
-    ] : []),
     {
       text: 'Véhicules',
       icon: <CarIcon />,
@@ -486,7 +479,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
               open={Boolean(anchorEl)}
               onClose={handleCloseMenu}
             >
-              <MenuItem onClick={() => navigate('/profile-customization')}>
+              <MenuItem onClick={() => navigate('/profile')}>
                 <ListItemIcon>
                   <PersonIcon fontSize="small" />
                 </ListItemIcon>

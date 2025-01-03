@@ -1,5 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
+export type VehicleStatus = 'available' | 'rented' | 'unavailable' | 'maintenance' | 'reservation';
+
 export interface Vehicle {
     id?: string;
     userId: string;
@@ -7,7 +9,7 @@ export interface Vehicle {
     model: string;
     year: number;
     registration: string;
-    status: 'available' | 'rented' | 'unavailable' | 'maintenance';
+    status: VehicleStatus;
     dailyRate: number;
     baseMileage: number;  // Kilométrage initial
     fuelType: string;

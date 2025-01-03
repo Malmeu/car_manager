@@ -39,10 +39,12 @@ const NotificationCenter: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('NotificationCenter effect running, isAdmin:', isAdmin);
     const fetchNotifications = async () => {
       if (!currentUser) return;
 
       try {
+        setLoading(true);
         // Query pour les notifications de l'utilisateur
         const userQuery = query(
           collection(db, NOTIFICATIONS_COLLECTION),
@@ -62,73 +64,37 @@ const NotificationCenter: React.FC = () => {
             where('status', '==', 'unread'),
             orderBy('createdAt', 'desc')
           );
-          
-          // Debug: Vérifier toutes les notifications
-          const allNotificationsQuery = query(
-            collection(db, NOTIFICATIONS_COLLECTION),
-            orderBy('createdAt', 'desc'),
-            limit(10)
-          );
-          
-          const allNotificationsSnapshot = await getDocs(allNotificationsQuery);
-          console.log('All notifications in collection (detailed):', allNotificationsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              type: data.type,
-              status: data.status,
-              createdAt: data.createdAt,
-              message: data.message
-            };
-          }));
         }
 
-        // Écouter les notifications de l'utilisateur
-        const userUnsubscribe = onSnapshot(userQuery, (snapshot: QuerySnapshot<DocumentData>) => {
-          const userNotifs = snapshot.docs.map(doc => {
-            console.log('User notification doc:', doc.id, doc.data());
-            return {
+        // Exécuter les requêtes
+        const [userSnapshot, adminSnapshot] = await Promise.all([
+          getDocs(userQuery),
+          isAdmin ? getDocs(adminQuery!) : null
+        ]);
+
+        // Combiner les résultats
+        const userNotifications = userSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Notification[];
+
+        const adminNotifications = adminSnapshot
+          ? adminSnapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
-            } as Notification;
-          });
+            })) as Notification[]
+          : [];
 
-          if (isAdmin && adminQuery) {
-            // Si admin, combiner avec les notifications d'administration
-            const adminUnsubscribe = onSnapshot(adminQuery, (adminSnapshot: QuerySnapshot<DocumentData>) => {
-              console.log('Admin query snapshot size:', adminSnapshot.size);
-              const adminNotifs = adminSnapshot.docs.map(doc => {
-                console.log('Admin notification doc:', doc.id, doc.data());
-                return {
-                  id: doc.id,
-                  ...doc.data()
-                } as Notification;
-              });
-              
-              const allNotifications = [...userNotifs, ...adminNotifs];
-              console.log('All notifications:', allNotifications);
-              setNotifications(allNotifications.sort((a, b) => b.createdAt - a.createdAt));
-            });
-
-            return () => {
-              userUnsubscribe();
-              adminUnsubscribe();
-            };
-          } else {
-            console.log('User notifications:', userNotifs);
-            setNotifications(userNotifs);
-          }
-        });
-
-        return () => {
-          userUnsubscribe();
-        };
+        setNotifications([...userNotifications, ...adminNotifications]);
       } catch (error) {
         console.error('Error fetching notifications:', error);
+        setSnackbarMessage('Erreur lors du chargement des notifications');
+        setSnackbarOpen(true);
+      } finally {
+        setLoading(false);
       }
     };
 
-    console.log('NotificationCenter effect running, isAdmin:', isAdmin);
     fetchNotifications();
   }, [currentUser, isAdmin]);
 
