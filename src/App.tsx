@@ -32,6 +32,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminPaymentsPage from './pages/AdminPaymentsPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
+import SecurityInitializer from './components/security/SecurityInitializer';
 
 const UserLayout = () => {
   return (
@@ -68,6 +69,7 @@ function App() {
     <AuthProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <SecurityInitializer />
         <Router>
           <Routes>
             {/* Routes publiques */}

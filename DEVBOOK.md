@@ -13,12 +13,22 @@ Transformer Car Manager en une application commercialisable et sécurisée
 - [x] Connexion Google
 - [x] Politique de mots de passe forts
 - [x] Double authentification (2FA)
+- [x] Limitation des tentatives de connexion
+  - Maximum de 5 tentatives avant verrouillage
+  - Période de blocage de 15 minutes
+  - Stockage local des tentatives
+  - Messages d'erreur informatifs pour l'utilisateur
+  - Réinitialisation automatique après une connexion réussie
 - [ ] Gestion des sessions
-- [ ] Limitation des tentatives de connexion
 
 #### Chiffrement & Protection
+- [x] Chiffrement des données sensibles
+  - Chiffrement des données sensibles avant stockage
+  - Utilisation d'algorithmes de chiffrement robustes
+  - Gestion sécurisée des clés de chiffrement
+  - Protection des données personnelles des clients
+  - Conformité avec les réglementations de protection des données
 - [ ] HTTPS obligatoire
-- [ ] Chiffrement des données sensibles
 - [ ] Protection contre les injections SQL
 - [ ] Sanitization des inputs
 
@@ -77,6 +87,16 @@ Transformer Car Manager en une application commercialisable et sécurisée
 - [ ] Support multi-langues
 - [ ] Guide utilisateur
 - [ ] Tour des fonctionnalités
+
+### 📝 Gestion des Formulaires
+- [x] Formik pour la gestion des formulaires
+  - Validation des champs
+  - Gestion des erreurs
+  - Soumission des formulaires
+- [x] Yup pour la validation des schémas
+  - Validation des données côté client
+  - Messages d'erreur personnalisés en français
+  - Règles de validation complexes
 
 ## 🚧 Blocages Actuels
 - Aucun pour le moment

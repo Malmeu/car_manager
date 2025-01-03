@@ -44,6 +44,7 @@
     "express": "^4.21.2",
     "firebase": "^10.7.1",
     "firebase-admin": "^13.0.1",
+    "formik": "^2.4.6",
     "framer-motion": "^11.14.1",
     "gsap": "^3.12.5",
     "html2canvas": "^1.4.1",
@@ -71,7 +72,8 @@
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5",
     "uuid": "^11.0.3",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "yup": "^1.6.1"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -104,6 +106,7 @@
     "@types/leaflet": "^1.9.15",
     "@types/react-leaflet": "^2.8.3",
     "@types/recharts": "^1.8.29",
+    "@types/yup": "^0.29.14",
     "ajv": "^7.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^4.9.5"
