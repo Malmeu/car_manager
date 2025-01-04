@@ -165,7 +165,7 @@ function Dashboard() {
 
       try {
         setError(null);
-        // Récupérer les locations
+        // Récupérer les locations de toutes les années
         const rentalsRef = collection(db, 'rentals');
         const rentalsQuery = query(
           rentalsRef,
@@ -173,19 +173,49 @@ function Dashboard() {
         );
         const rentalsSnapshot = await getDocs(rentalsQuery);
 
+        // Récupérer les dépenses véhicules de toutes les années
+        const expensesRef = collection(db, 'expenses');
+        const expensesQuery = query(
+          expensesRef,
+          where('userId', '==', currentUser.uid)
+        );
+        const expensesSnapshot = await getDocs(expensesQuery);
+
+        // Récupérer les dépenses entreprise de toutes les années
+        const businessExpensesRef = collection(db, 'businessExpenses');
+        const businessExpensesQuery = query(
+          businessExpensesRef,
+          where('userId', '==', currentUser.uid)
+        );
+        const businessExpensesSnapshot = await getDocs(businessExpensesQuery);
+
         let activeRentalsList: any[] = [];
         let activeRentalsAmount = 0;
         let partialPayments = 0;
         let remainingToCollect = 0;
         let totalCashflow = 0;
         let currentRevenue = 0;
+        let totalExpenses = 0;
 
+        // Calculer le total des dépenses véhicules
+        expensesSnapshot.forEach((doc) => {
+          const expense = doc.data();
+          totalExpenses += expense.amount || 0;
+        });
+
+        // Ajouter les dépenses entreprise
+        businessExpensesSnapshot.forEach((doc) => {
+          const expense = doc.data();
+          totalExpenses += expense.amount || 0;
+        });
+
+        // Calculer les entrées de toutes les années
         rentalsSnapshot.forEach((doc) => {
           const rental = doc.data();
           const totalAmount = (rental.totalCost || 0) + (rental.additionalFees?.amount || 0);
           const paidAmount = rental.paymentStatus === 'paid' ? totalAmount : (rental.paidAmount || 0);
 
-          // Calculer le total de la caisse (somme de tous les paiements reçus)
+          // Ajouter au total de la caisse
           totalCashflow += paidAmount;
 
           if (rental.status === 'active') {
@@ -206,6 +236,9 @@ function Dashboard() {
             currentRevenue += totalAmount;
           }
         });
+
+        // État final de la caisse = entrées - sorties
+        totalCashflow = totalCashflow - totalExpenses;
 
         setDashboardStats({
           activeRentalsAmount,
@@ -338,7 +371,7 @@ function Dashboard() {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <InfoCard
-              title="Total Véhicules"
+              title="Véhicules"
               value={totalVehicles}
               icon={DirectionsCarIcon}
               color={pastelColors.blue}
@@ -347,7 +380,7 @@ function Dashboard() {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <InfoCard
-              title="Total Clients"
+              title="Clients"
               value={totalClients}
               icon={PeopleIcon}
               color={pastelColors.green}
@@ -365,7 +398,7 @@ function Dashboard() {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <InfoCard
-              title="Réservations"
+              title="Réservations et locations"
               value={activeRentals}
               icon={BookOnlineIcon}
               color={pastelColors.orange}
@@ -378,7 +411,7 @@ function Dashboard() {
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6} md={3}>
             <InfoCard
-              title="Revenus Encaissés"
+              title={`Revenus  ${new Date().getFullYear()}`}
               value={`${dashboardStats.currentRevenue.toLocaleString()} DA`}
               icon={PaidIcon}
               color={pastelColors.pink}

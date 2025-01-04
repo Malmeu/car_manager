@@ -24,19 +24,22 @@ import {
   FormControl,
   InputLabel,
   Select,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllRentals, updateRental, addRental, deleteRental } from '../../services/rentalService';
 import { getAllVehicles, getAvailableVehicles, updateVehicle } from '../../services/vehicleService';
 import { getAllCustomers } from '../../services/customerService';
-import { format } from 'date-fns';
+import { format, isAfter } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { createContract, getContract } from '../../services/contractService';
 import { Contract, Customer, Vehicle, RentalType } from '../../types';
 import { ContractFormData } from '../../types/contract';
 import { useLocation } from 'react-router-dom';
+import useInterval from '../../hooks/useInterval';
 
 interface FormData {
   id?: string;
@@ -95,6 +98,10 @@ const RentalList: React.FC<RentalListProps> = () => {
 
   const [rentalStatus, setRentalStatus] = useState<'active' | 'completed' | 'all'>('active');
 
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
   const wilayas = [
     'Adrar', 'Chlef', 'Laghouat', 'Oum El Bouaghi', 'Batna', 'Béjaïa', 'Biskra',
     'Béchar', 'Blida', 'Bouira', 'Tamanrasset', 'Tébessa', 'Tlemcen', 'Tiaret',
@@ -105,6 +112,64 @@ const RentalList: React.FC<RentalListProps> = () => {
     'Souk Ahras', 'Tipaza', 'Mila', 'Aïn Defla', 'Naâma', 'Aïn Témouchent',
     'Ghardaïa', 'Relizane'
   ];
+
+  const checkAndCompleteExpiredRentals = async () => {
+    try {
+      if (!currentUser) return;
+      
+      const now = new Date();
+      const activeRentals = rentals.filter(rental => 
+        rental.status === 'active' && 
+        isAfter(now, rental.endDate.toDate())
+      );
+
+      for (const rental of activeRentals) {
+        if (!rental.id) continue;
+        
+        // Mettre à jour le statut de la location
+        await updateRental(rental.id, {
+          ...rental,
+          status: 'completed'
+        });
+
+        // Mettre à jour le statut du véhicule
+        await updateVehicle(rental.vehicleId, { status: 'available' });
+
+        // Trouver les informations du véhicule et du client
+        const vehicle = vehicles.find(v => v.id === rental.vehicleId);
+        const customer = customers.find(c => c.id === rental.customerId);
+        
+        // Afficher la notification
+        setSnackbarMessage(
+          `Location terminée automatiquement : ${vehicle?.brand} ${vehicle?.model} - ${customer?.firstName} ${customer?.lastName}`
+        );
+        setSnackbarSeverity('success');
+        setOpenSnackbar(true);
+      }
+
+      if (activeRentals.length > 0) {
+        // Rafraîchir la liste des locations
+        const updatedRentals = await getAllRentals(currentUser.uid);
+        setRentals(updatedRentals);
+        setFilteredRentals(updatedRentals.filter(rental => 
+          rentalStatus === 'all' ? true : rental.status === rentalStatus
+        ));
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification des locations expirées:', error);
+      setSnackbarMessage('Erreur lors de la vérification des locations expirées');
+      setSnackbarSeverity('error');
+      setOpenSnackbar(true);
+    }
+  };
+
+  // Vérifier toutes les minutes
+  useInterval(checkAndCompleteExpiredRentals, 60000);
+
+  // Vérifier aussi au chargement initial
+  useEffect(() => {
+    checkAndCompleteExpiredRentals();
+  }, []);
 
   useEffect(() => {
     if (!currentUser?.uid) return;
@@ -522,6 +587,31 @@ const RentalList: React.FC<RentalListProps> = () => {
     }
   };
 
+  const handleCompleteRental = async (rental: RentalType) => {
+    try {
+      if (!currentUser || !rental.id) return;
+
+      // Mettre à jour le statut de la location
+      await updateRental(rental.id, {
+        ...rental,
+        status: 'completed',
+        endDate: Timestamp.now()
+      });
+
+      // Mettre à jour le statut du véhicule
+      await updateVehicle(rental.vehicleId, { status: 'available' });
+
+      // Rafraîchir la liste des locations
+      const updatedRentals = await getAllRentals(currentUser.uid);
+      setRentals(updatedRentals);
+      setFilteredRentals(updatedRentals.filter(rental => 
+        rentalStatus === 'all' ? true : rental.status === rentalStatus
+      ));
+    } catch (error) {
+      console.error('Erreur lors de la terminaison de la location:', error);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ 
@@ -676,121 +766,101 @@ const RentalList: React.FC<RentalListProps> = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRentals.map((rental) => {
-              const vehicle = vehicles.find(v => v.id === rental.vehicleId);
-              const customer = customers.find(c => c.id === rental.customerId);
-              const totalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
-
-              return (
-                <TableRow 
-                  key={rental.id}
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                      transition: 'background-color 0.2s ease'
-                    },
-                    '& td': {
-                      py: 2.5,
-                      px: 2
-                    }
-                  }}
-                >
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {format(rental.startDate.toDate(), 'dd/MM/yyyy')}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {format(rental.endDate.toDate(), 'dd/MM/yyyy')}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {customer && (
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            mr: 1.5,
-                            fontSize: '0.875rem',
-                            fontWeight: 500
-                          }}
-                        >
-                          {customer.firstName[0]}{customer.lastName[0]}
-                        </Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {customer.firstName} {customer.lastName}
-                        </Typography>
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {vehicle && (
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {vehicle.brand} {vehicle.model}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                      {totalAmount.toLocaleString()} DA
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={rental.status === 'active' ? 'En cours' : 
-                             rental.status === 'completed' ? 'Terminée' :
-                             rental.status === 'reservation' ? 'Réservation' : 'Annulée'}
-                      color={rental.status === 'active' ? 'success' :
-                             rental.status === 'completed' ? 'info' :
-                             rental.status === 'reservation' ? 'warning' : 'error'}
+            {filteredRentals.map((rental) => (
+              <TableRow 
+                key={rental.id}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                    transition: 'background-color 0.2s ease'
+                  },
+                  '& td': {
+                    py: 2.5,
+                    px: 2
+                  }
+                }}
+              >
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {format(rental.startDate.toDate(), 'dd/MM/yyyy')}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {format(rental.endDate.toDate(), 'dd/MM/yyyy')}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {customers.find((c) => c.id === rental.customerId)?.firstName}{' '}
+                  {customers.find((c) => c.id === rental.customerId)?.lastName}
+                </TableCell>
+                <TableCell>
+                  {vehicles.find((v) => v.id === rental.vehicleId)?.brand}{' '}
+                  {vehicles.find((v) => v.id === rental.vehicleId)?.model}
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                    {rental.totalCost.toLocaleString()} DA
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={rental.status === 'active' ? 'En cours' : 
+                           rental.status === 'completed' ? 'Terminée' :
+                           rental.status === 'reservation' ? 'Réservation' : 'Annulée'}
+                    color={rental.status === 'active' ? 'success' :
+                           rental.status === 'completed' ? 'info' :
+                           rental.status === 'reservation' ? 'warning' : 'error'}
+                    size="small"
+                    sx={{ minWidth: '100px' }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={rental.paymentStatus === 'paid' ? `Payé: ${rental.paidAmount} DA` :
+                           rental.paymentStatus === 'partial' ? `Partiel: ${rental.paidAmount} DA` : 'En attente'}
+                    color={rental.paymentStatus === 'paid' ? 'success' :
+                           rental.paymentStatus === 'partial' ? 'info' : 'warning'}
+                    size="small"
+                    sx={{ minWidth: '120px' }}
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    onClick={() => handleOpen(rental)}
+                    size="small"
+                    sx={{ 
+                      mr: 1,
+                      color: 'primary.main',
+                      '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => rental.id && handleDelete(rental.id)}
+                    size="small"
+                    sx={{ 
+                      color: 'error.main',
+                      '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.04)' }
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                  {rental.status === 'active' && (
+                    <Button
+                      variant="contained"
+                      color="primary"
                       size="small"
-                      sx={{ minWidth: '100px' }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={rental.paymentStatus === 'paid' ? `Payé: ${rental.paidAmount} DA` :
-                             rental.paymentStatus === 'partial' ? `Partiel: ${rental.paidAmount} DA` : 'En attente'}
-                      color={rental.paymentStatus === 'paid' ? 'success' :
-                             rental.paymentStatus === 'partial' ? 'info' : 'warning'}
-                      size="small"
-                      sx={{ minWidth: '120px' }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      onClick={() => handleOpen(rental)}
-                      size="small"
-                      sx={{ 
-                        mr: 1,
-                        color: 'primary.main',
-                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
-                      }}
+                      onClick={() => handleCompleteRental(rental)}
+                      sx={{ ml: 1 }}
                     >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => rental.id && handleDelete(rental.id)}
-                      size="small"
-                      sx={{ 
-                        color: 'error.main',
-                        '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.04)' }
-                      }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                      Terminer
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -1067,6 +1137,22 @@ const RentalList: React.FC<RentalListProps> = () => {
           </DialogActions>
         </form>
       </Dialog>
+
+      <Snackbar 
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setOpenSnackbar(false)} 
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

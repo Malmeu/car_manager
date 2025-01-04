@@ -72,7 +72,8 @@ const ExpenseManager: React.FC = () => {
   const [businessExpenses, setBusinessExpenses] = useState<BusinessExpense[]>([]);
   const [allVehicleExpenses, setAllVehicleExpenses] = useState<Expense[]>([]);
   const [rentals, setRentals] = useState<Rental[]>([]);
-  
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
   // Business expense form states
   const [businessDesignation, setBusinessDesignation] = useState('');
   const [businessAmount, setBusinessAmount] = useState('');
@@ -85,7 +86,7 @@ const ExpenseManager: React.FC = () => {
       fetchBusinessExpenses();
       fetchRentals();
     }
-  }, [currentUser]);
+  }, [currentUser, selectedYear]);
 
   useEffect(() => {
     if (currentUser) {
@@ -128,8 +129,8 @@ const ExpenseManager: React.FC = () => {
     if (!selectedCar || !currentUser) return;
 
     try {
-      const start = startOfMonth(new Date());
-      const end = endOfMonth(new Date());
+      const start = new Date(selectedYear, 0, 1);
+      const end = new Date(selectedYear, 11, 31);
 
       const expensesRef = collection(db, 'expenses');
       const q = query(
@@ -162,8 +163,8 @@ const ExpenseManager: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      const start = startOfMonth(new Date());
-      const end = endOfMonth(new Date());
+      const start = new Date(selectedYear, 0, 1);
+      const end = new Date(selectedYear, 11, 31);
 
       const expensesRef = collection(db, 'businessExpenses');
       const q = query(
@@ -195,8 +196,8 @@ const ExpenseManager: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      const start = startOfMonth(new Date());
-      const end = endOfMonth(new Date());
+      const start = new Date(selectedYear, 0, 1);
+      const end = new Date(selectedYear, 11, 31);
 
       const expensesRef = collection(db, 'expenses');
       const q = query(
@@ -208,19 +209,16 @@ const ExpenseManager: React.FC = () => {
 
       const querySnapshot = await getDocs(q);
       const expensesData: Expense[] = [];
-
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        const expense = {
+        expensesData.push({
           id: doc.id,
           name: data.name,
-          amount: Number(data.amount), // Utiliser Number au lieu de parseFloat
+          amount: data.amount,
           date: data.date.toDate(),
           carId: data.carId,
-        };
-        expensesData.push(expense);
+        });
       });
-
       setAllVehicleExpenses(expensesData);
     } catch (error) {
       console.error('Error fetching all vehicle expenses:', error);
@@ -231,16 +229,16 @@ const ExpenseManager: React.FC = () => {
     if (!currentUser) return;
     try {
       const rentalsData = await getAllRentals(currentUser.uid);
-      const start = startOfMonth(new Date());
-      const end = endOfMonth(new Date());
+      const start = new Date(selectedYear, 0, 1);
+      const end = new Date(selectedYear, 11, 31);
       
-      const currentMonthRentals = rentalsData.filter(rental => {
+      const currentYearRentals = rentalsData.filter(rental => {
         const rentalDate = rental.startDate.toDate();
         return rentalDate >= start && 
                rentalDate <= end;
       });
       
-      setRentals(currentMonthRentals);
+      setRentals(currentYearRentals);
     } catch (error) {
       console.error('Error fetching rentals:', error);
     }
@@ -399,9 +397,25 @@ const ExpenseManager: React.FC = () => {
 
   return (
     <Container maxWidth="lg">
-      <Typography variant="h4" gutterBottom>
-        Gestion des frais
-      </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Gestion des Frais
+        </Typography>
+        
+        <FormControl sx={{ minWidth: 120, mr: 2 }}>
+          <InputLabel id="year-select-label">Année</InputLabel>
+          <Select
+            labelId="year-select-label"
+            id="year-select"
+            value={selectedYear}
+            label="Année"
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+          >
+            <MenuItem value={2024}>2024</MenuItem>
+            <MenuItem value={2025}>2025</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
         <Tab label="Frais véhicules" />
