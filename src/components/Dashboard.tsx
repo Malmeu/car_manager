@@ -32,7 +32,7 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import LocalAtmIcon from '@mui/icons-material/LocalAtm';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { differenceInDays } from 'date-fns';
 import { getAllVehicles } from '../services/vehicleService';
@@ -42,6 +42,7 @@ import { getAllCustomers } from '../services/customerService';
 import { Person as PersonIcon, DirectionsCar as CarIcon, CalendarMonth as CalendarIcon, Add as AddIcon, Key as KeyIcon, Description as ContractIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { CalendarModal } from './Calendar';
+import { isSameMonth } from 'date-fns';
 
 // Définition des couleurs pastel
 const pastelColors = {
@@ -66,24 +67,38 @@ interface InfoCardProps {
 // Composant pour les cartes d'information
 const InfoCard: React.FC<InfoCardProps> = ({ title, value, icon: Icon, color, tooltip }) => {
   return (
-    <Paper sx={{ height: '100%', bgcolor: color, p: 2 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-            {title}
-            {tooltip && (
-              <Tooltip title={tooltip}>
-                <InfoIcon sx={{ ml: 1, fontSize: 16 }} />
-              </Tooltip>
-            )}
-          </Typography>
-          <Typography variant="h4" component="div" sx={{ mt: 1 }}>
-            {value}
-          </Typography>
+    <Card 
+      sx={{ 
+        minHeight: 160, 
+        display: 'flex', 
+        flexDirection: 'column',
+        bgcolor: color,
+        transition: 'all 0.3s ease-in-out',
+        '&:hover': {
+          transform: 'translateY(-5px)',
+          boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
+        }
+      }}
+    >
+      <CardContent>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+              {title}
+              {tooltip && (
+                <Tooltip title={tooltip}>
+                  <InfoIcon sx={{ ml: 1, fontSize: 16 }} />
+                </Tooltip>
+              )}
+            </Typography>
+            <Typography variant="h4" component="div" sx={{ mt: 1 }}>
+              {value}
+            </Typography>
+          </Box>
+          <Icon sx={{ fontSize: 40, opacity: 0.7 }} />
         </Box>
-        <Icon sx={{ fontSize: 40, opacity: 0.7 }} />
-      </Box>
-    </Paper>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -146,73 +161,52 @@ function Dashboard() {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (loading) return;
-      
-      if (!currentUser) {
-        setError('Utilisateur non connecté');
-        return;
-      }
+      if (!currentUser || loading) return;
 
       try {
         setError(null);
-        // Récupérer toutes les locations
-        const rentals = await getAllRentals(currentUser.uid);
-        
-        // Calculer les statistiques
-        const currentDate = new Date();
-        let activeRentalsAmount = 0;      // Montant total des locations actives
-        let partialPayments = 0;          // Paiements partiels
-        let remainingToCollect = 0;       // Reste à encaisser
-        let totalCashflow = 0;            // Total historique de la caisse
-        let currentRevenue = 0;           // Revenus encaissés des locations actives/réservations
-        
-        // Filtrer les locations actives et calculer les montants
-        const activeRentalsList = rentals.filter(rental => {
-          const endDate = rental.endDate.toDate();
-          const startDate = rental.startDate.toDate();
-          return endDate >= currentDate && rental.status === 'reservation';
-        });
+        // Récupérer les locations
+        const rentalsRef = collection(db, 'rentals');
+        const rentalsQuery = query(
+          rentalsRef,
+          where('userId', '==', currentUser.uid)
+        );
+        const rentalsSnapshot = await getDocs(rentalsQuery);
 
-        // Liste des locations en cours
-        const currentRentalsList = rentals.filter(rental => {
-          return rental.status === 'active';
-        });
+        let activeRentalsList: any[] = [];
+        let activeRentalsAmount = 0;
+        let partialPayments = 0;
+        let remainingToCollect = 0;
+        let totalCashflow = 0;
+        let currentRevenue = 0;
 
-        // Calculer les montants pour les réservations et locations actives
-        [...activeRentalsList, ...currentRentalsList].forEach(rental => {
-          const rentalAmount = rental.totalCost + (rental.additionalFees?.amount || 0);
-          const paidAmount = rental.paidAmount || 0;
-          
-          // Ajouter au montant total des locations actives
-          activeRentalsAmount += rentalAmount;
-          
-          // Calculer le reste à encaisser seulement pour les locations non payées
-          if ((rental.status === 'active' || rental.status === 'reservation') && 
-              rental.paymentStatus !== 'paid' && 
-              paidAmount < rentalAmount) {
-            remainingToCollect += rentalAmount - paidAmount;
-          }
-          
-          // Calculer les paiements partiels
-          if (paidAmount > 0 && paidAmount < rentalAmount && rental.paymentStatus === 'partial') {
-            partialPayments += paidAmount;
+        rentalsSnapshot.forEach((doc) => {
+          const rental = doc.data();
+          const totalAmount = (rental.totalCost || 0) + (rental.additionalFees?.amount || 0);
+          const paidAmount = rental.paymentStatus === 'paid' ? totalAmount : (rental.paidAmount || 0);
+
+          // Calculer le total de la caisse (somme de tous les paiements reçus)
+          totalCashflow += paidAmount;
+
+          if (rental.status === 'active') {
+            activeRentalsList.push(rental);
+            activeRentalsAmount += totalAmount;
+            
+            if (rental.paymentStatus === 'partial') {
+              partialPayments += paidAmount;
+              remainingToCollect += (totalAmount - paidAmount);
+            } else if (rental.paymentStatus === 'pending') {
+              remainingToCollect += totalAmount;
+            }
           }
 
-          // Ajouter aux revenus encaissés si un paiement a été reçu
-          if (paidAmount > 0) {
-            currentRevenue += paidAmount;
+          // Calculer les revenus du mois en cours
+          const rentalDate = rental.startDate.toDate();
+          if (isSameMonth(rentalDate, new Date()) && rental.paymentStatus === 'paid') {
+            currentRevenue += totalAmount;
           }
         });
 
-        // Calculer le total historique de la caisse (toutes les locations)
-        rentals.forEach(rental => {
-          const paidAmount = rental.paidAmount || 0;
-          if (paidAmount > 0) {
-            totalCashflow += paidAmount;
-          }
-        });
-
-        // Mettre à jour les stats
         setDashboardStats({
           activeRentalsAmount,
           partialPayments,
@@ -252,6 +246,25 @@ function Dashboard() {
 
     fetchDashboardData();
   }, [currentUser, loading]);
+
+  useEffect(() => {
+    const rentalsRef = collection(db, 'rentals');
+    
+    // Écouter les changements dans la collection rentals
+    const unsubscribe = onSnapshot(rentalsRef, (snapshot) => {
+      let total = 0;
+      snapshot.forEach((doc) => {
+        const rental = doc.data();
+        if (rental.paymentStatus === 'paid') {
+          total += rental.totalAmount || 0;
+        }
+      });
+      setDashboardStats(prevState => ({ ...prevState, totalCashflow: total }));
+    });
+
+    // Nettoyer l'écouteur
+    return () => unsubscribe();
+  }, []); // S'exécute une fois au montage
 
   if (loading) {
     return (

@@ -82,6 +82,12 @@ Transformer Car Manager en une application commercialisable et sécurisée
 
 ### 🎨 UX/UI
 - [x] Design de base responsive
+- [x] Menu d'accès rapide (SpeedDial)
+  - Nouveau client
+  - Nouveau véhicule
+  - Nouvelle location
+  - Nouveau contrat
+  - Calendrier des locations en modal
 - [ ] Mode hors-ligne
 - [ ] Thèmes personnalisables
 - [ ] Support multi-langues
@@ -105,11 +111,16 @@ Transformer Car Manager en une application commercialisable et sécurisée
 1. Développer le système de rôles
 
 ## 📝 Notes
-- Date de dernière mise à jour : 02/01/2025
+- Date de dernière mise à jour : 04/01/2025
 - Implémenté : Double authentification (2FA)
   - Génération de QR code pour configuration
   - Support des applications TOTP (Google Authenticator, Authy)
   - Vérification en deux étapes lors de la connexion
   - Possibilité de désactiver la 2FA
   - Interface utilisateur intuitive
+- Implémenté : Menu d'accès rapide (SpeedDial)
+  - Intégration dans le dashboard
+  - Actions principales accessibles en un clic
+  - Design moderne avec animations fluides
+  - Calendrier des locations en modal
 - Prochain objectif : Système de rôles (RBAC)
