@@ -38,6 +38,9 @@ import { subscriptionService } from '../../services/subscriptionService'; // Imp
 import VehicleDetailDialog from './VehicleDetailDialog'; // Import VehicleDetailDialog
 import { useNavigate } from 'react-router-dom';
 import { VehicleCard } from './VehicleCard';
+import ExportButton from '../common/ExportButton';
+import { prepareVehiclesForExport } from '../../services/exportService';
+import { format } from 'date-fns';
 
 const initialState: Omit<Vehicle, 'id'> = {
   userId: '',
@@ -344,31 +347,20 @@ const VehicleList: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Véhicules</Typography>
-        <Box display="flex" gap={2}>
-          <TextField
-            size="small"
-            placeholder="Rechercher un véhicule..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpen()}
-          >
-            Ajouter un véhicule
-          </Button>
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <ExportButton 
+          data={prepareVehiclesForExport(vehicles)}
+          fileName={`vehicules_${format(new Date(), 'dd-MM-yyyy')}`}
+          tooltipTitle="Exporter la liste des véhicules"
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpen()}
+        >
+          Ajouter un véhicule
+        </Button>
       </Box>
 
       <Grid container spacing={3}>

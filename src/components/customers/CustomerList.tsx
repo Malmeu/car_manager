@@ -52,6 +52,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
+import ExportButton from '../common/ExportButton';
+import { prepareCustomersForExport } from '../../services/exportService';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -387,35 +389,22 @@ const CustomerList: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Customers
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <TextField
-            size="small"
-            placeholder="Rechercher un client..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setEditingCustomer(null);
-              setOpen(true);
-            }}
-          >
-            Ajouter
-          </Button>
-        </Box>
+        <ExportButton 
+          data={prepareCustomersForExport(customers)}
+          fileName={`clients_${format(new Date(), 'dd-MM-yyyy')}`}
+          tooltipTitle="Exporter la liste des clients"
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => {
+            setEditingCustomer(null);
+            setOpen(true);
+          }}
+        >
+          Ajouter
+        </Button>
       </Box>
 
       <Box sx={{ mb: 4 }}>

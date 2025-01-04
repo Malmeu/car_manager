@@ -40,6 +40,8 @@ import { Contract, Customer, Vehicle, RentalType } from '../../types';
 import { ContractFormData } from '../../types/contract';
 import { useLocation } from 'react-router-dom';
 import useInterval from '../../hooks/useInterval';
+import ExportButton from '../common/ExportButton';
+import { prepareRentalsForExport } from '../../services/exportService';
 
 interface FormData {
   id?: string;
@@ -464,7 +466,7 @@ const RentalList: React.FC<RentalListProps> = () => {
       if (selectedVehicle && selectedVehicle.id) {
         try {
           await updateVehicle(selectedVehicle.id, {
-            status: 'rented',
+            status: formData.status === 'reservation' ? 'reservation' : 'rented',
             isAvailable: false
           });
           console.log('Statut du véhicule mis à jour');
@@ -618,9 +620,9 @@ const RentalList: React.FC<RentalListProps> = () => {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        mb: 4 
+        mb: 2 
       }}>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <ToggleButtonGroup
             value={rentalStatus}
             exclusive
@@ -659,6 +661,11 @@ const RentalList: React.FC<RentalListProps> = () => {
               Toutes
             </ToggleButton>
           </ToggleButtonGroup>
+          <ExportButton 
+            data={prepareRentalsForExport(rentals, vehicles, customers)}
+            fileName={`locations_${format(new Date(), 'dd-MM-yyyy')}`}
+            tooltipTitle="Exporter la liste des locations"
+          />
         </Box>
 
         <Button
